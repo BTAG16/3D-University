@@ -70,18 +70,18 @@ UNIVERSITY-3D/
 │   ├── data/
 │   ├── img/
 │   ├── Map/
-│   │   ├── App.jsx
-│   │   ├── Card.jsx
-│   │   ├── layout.jsx
-│   │   ├── main.jsx
-│   │   ├── MapboxTooltip.jsx
-│   │   ├── Marker.jsx
-│   │   ├── Modal.jsx
-│   │   ├── StaticMap.jsx
-│   │   ├── index.jsx
-│   │   ├── Js util.js
-│   │   └── styles.css
-│   └── .env
+│   │    ├── util.js
+│   │    └── index.jsx
+│   │── App.jsx
+│   │── Card.jsx
+│   │── layout.jsx
+│   │── main.jsx
+│   │── MapboxTooltip.jsx
+│   │── Marker.jsx
+│   │── Modal.jsx
+│   │── StaticMap.jsx
+│   └── styles.css
+│── .env
 ├── index.html
 ├── package.json
 ├── postcss.config.mjs
