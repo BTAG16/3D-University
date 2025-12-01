@@ -1,0 +1,10 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Global transitions */
+* {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}

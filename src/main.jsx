@@ -1,18 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import { PageShell } from '../mapbox-demo-components/src'
-
 import App from './App'
+import './index.css'
 
-const root = ReactDOM.createRoot(document.getElementById('root'))
-
-root.render(
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <PageShell>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </PageShell>
+    <App />
   </React.StrictMode>
 )

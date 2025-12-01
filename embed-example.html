@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Map - Embed Example</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+
+        .instructions h2 {
+            margin: 0 0 15px 0;
+            font-size: 20px;
+            color: #333;
+        }
+
+        .instructions ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 30px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .code-block code {
+            color: #f8f8f2;
+        }
+
+        .map-preview {
+            margin-bottom: 30px;
+        }
+
+        .map-preview h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .map-frame {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .feature-card h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .feature-card p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .note strong {
+            color: #856404;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+
+            .container {
+                border-radius: 0;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .map-frame {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Interactive Campus Map - Embed</h1>
+            <p>Simplified embeddable version for external websites</p>
+        </div>
+
+        <div class="content">
+            <div class="instructions">
+                <h2>📋 How to Embed</h2>
+                <ol>
+                    <li>Copy the iframe code below</li>
+                    <li>Replace <code>YOUR_UNIVERSITY_ID</code> with your actual university ID</li>
+                    <li>Paste the code into your website's HTML</li>
+                    <li>Adjust the width and height as needed</li>
+                </ol>
+            </div>
+
+            <div class="code-block">
+<code>&lt;!-- Embeddable Campus Map --&gt;
+&lt;iframe 
+    src="https://subtransverse-intertwistingly-glenda.ngrok-free.dev/embed?uni=f168d4b4-d7c5-4d43-91b2-4b3717fc6c33"
+    width="100%"
+    height="600"
+    frameborder="0"
+    style="border: none; border-radius: 8px;"
+    allow="geolocation *"
+    title="Campus Map"
+&gt;&lt;/iframe&gt;</code>
+            </div>
+
+            <div class="note">
+                <strong>⚠️ Important:</strong> The <code>allow="geolocation *"</code> attribute enables location detection in the iframe. Users can manually enable location using the "Enable Location" button if automatic detection doesn't work.
+            </div>
+
+            <div class="map-preview">
+                <h3>📍 Preview</h3>
+                <!-- Example embed - Replace YOUR_UNIVERSITY_ID with actual ID -->
+                <iframe 
+                    src="https://subtransverse-intertwistingly-glenda.ngrok-free.dev/embed?uni=f168d4b4-d7c5-4d43-91b2-4b3717fc6c33"
+                    class="map-frame"
+                    frameborder="0"
+                    allow="geolocation *"
+                    title="Campus Map Preview"
+                ></iframe>
+            </div>
+
+            <div class="features">
+                <div class="feature-card">
+                    <h4>🎯 Auto Location</h4>
+                    <p>Automatically requests user location for personalized navigation and distance calculations.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🏢 Click Buildings</h4>
+                    <p>Users can click any building on the map to view summarized information.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🧭 Navigation</h4>
+                    <p>Get directions from user's location or open in Google Maps for turn-by-turn guidance.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔗 Full Features Link</h4>
+                    <p>Each building detail includes a link to the full interactive map with search and all features.</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #e0e0e0;">
+                <h3>🎨 Customization Options</h3>
+                <div class="code-block">
+<code>&lt;!-- Responsive embed with custom styling --&gt;
+&lt;div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;"&gt;
+    &lt;iframe 
+        src="https://subtransverse-intertwistingly-glenda.ngrok-free.dev/embed?uni=f168d4b4-d7c5-4d43-91b2-4b3717fc6c33"
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+        allow="geolocation *"
+        title="Campus Map"
+    &gt;&lt;/iframe&gt;
+&lt;/div&gt;</code>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

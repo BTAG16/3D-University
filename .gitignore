@@ -1,12 +1,28 @@
-# Dependencies
-node_modules/
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Production builds
-dist/
-build/
+# Dependencies
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # Environment variables
 .env
@@ -15,21 +31,23 @@ build/
 .env.test.local
 .env.production.local
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
+# Build outputs
+build
+*.tsbuildinfo
 
-# OS generated files
+# Cache
+.cache
+.parcel-cache
+.eslintcache
+
+# Vercel
+.vercel
+
+# Deployment setup (contains secrets)
+SETUP.md
+
+# macOS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
-# Logs
-logs
-*.log
+# Husky
+.husky

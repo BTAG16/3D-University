@@ -1,0 +1,219 @@
+.room-timetable {
+  margin-top: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.timetable-header {
+  margin-bottom: 15px;
+}
+
+.timetable-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.services-legend {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.services-legend strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #007bff;
+  font-size: 14px;
+}
+
+.services-legend ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.services-legend li {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.timetable-grid-container {
+  overflow-x: auto;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.timetable-grid {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.timetable-grid thead {
+  background: #007bff;
+  color: white;
+}
+
+.timetable-grid th {
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid #0056b3;
+  white-space: nowrap;
+}
+
+.timetable-grid th.day-column {
+  width: 120px;
+  background: #0056b3;
+}
+
+.timetable-grid td {
+  padding: 12px 15px;
+  border: 1px solid #dee2e6;
+  vertical-align: top;
+  min-width: 150px;
+}
+
+.timetable-grid td.day-label {
+  font-weight: 600;
+  background: #f8f9fa;
+  color: #333;
+  white-space: nowrap;
+}
+
+.timetable-grid td.has-service {
+  background: #e7f3ff;
+}
+
+.timetable-grid td.no-service {
+  background: #fafafa;
+  text-align: center;
+  color: #ccc;
+}
+
+.slot-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.service-item {
+  padding: 6px 10px;
+  background: white;
+  border-left: 3px solid #007bff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.no-service-indicator {
+  font-size: 18px;
+  color: #ddd;
+  font-weight: bold;
+}
+
+.timetable-notes {
+  margin-top: 15px;
+  padding: 12px 15px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: #856404;
+  line-height: 1.5;
+}
+
+.timetable-notes svg {
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: #ffc107;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .room-timetable {
+    padding: 15px;
+  }
+
+  .timetable-header h3 {
+    font-size: 16px;
+  }
+
+  .services-legend {
+    padding: 12px;
+  }
+
+  .services-legend strong {
+    font-size: 13px;
+  }
+
+  .services-legend li {
+    font-size: 12px;
+  }
+
+  .timetable-grid {
+    font-size: 12px;
+    min-width: 500px;
+  }
+
+  .timetable-grid th,
+  .timetable-grid td {
+    padding: 8px 10px;
+    min-width: 120px;
+  }
+
+  .timetable-grid th {
+    font-size: 12px;
+  }
+
+  .timetable-grid th.day-column {
+    width: 90px;
+  }
+
+  .service-item {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .timetable-notes {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .room-timetable {
+    background: white;
+    border: 1px solid #000;
+    page-break-inside: avoid;
+  }
+
+  .timetable-grid th {
+    background: #333 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .timetable-grid td.has-service {
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

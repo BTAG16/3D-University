@@ -1,0 +1,41 @@
+/* Feature Showcase Styles - Add these after the card styles */
+
+.feature-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px 0;
+}
+
+.showcase-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.showcase-item svg {
+  font-size: 1.5rem;
+  color: #667eea;
+}
+
+.showcase-item span {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.showcase-item:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateX(5px);
+}
+
+@media (max-width: 768px) {
+  .btn-demo-large {
+    width: 100%;
+    justify-content: center;
+  }
+}
