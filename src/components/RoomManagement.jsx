@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faDoorOpen, faPlus, faUpload, faEdit, faTrash, faStar, faSearch,
-  faTimes, faDownload, faFileExcel, faExclamationTriangle, faCheckCircle
+  faTimes, faDownload, faFileExcel, faExclamationTriangle, faCheckCircle, faCheck
 } from '@fortawesome/free-solid-svg-icons'
 import RoomEditModal from './RoomEditModal'
 import './RoomManagement.css'
@@ -17,6 +17,8 @@ function RoomManagement({ universityId, buildings, onClose }) {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [editingRoom, setEditingRoom] = useState(null)
+  const [selectedRooms, setSelectedRooms] = useState([])
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   // Load rooms on mount
   useEffect(() => {
@@ -124,6 +126,53 @@ function RoomManagement({ universityId, buildings, onClose }) {
     }
   }
 
+  const toggleRoomSelection = (roomId) => {
+    setSelectedRooms(prev => {
+      if (prev.includes(roomId)) {
+        return prev.filter(id => id !== roomId)
+      } else {
+        return [...prev, roomId]
+      }
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedRooms.length === filteredRooms.length) {
+      setSelectedRooms([])
+    } else {
+      setSelectedRooms(filteredRooms.map(r => r.id))
+    }
+  }
+
+  const handleBulkDelete = () => {
+    if (selectedRooms.length === 0) {
+      setError('Please select at least one room to delete')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+    setBulkDeleteConfirm(true)
+  }
+
+  const confirmBulkDelete = async () => {
+    try {
+      const { dbService } = await import('../lib/dbService')
+      
+      const deletePromises = selectedRooms.map(roomId => 
+        dbService.deleteRoom(roomId)
+      )
+      
+      await Promise.all(deletePromises)
+      setSuccess(`Successfully deleted ${selectedRooms.length} room${selectedRooms.length > 1 ? 's' : ''}`)
+      loadRooms()
+      setSelectedRooms([])
+      setBulkDeleteConfirm(false)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (error) {
+      setError(`Error deleting rooms: ${error.message}`)
+      setBulkDeleteConfirm(false)
+    }
+  }
+
   const downloadCSVTemplate = () => {
     const csv = 'room_number,room_name,building_name\nF-001,Computer Lab,F Building\nF-002,Lecture Hall,F Building\nP-101,Dean Office,P Building'
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -222,6 +271,17 @@ function RoomManagement({ universityId, buildings, onClose }) {
                   />
                 </div>
               </div>
+              {selectedRooms.length > 0 && (
+                <div className="filter-group">
+                  <button 
+                    className="btn-bulk-delete-rooms" 
+                    onClick={handleBulkDelete}
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                    Delete Selected ({selectedRooms.length})
+                  </button>
+                </div>
+              )}
             </div>
 
             {loading ? (
@@ -237,62 +297,96 @@ function RoomManagement({ universityId, buildings, onClose }) {
                 </p>
               </div>
             ) : (
-              <div className="rooms-table-container">
-                <table className="rooms-table">
-                  <thead>
-                    <tr>
-                      <th>Room Number</th>
-                      <th>Room Name</th>
-                      <th>Building</th>
-                      <th>Type</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRooms.map(room => (
-                      <tr key={room.id}>
-                        <td className="room-number">{room.room_number}</td>
-                        <td>{room.room_name}</td>
-                        <td>{room.building?.name || getBuildingName(room.building_id)}</td>
-                        <td>
-                          {room.is_office ? (
-                            <span className="office-badge">
-                              <FontAwesomeIcon icon={faStar} /> Office
-                            </span>
-                          ) : (
-                            <span className="room-badge">Room</span>
-                          )}
-                        </td>
-                        <td>
-                          <div className="room-actions">
-                            <button
-                              className="btn-icon"
-                              onClick={() => handleToggleOffice(room)}
-                              title={room.is_office ? 'Remove office status' : 'Mark as office'}
-                            >
-                              <FontAwesomeIcon icon={faStar} />
-                            </button>
-                            <button
-                              className="btn-icon edit"
-                              onClick={() => setEditingRoom(room)}
-                              title="Edit room"
-                            >
-                              <FontAwesomeIcon icon={faEdit} />
-                            </button>
-                            <button
-                              className="btn-icon delete"
-                              onClick={() => handleDeleteRoom(room.id)}
-                              title="Delete room"
-                            >
-                              <FontAwesomeIcon icon={faTrash} />
-                            </button>
-                          </div>
-                        </td>
+              <>
+                <div className="room-bulk-select-bar">
+                  <label className="room-select-all-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedRooms.length === filteredRooms.length && filteredRooms.length > 0}
+                      onChange={toggleSelectAll}
+                    />
+                    <span>Select All ({filteredRooms.length})</span>
+                  </label>
+                </div>
+                <div className="rooms-table-container">
+                  <table className="rooms-table">
+                    <thead>
+                      <tr>
+                        <th className="checkbox-column">
+                          <input
+                            type="checkbox"
+                            checked={selectedRooms.length === filteredRooms.length && filteredRooms.length > 0}
+                            onChange={toggleSelectAll}
+                          />
+                        </th>
+                        <th>Room Number</th>
+                        <th>Room Name</th>
+                        <th>Building</th>
+                        <th>Type</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredRooms.map(room => (
+                        <tr 
+                          key={room.id} 
+                          className={selectedRooms.includes(room.id) ? 'selected' : ''}
+                        >
+                          <td className="checkbox-column">
+                            <label className="room-checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={selectedRooms.includes(room.id)}
+                                onChange={() => toggleRoomSelection(room.id)}
+                              />
+                              <span className="room-checkbox-custom">
+                                <FontAwesomeIcon icon={faCheck} />
+                              </span>
+                            </label>
+                          </td>
+                          <td className="room-number">{room.room_number}</td>
+                          <td>{room.room_name}</td>
+                          <td>{room.building?.name || getBuildingName(room.building_id)}</td>
+                          <td>
+                            {room.is_office ? (
+                              <span className="office-badge">
+                                <FontAwesomeIcon icon={faStar} /> Office
+                              </span>
+                            ) : (
+                              <span className="room-badge">Room</span>
+                            )}
+                          </td>
+                          <td>
+                            <div className="room-actions">
+                              <button
+                                className="btn-icon"
+                                onClick={() => handleToggleOffice(room)}
+                                title={room.is_office ? 'Remove office status' : 'Mark as office'}
+                              >
+                                <FontAwesomeIcon icon={faStar} />
+                              </button>
+                              <button
+                                className="btn-icon edit"
+                                onClick={() => setEditingRoom(room)}
+                                title="Edit room"
+                              >
+                                <FontAwesomeIcon icon={faEdit} />
+                              </button>
+                              <button
+                                className="btn-icon delete"
+                                onClick={() => handleDeleteRoom(room.id)}
+                                title="Delete room"
+                              >
+                                <FontAwesomeIcon icon={faTrash} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -335,6 +429,27 @@ function RoomManagement({ universityId, buildings, onClose }) {
           onSave={handleEditRoom}
           onCancel={() => setEditingRoom(null)}
         />
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-confirm">
+              <h2>Delete {selectedRooms.length} Room{selectedRooms.length > 1 ? 's' : ''}?</h2>
+              <p>Are you sure you want to delete these rooms? This action cannot be undone.</p>
+              <div className="confirm-buttons">
+                <button className="btn-cancel" onClick={() => setBulkDeleteConfirm(false)}>
+                  Cancel
+                </button>
+                <button className="btn-delete-confirm" onClick={confirmBulkDelete}>
+                  <FontAwesomeIcon icon={faTrash} />
+                  Delete All
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

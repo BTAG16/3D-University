@@ -45,9 +45,7 @@ function RoomsList({ buildingId, buildingName, onClose }) {
           <FontAwesomeIcon icon={faDoorOpen} className="header-icon" />
           <h2>Rooms in {buildingName}</h2>
         </div>
-        <button className="btn-close-rooms" onClick={onClose}>
-          <FontAwesomeIcon icon={faTimes} />
-        </button>
+        
       </div>
 
       <div className="rooms-list-content">

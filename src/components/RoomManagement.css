@@ -122,6 +122,28 @@
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-bulk-delete-rooms {
+  padding: 10px 20px;
+  background: var(--danger-color, #dc3545);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.btn-bulk-delete-rooms:hover {
+  background: #c82333;
+  transform: translateY(-2px);
 }
 
 .filter-group {
@@ -191,6 +213,174 @@
 .rooms-table tbody tr {
   border-bottom: 1px solid var(--border-color, #e0e0e0);
   transition: background 0.2s;
+}
+
+.rooms-table tbody tr.selected {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.checkbox-column {
+  width: 50px;
+  text-align: center;
+}
+
+.room-checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.room-checkbox-label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  width: 0;
+  height: 0;
+}
+
+.room-checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #000;
+  border-radius: 4px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.room-checkbox-label input[type="checkbox"]:checked ~ .room-checkbox-custom {
+  background: var(--primary-color, #007bff);
+  border-color: #000;
+}
+
+.room-checkbox-custom svg {
+  color: white;
+  font-size: 12px;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.2s ease;
+}
+
+.room-checkbox-label input[type="checkbox"]:checked ~ .room-checkbox-custom svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.room-checkbox-label:hover .room-checkbox-custom {
+  border-color: var(--primary-color, #007bff);
+}
+
+.room-bulk-select-bar {
+  background: var(--card-bg, #fff);
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.room-select-all-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  font-size: 14px;
+}
+
+.room-select-all-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color, #007bff);
+}
+
+.room-select-all-checkbox span {
+  user-select: none;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.delete-confirm {
+  padding: 30px;
+  text-align: center;
+}
+
+.delete-confirm h2 {
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  color: var(--text-primary, #333);
+}
+
+.delete-confirm p {
+  margin: 0 0 25px 0;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-cancel {
+  padding: 10px 24px;
+  background: var(--border-color, #e0e0e0);
+  color: var(--text-primary, #333);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #d0d0d0;
+}
+
+.btn-delete-confirm {
+  padding: 10px 24px;
+  background: var(--danger-color, #dc3545);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-delete-confirm:hover {
+  background: #c82333;
 }
 
 .rooms-table tbody tr:hover {
@@ -606,5 +796,41 @@
 
   .results-summary {
     flex-direction: column;
+  }
+
+  .btn-bulk-delete-rooms {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .list-filters {
+    flex-direction: column;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .room-bulk-select-bar {
+    padding: 10px 12px;
+  }
+
+  .rooms-table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .checkbox-column {
+    width: 40px;
+  }
+
+  .confirm-buttons {
+    flex-direction: column;
+  }
+
+  .btn-cancel,
+  .btn-delete-confirm {
+    width: 100%;
+    justify-content: center;
   }
 }

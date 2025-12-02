@@ -363,6 +363,17 @@
 }
 
 @media (max-width: 768px) {
+  .btn-back-to-landing {
+    top: 10px;
+    left: 10px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .btn-back-to-landing span {
+    display: none;
+  }
+
   .btn-super-admin-access {
     top: 10px;
     right: 10px;

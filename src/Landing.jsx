@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Play, Check, Menu, X, Star, Globe, Shield, Zap } from 'lucide-react';
-import { InteractiveMap } from './components/InteractiveMap';
+import { ChevronRight, Play, Check, Menu, X, Star, Globe, Shield, Zap, Home } from 'lucide-react';
+
 import { MagneticButton } from './components/ui/MagneticButton';
+import { useAdminAuth } from './AdminAuthContext';
 import { FEATURES, STATS, TESTIMONIALS, PRICING } from './constants';
 import './Landing.css';
 
@@ -16,6 +17,7 @@ const Landing = () => {
   });
 
   const navigate = useNavigate();
+  const { adminSession } = useAdminAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
@@ -76,17 +78,38 @@ const Landing = () => {
 
           {/* Desktop Nav */}
           <div className="md-flex items-center gap-8" style={{ display: 'none' }}>
-            {/* The md-flex class in CSS handles display:flex on desktop, overriding style display:none */}
             <a href="#features" className="nav-link">Features</a>
             <a href="#benefits" className="nav-link">Benefits</a>
-            <a href="#testimonials" className="nav-link">Stories</a>
-            <a href="#pricing" className="nav-link">Pricing</a>
-            <MagneticButton variant="outline" className="text-xs" style={{ padding: '0.5rem 1.5rem' }}>
-              Sign In
-            </MagneticButton>
-            <MagneticButton className="text-xs" style={{ padding: '0.5rem 1.5rem' }}>
-              Get Started
-            </MagneticButton>
+            {/* <a href="#testimonials" className="nav-link">Stories</a>
+            <a href="#pricing" className="nav-link">Pricing</a> */}
+            
+            {adminSession ? (
+              <MagneticButton 
+                onClick={() => navigate(adminSession.user.isSuperAdmin ? '/super-admin/dashboard' : '/admin/dashboard')}
+                className="text-xs" 
+                style={{ padding: '0.5rem 1.5rem' }}
+              >
+                <Home size={16} /> View Dashboard
+              </MagneticButton>
+            ) : (
+              <>
+                <MagneticButton 
+                  variant="outline" 
+                  className="text-xs" 
+                  style={{ padding: '0.5rem 1.5rem' }}
+                  onClick={() => navigate("/admin/login")}
+                >
+                  Sign In
+                </MagneticButton>
+                <MagneticButton 
+                  className="text-xs" 
+                  style={{ padding: '0.5rem 1.5rem' }}
+                  onClick={() => navigate("/admin/login")}
+                >
+                  Get Started
+                </MagneticButton>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -109,10 +132,33 @@ const Landing = () => {
             <div className="flex flex-col gap-6" style={{ fontSize: '1.25rem', fontWeight: 500 }}>
               <a href="#features" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Features</a>
               <a href="#benefits" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Benefits</a>
-              <a href="#testimonials" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Testimonials</a>
+              {/* <a href="#testimonials" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Testimonials</a>
               <a href="#pricing" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Pricing</a>
-              <hr style={{ borderColor: '#1f2937' }} />
-              <MagneticButton className="justify-center" style={{ width: '100%' }}>Get Started Free</MagneticButton>
+              <hr style={{ borderColor: '#1f2937' }} /> */}
+              
+              {adminSession ? (
+                <MagneticButton 
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    navigate(adminSession.user.isSuperAdmin ? '/super-admin/dashboard' : '/admin/dashboard');
+                  }}
+                  className="justify-center" 
+                  style={{ width: '100%' }}
+                >
+                  <Home size={16} /> View Dashboard
+                </MagneticButton>
+              ) : (
+                <MagneticButton 
+                  className="justify-center" 
+                  style={{ width: '100%' }}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    navigate("/admin/login");
+                  }}
+                >
+                  Get Started Free
+                </MagneticButton>
+              )}
             </div>
           </motion.div>
         )}
@@ -120,70 +166,59 @@ const Landing = () => {
 
       {/* Hero Section */}
       <section className="hero-section container">
-        <div className="grid grid-cols-1 lg-grid-cols-2 gap-12 items-center">
-          <div style={{ position: 'relative', zIndex: 10 }}>
-            
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-5xl md-text-7xl font-extrabold"
-              style={{ lineHeight: 1.1, marginBottom: '1.5rem', letterSpacing: '-0.025em' }}
-            >
-              Explore Campus <br />
-              <span className="heading-gradient">
-                In a New Dimension
-              </span>
-            </motion.h1>
-            
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-muted md-text-xl"
-              style={{ marginBottom: '2rem', maxWidth: '32rem', lineHeight: 1.625, fontSize: '1.125rem' }}
-            >
-              Empower students with immersive 3D maps, real-time navigation, and instant room search. The digital twin your university deserves.
-            </motion.p>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex"
-              style={{ flexWrap: 'wrap', gap: '1rem' }}
-            >
-              <MagneticButton onClick={() => navigate("/admin/login")}>
-                Get Started Free <ChevronRight size={16} />
-              </MagneticButton>
-              <MagneticButton variant="outline"  onClick={() => navigate("/demo")}>
-                <Play size={16} fill="currentColor" /> Try Demo
-              </MagneticButton>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              className="flex items-center gap-4 text-muted text-sm"
-              style={{ marginTop: '3rem' }}
-            >
-              <div className="flex" style={{ marginLeft: '0.75rem' }}>
-                {[1, 2, 3, 4].map((i) => (
-                  <img key={i} src={`https://picsum.photos/40/40?random=${i}`} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', border: '2px solid var(--bg-dark)', marginLeft: '-0.75rem' }} alt="User" />
-                ))}
-              </div>
-              <p>Trusted by 500+ universities worldwide</p>
-            </motion.div>
-          </div>
+        <div className="hero-content" style={{ maxWidth: '56rem', margin: '0 auto', textAlign: 'center' }}>
+          
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-5xl md-text-7xl font-extrabold"
+            style={{ lineHeight: 1.1, marginBottom: '1.5rem', letterSpacing: '-0.025em' }}
+          >
+            Explore Campus <br />
+            <span className="heading-gradient">
+              In a New Dimension
+            </span>
+          </motion.h1>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-muted md-text-xl"
+            style={{ marginBottom: '2rem', maxWidth: '42rem', lineHeight: 1.625, fontSize: '1.125rem', margin: '0 auto 2rem' }}
+          >
+            Empower students with immersive 3D maps, real-time navigation, and instant room search. The digital twin your university deserves.
+          </motion.p>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex"
+            style={{ flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}
+          >
+            <MagneticButton onClick={() => navigate("/admin/login")}>
+              Get Started<ChevronRight size={16} />
+            </MagneticButton>
+            <MagneticButton variant="outline"  onClick={() => navigate("/demo")}>
+              <Play size={16} fill="currentColor" /> Try Demo
+            </MagneticButton>
+          </motion.div>
 
           <motion.div 
-            initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ duration: 1, type: "spring" }}
-            style={{ position: 'relative', zIndex: 10 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="flex items-center gap-4 text-muted text-sm"
+            style={{ marginTop: '3rem', justifyContent: 'center' }}
           >
-            <InteractiveMap />
+            <div className="flex" style={{ marginLeft: '0.75rem' }}>
+              {[1, 2, 3, 4].map((i) => (
+                <img key={i} src={`https://picsum.photos/40/40?random=${i}`} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', border: '2px solid var(--bg-dark)', marginLeft: '-0.75rem' }} alt="User" />
+              ))}
+            </div>
+            <p>Empower your institution with the future of campus navigation.</p>
           </motion.div>
         </div>
 
@@ -243,25 +278,25 @@ const Landing = () => {
             <motion.div 
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="glass-card"
+              className="glass-card floating-widget"
               style={{ position: 'absolute', right: '-2rem', bottom: '-2rem', padding: '1rem', borderRadius: '0.75rem', zIndex: 20, width: '12rem' }}
             >
               <div className="flex items-center gap-2" style={{ marginBottom: '0.5rem' }}>
                 <div style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', backgroundColor: '#4ade80' }}></div>
                 <span className="text-xs font-bold">Class in 10 min</span>
               </div>
-              <div className="text-xs text-muted">Route optimized for lowest walking time.</div>
+              <div className="text-xs text-muted">Smart paths tailored to your university’s layout.</div>
             </motion.div>
           </motion.div>
           
           <div style={{ paddingLeft: '2rem' }}>
-            <h2 className="text-3xl md-text-4xl font-bold" style={{ marginBottom: '2rem' }}>Why top universities choose us</h2>
+            <h2 className="text-3xl md-text-4xl font-bold" style={{ marginBottom: '2rem' }}>Why you should choose us</h2>
             <div className="flex flex-col gap-6">
               {[
-                { title: "Increase Student Engagement", desc: "Interactive maps gamify the campus discovery process." },
-                { title: "Reduce Administrative Load", desc: "Automated timetables reduce 'where is my class' emails." },
-                { title: "Accessibility Compliance", desc: "Native support for wheelchair-friendly routing." },
-                { title: "Real-time Event Updates", desc: "Push temporary closures or event locations instantly." },
+                { title: "Increase Student Engagement", desc: "Interactive maps simplifies the campus discovery process." },
+                { title: "Reduce Administrative Load", desc: "Easily create and manage a fully interactive 3D campus interface with minimal technical expertise." },
+                { title: "Tailored Search Experience", desc: "A campus-specific search engine built around your university’s unique structure, terminology, and locations." },
+                { title: "Real-time Event Updates", desc: "Easily set and manage schedules for campus offices, keeping students and staff informed." },
               ].map((item, i) => (
                 <motion.div 
                   key={i}
@@ -282,14 +317,14 @@ const Landing = () => {
               ))}
             </div>
             <div style={{ marginTop: '2.5rem' }}>
-              <MagneticButton>Schedule a Consultation</MagneticButton>
+              <MagneticButton onClick={() => navigate("/admin/login")}>Schedule a Consultation</MagneticButton>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section style={{ padding: '5rem 0', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+      {/* Stats */}
+      {/* <section style={{ padding: '5rem 0', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
         <div className="container grid grid-cols-2 md-grid-cols-4 gap-8">
           {STATS.map((stat, idx) => (
             <motion.div
@@ -316,20 +351,20 @@ const Landing = () => {
             </motion.div>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* Testimonials */}
-      <section id="testimonials" className="section-padding" style={{ overflow: 'hidden' }}>
+      {/* <section id="testimonials" className="section-padding" style={{ overflow: 'hidden' }}>
         <div className="container text-center" style={{ marginBottom: '4rem' }}>
           <h2 className="text-3xl md-text-5xl font-bold">Loved by admins & students</h2>
         </div>
         
         <div style={{ position: 'relative' }}>
-          {/* Gradient Masks */}
+        
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '8rem', background: 'linear-gradient(to right, var(--bg-dark), transparent)', zIndex: 10 }}></div>
           <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '8rem', background: 'linear-gradient(to left, var(--bg-dark), transparent)', zIndex: 10 }}></div>
 
-          {/* Marquee */}
+          
           <motion.div 
             className="flex gap-6"
             style={{ width: 'max-content' }}
@@ -353,13 +388,13 @@ const Landing = () => {
             ))}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* Pricing */}
-      <section id="pricing" className="section-padding container">
+      {/* <section id="pricing" className="section-padding container">
         <div className="text-center" style={{ marginBottom: '5rem' }}>
-          <h2 className="text-3xl md-text-5xl font-bold" style={{ marginBottom: '1rem' }}>Transparent Pricing</h2>
-          <p className="text-muted">Choose the plan that fits your campus size.</p>
+          <h2 className="text-3xl md-text-5xl font-bold" style={{ marginBottom: '1rem' }}>Simple, Transparent Pricing</h2>
+          <p className="text-muted">Choose the plan that fits your campus needs.</p>
         </div>
 
         <div className="grid grid-cols-1 md-grid-cols-3 gap-8" style={{ alignItems: 'flex-start' }}>
@@ -400,6 +435,7 @@ const Landing = () => {
                 variant={tier.recommended ? 'primary' : 'outline'} 
                 className="justify-center"
                 style={{ width: '100%' }}
+                onClick={() => navigate("/admin/login")}
               >
                 Choose {tier.name}
               </MagneticButton>
@@ -427,7 +463,10 @@ const Landing = () => {
           <p className="text-xl text-muted" style={{ marginBottom: '2.5rem', maxWidth: '42rem', margin: '0 auto 2.5rem' }}>
             Join the forward-thinking universities that are redefining student navigation today.
           </p>
-          <MagneticButton style={{ padding: '1.25rem 2.5rem', fontSize: '1.125rem' }}>
+          <MagneticButton 
+            style={{ padding: '1.25rem 2.5rem', fontSize: '1.125rem' }}
+            onClick={() => navigate("/admin/login")}
+          >
             Start Your Free Trial
           </MagneticButton>
           

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSave, faTimes, faPlus, faTrash, faDoorOpen, faStar } from '@fortawesome/free-solid-svg-icons'
+import { faSave, faTimes, faStar, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons'
 import './BuildingForm.css'
 
 function BuildingForm({ building, onSave, onCancel }) {
@@ -16,7 +16,6 @@ function BuildingForm({ building, onSave, onCancel }) {
     isAdminBuilding: false
   })
 
-  const [keyOffices, setKeyOffices] = useState([])
   const [officeRooms, setOfficeRooms] = useState([])
   const [errors, setErrors] = useState({})
   const [loadingRooms, setLoadingRooms] = useState(false)
@@ -34,15 +33,6 @@ function BuildingForm({ building, onSave, onCancel }) {
         hours: building.hours || '',
         isAdminBuilding: building.is_admin_building || building.isAdminBuilding || false
       })
-      // Handle both snake_case (from DB) and camelCase (from local state)
-      const offices = building.key_offices || building.keyOffices || []
-      setKeyOffices(offices.map(office => ({
-        id: office.id || Date.now().toString() + Math.random(),
-        name: office.name || '',
-        purpose: office.purpose || '',
-        hours: office.hours || '',
-        roomNumber: office.room_number || office.roomNumber || ''
-      })))
       
       // Load office rooms from the new rooms system
       loadOfficeRooms(building.id)
@@ -87,31 +77,6 @@ function BuildingForm({ building, onSave, onCancel }) {
     }
   }
 
-  const addKeyOffice = () => {
-    setKeyOffices([
-      ...keyOffices,
-      {
-        id: Date.now().toString(),
-        name: '',
-        purpose: '',
-        hours: '',
-        roomNumber: ''
-      }
-    ])
-  }
-
-  const removeKeyOffice = (id) => {
-    setKeyOffices(keyOffices.filter((office) => office.id !== id))
-  }
-
-  const updateKeyOffice = (id, field, value) => {
-    setKeyOffices(
-      keyOffices.map((office) =>
-        office.id === id ? { ...office, [field]: value } : office
-      )
-    )
-  }
-
   const validate = () => {
     const newErrors = {}
 
@@ -137,13 +102,6 @@ function BuildingForm({ building, onSave, onCancel }) {
       }
     }
 
-    // Validate key offices (only if name is provided)
-    keyOffices.forEach((office, index) => {
-      if (office.name.trim() && !office.purpose.trim()) {
-        newErrors[`office_purpose_${index}`] = 'Purpose is required when office name is provided'
-      }
-    })
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -152,11 +110,6 @@ function BuildingForm({ building, onSave, onCancel }) {
     e.preventDefault()
 
     if (!validate()) return
-
-    // Filter out empty key offices
-    const validKeyOffices = keyOffices.filter(
-      (office) => office.name.trim() && office.purpose.trim()
-    )
 
     const buildingData = {
       name: formData.name.trim(),
@@ -172,7 +125,6 @@ function BuildingForm({ building, onSave, onCancel }) {
         .map((d) => d.trim())
         .filter((d) => d),
       hours: formData.hours.trim(),
-      keyOffices: validKeyOffices,
       isAdminBuilding: formData.isAdminBuilding,
       is_admin_building: formData.isAdminBuilding // Also include snake_case version
     }
@@ -298,33 +250,52 @@ function BuildingForm({ building, onSave, onCancel }) {
           />
         </div>
 
-        <div className="form-group checkbox-group">
+        {/* ADMINISTRATIVE BUILDING CHECKBOX - HIGHLIGHTED */}
+        <div className={`form-group checkbox-group ${formData.isAdminBuilding ? 'active' : ''}`}>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
-              name="isAdminBuilding"
-              checked={formData.isAdminBuilding}
-              onChange={handleChange}
-            />
-            <span>Mark as Main Administrative Building</span>
+            <div className="custom-checkbox">
+              <input
+                type="checkbox"
+                name="isAdminBuilding"
+                checked={formData.isAdminBuilding}
+                onChange={handleChange}
+              />
+              <span className="checkmark">
+                {formData.isAdminBuilding && <FontAwesomeIcon icon={faStar} />}
+              </span>
+            </div>
+            <span className="checkbox-text">
+              <FontAwesomeIcon icon={faStar} className="star-icon" />
+              Mark as Main Administrative Building
+            </span>
           </label>
-          <p className="help-text">
-            This building will appear on the Super Admin's global university map. Only one building per university can be marked as administrative.
-          </p>
+          <div className="help-text">
+            <p>
+              <strong>What this means:</strong> This building will appear on the Super Admin's global university map as your institution's primary administrative center.
+            </p>
+            {formData.isAdminBuilding && (
+              <div className="warning-box">
+                <FontAwesomeIcon icon={faExclamationTriangle} />
+                <span>
+                  <strong>Note:</strong> Saving this will automatically unmark any other building currently set as administrative. Only one building per university can be marked as the main administrative building.
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Office Rooms from Rooms System */}
+        {/* Office Rooms from Rooms System - Info Only */}
         {building && officeRooms.length > 0 && (
           <div className="office-rooms-preview">
             <h3>
               <FontAwesomeIcon icon={faStar} />
-              Office Rooms
+              Office Rooms ({officeRooms.length})
             </h3>
             <p className="section-description">
-              These offices are managed in the Rooms section. Go to the Rooms tab to add or edit office rooms.
+              This building has {officeRooms.length} office room{officeRooms.length !== 1 ? 's' : ''}. To add, edit, or remove office rooms, go to the <strong>Rooms</strong> tab after saving this building.
             </p>
             <div className="office-rooms-grid">
-              {officeRooms.map(room => (
+              {officeRooms.slice(0, 6).map(room => (
                 <div key={room.id} className="office-room-preview-card">
                   <div className="room-header">
                     <span className="room-number">{room.room_number}</span>
@@ -335,89 +306,13 @@ function BuildingForm({ building, onSave, onCancel }) {
                 </div>
               ))}
             </div>
+            {officeRooms.length > 6 && (
+              <p className="more-rooms-text">
+                + {officeRooms.length - 6} more office{officeRooms.length - 6 !== 1 ? 's' : ''}
+              </p>
+            )}
           </div>
         )}
-
-        {/* Key Offices Section (Legacy) */}
-        <div className="key-offices-section">
-          <div className="section-header">
-            <h3>
-              <FontAwesomeIcon icon={faDoorOpen} />
-              Key Offices (Legacy - Optional)
-            </h3>
-            <button type="button" className="btn-add-office" onClick={addKeyOffice}>
-              <FontAwesomeIcon icon={faPlus} />
-              Add Office
-            </button>
-          </div>
-          <p className="section-description">
-            Legacy system for key offices. We recommend using the Rooms section for better management.
-          </p>
-
-          {keyOffices.length > 0 && (
-            <div className="key-offices-list">
-              {keyOffices.map((office, index) => (
-                <div key={office.id} className="key-office-item">
-                  <div className="office-header">
-                    <span className="office-number">Office {index + 1}</span>
-                    <button
-                      type="button"
-                      className="btn-remove-office"
-                      onClick={() => removeKeyOffice(office.id)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Office Name</label>
-                      <input
-                        type="text"
-                        value={office.name}
-                        onChange={(e) => updateKeyOffice(office.id, 'name', e.target.value)}
-                        placeholder="e.g., Dean's Office"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Room Number</label>
-                      <input
-                        type="text"
-                        value={office.roomNumber}
-                        onChange={(e) => updateKeyOffice(office.id, 'roomNumber', e.target.value)}
-                        placeholder="e.g., Room 301"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Purpose/Services</label>
-                    <input
-                      type="text"
-                      value={office.purpose}
-                      onChange={(e) => updateKeyOffice(office.id, 'purpose', e.target.value)}
-                      placeholder="e.g., Academic advising, course registration"
-                      className={errors[`office_purpose_${index}`] ? 'error' : ''}
-                    />
-                    {errors[`office_purpose_${index}`] && (
-                      <span className="error-message">{errors[`office_purpose_${index}`]}</span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label>Office Hours</label>
-                    <input
-                      type="text"
-                      value={office.hours}
-                      onChange={(e) => updateKeyOffice(office.id, 'hours', e.target.value)}
-                      placeholder="e.g., Mon-Fri 9:00 AM - 5:00 PM"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         <div className="form-actions">
           <button type="button" className="btn-cancel" onClick={onCancel}>

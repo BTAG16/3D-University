@@ -249,32 +249,6 @@ export function AdminAuthProvider({ children }) {
         throw new Error(result.error)
       }
 
-      // Create key offices if provided
-      if (buildingData.keyOffices && buildingData.keyOffices.length > 0) {
-        const offices = buildingData.keyOffices.map(office => ({
-          building_id: result.data.id,
-          name: office.name,
-          purpose: office.purpose || null,
-          hours: office.hours || null,
-          room_number: office.roomNumber || office.room_number || null
-        }))
-
-        await dbService.createKeyOffices(result.data.id, offices)
-      }
-
-      // Also handle snake_case version
-      if (buildingData.key_offices && buildingData.key_offices.length > 0) {
-        const offices = buildingData.key_offices.map(office => ({
-          building_id: result.data.id,
-          name: office.name,
-          purpose: office.purpose || null,
-          hours: office.hours || null,
-          room_number: office.roomNumber || office.room_number || null
-        }))
-
-        await dbService.createKeyOffices(result.data.id, offices)
-      }
-
       return { success: true, building: result.data }
     } catch (error) {
       console.error('Add building error:', error)
@@ -327,34 +301,6 @@ export function AdminAuthProvider({ children }) {
       
       if (!result.success) {
         throw new Error(result.error)
-      }
-
-      // Handle key offices update
-      if (updates.keyOffices !== undefined) {
-        // Delete existing key offices
-        const { data: existingOffices } = await supabase
-          .from('key_offices')
-          .select('id')
-          .eq('building_id', buildingId)
-
-        if (existingOffices && existingOffices.length > 0) {
-          for (const office of existingOffices) {
-            await dbService.deleteKeyOffice(office.id)
-          }
-        }
-
-        // Create new key offices if provided
-        if (updates.keyOffices && updates.keyOffices.length > 0) {
-          const offices = updates.keyOffices.map(office => ({
-            building_id: buildingId,
-            name: office.name,
-            purpose: office.purpose || null,
-            hours: office.hours || null,
-            room_number: office.roomNumber || office.room_number || null
-          }))
-
-          await dbService.createKeyOffices(buildingId, offices)
-        }
       }
 
       return { success: true }

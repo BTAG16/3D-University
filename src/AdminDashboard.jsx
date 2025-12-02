@@ -4,7 +4,7 @@ import { useAdminAuth } from './AdminAuthContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faBuilding, faPlus, faEdit, faTrash, faCopy, faSignOutAlt,
-  faCheckCircle, faTimes, faMapMarkedAlt, faCog, faChartBar, faDoorOpen
+  faCheckCircle, faTimes, faMapMarkedAlt, faCog, faChartBar, faDoorOpen, faHome, faCheck
 } from '@fortawesome/free-solid-svg-icons'
 import Modal from './components/Modal'
 import BuildingForm from './components/BuildingForm'
@@ -18,6 +18,8 @@ function AdminDashboard() {
   const [editingBuilding, setEditingBuilding] = useState(null)
   const [copySuccess, setCopySuccess] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [selectedBuildings, setSelectedBuildings] = useState([])
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   const { adminSession, logout, getUniversity, addBuilding, updateBuilding, deleteBuilding } = useAdminAuth()
   const navigate = useNavigate()
@@ -87,6 +89,47 @@ function AdminDashboard() {
     }
   }
 
+  const toggleBuildingSelection = (buildingId) => {
+    setSelectedBuildings(prev => {
+      if (prev.includes(buildingId)) {
+        return prev.filter(id => id !== buildingId)
+      } else {
+        return [...prev, buildingId]
+      }
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedBuildings.length === university.buildings.length) {
+      setSelectedBuildings([])
+    } else {
+      setSelectedBuildings(university.buildings.map(b => b.id))
+    }
+  }
+
+  const handleBulkDelete = () => {
+    if (selectedBuildings.length === 0) {
+      alert('Please select at least one building to delete')
+      return
+    }
+    setBulkDeleteConfirm(true)
+  }
+
+  const confirmBulkDelete = async () => {
+    try {
+      const deletePromises = selectedBuildings.map(buildingId => 
+        deleteBuilding(buildingId)
+      )
+      
+      await Promise.all(deletePromises)
+      await loadUniversity()
+      setSelectedBuildings([])
+      setBulkDeleteConfirm(false)
+    } catch (error) {
+      alert(`Error deleting buildings: ${error.message}`)
+    }
+  }
+
   const copyPublicLink = () => {
     const link = `${window.location.origin}/map?uni=${university.id}`
     navigator.clipboard.writeText(link)
@@ -114,8 +157,17 @@ function AdminDashboard() {
   const getTotalRoomsCount = () => {
     if (!university || !university.buildings) return 0
     return university.buildings.reduce((total, building) => {
-      const count = building.rooms?.[0]?.count || building.room_count || 0
-      return total + count
+      // Only count if rooms array exists and has actual room data
+      const roomsArray = building.rooms
+      if (Array.isArray(roomsArray) && roomsArray.length > 0) {
+        // Check if it's aggregated count or actual rooms
+        if (roomsArray[0] && typeof roomsArray[0].count === 'number') {
+          return total + roomsArray[0].count
+        }
+        // If it's actual room objects, count them
+        return total + roomsArray.length
+      }
+      return total
     }, 0)
   }
 
@@ -135,10 +187,35 @@ function AdminDashboard() {
               <p className="university-city">{university.city}</p>
             </div>
           </div>
-          <button className="btn-logout" onClick={handleLogout}>
-            <FontAwesomeIcon icon={faSignOutAlt} />
-            Logout
-          </button>
+          <div className='dash' style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <button 
+              className="btn-home" 
+              onClick={() => navigate('/')}
+              style={{
+                padding: '10px 20px',
+                background: 'var(--primary)',
+                color: 'white',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                transition: 'background 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'var(--primary-dark)'}
+              onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
+            >
+              <FontAwesomeIcon icon={faHome} />
+              Home
+            </button>
+            <button className="btn-logout" onClick={handleLogout}>
+              <FontAwesomeIcon icon={faSignOutAlt} />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -261,18 +338,32 @@ function AdminDashboard() {
                 <p className="empty-state">No buildings yet. Add your first building to get started!</p>
               ) : (
                 <div className="buildings-preview">
-                  {university.buildings.slice(0, 3).map((building) => (
+                  {university.buildings
+                    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+                    .slice(0, 3)
+                    .map((building) => (
                     <div key={building.id} className="building-preview-card">
                       <h3>{building.name}</h3>
                       <p className="building-category">{building.category}</p>
                       <p className="building-coords">
                         {building.coordinates[1].toFixed(4)}, {building.coordinates[0].toFixed(4)}
                       </p>
-                      {(building.rooms?.[0]?.count || building.room_count) && (
-                        <p className="building-rooms">
-                          <FontAwesomeIcon icon={faDoorOpen} /> {building.rooms?.[0]?.count || building.room_count} rooms
-                        </p>
-                      )}
+                      {(() => {
+                        const roomsArray = building.rooms
+                        let roomCount = 0
+                        if (Array.isArray(roomsArray) && roomsArray.length > 0) {
+                          if (roomsArray[0] && typeof roomsArray[0].count === 'number') {
+                            roomCount = roomsArray[0].count
+                          } else {
+                            roomCount = roomsArray.length
+                          }
+                        }
+                        return roomCount > 0 ? (
+                          <p className="building-rooms">
+                            <FontAwesomeIcon icon={faDoorOpen} /> {roomCount} rooms
+                          </p>
+                        ) : null
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -286,10 +377,21 @@ function AdminDashboard() {
           <div className="buildings-tab">
             <div className="tab-header">
               <h2>Manage Buildings</h2>
-              <button className="btn-add" onClick={handleAddBuilding}>
-                <FontAwesomeIcon icon={faPlus} />
-                Add Building
-              </button>
+              <div className="header-actions">
+                {selectedBuildings.length > 0 && (
+                  <button 
+                    className="btn-bulk-delete" 
+                    onClick={handleBulkDelete}
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                    Delete Selected ({selectedBuildings.length})
+                  </button>
+                )}
+                <button className="btn-add" onClick={handleAddBuilding}>
+                  <FontAwesomeIcon icon={faPlus} />
+                  Add Building
+                </button>
+              </div>
             </div>
 
             {university.buildings.length === 0 ? (
@@ -303,50 +405,88 @@ function AdminDashboard() {
                 </button>
               </div>
             ) : (
-              <div className="buildings-grid">
-                {university.buildings.map((building) => (
-                  <div key={building.id} className="building-card">
-                    <div className="building-card-header">
-                      <h3>{building.name}</h3>
-                      <div className="building-actions">
-                        <button
-                          className="btn-icon edit"
-                          onClick={() => handleEditBuilding(building)}
-                        >
-                          <FontAwesomeIcon icon={faEdit} />
-                        </button>
-                        <button
-                          className="btn-icon delete"
-                          onClick={() => handleDeleteBuilding(building.id)}
-                        >
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button>
+              <>
+                <div className="bulk-select-bar">
+                  <label className="select-all-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedBuildings.length === university.buildings.length}
+                      onChange={toggleSelectAll}
+                    />
+                    <span>Select All ({university.buildings.length})</span>
+                  </label>
+                </div>
+                <div className="buildings-grid">
+                  {university.buildings.map((building) => (
+                    <div 
+                      key={building.id} 
+                      className={`building-card ${selectedBuildings.includes(building.id) ? 'selected' : ''}`}
+                    >
+                      <div className="building-card-select">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={selectedBuildings.includes(building.id)}
+                            onChange={() => toggleBuildingSelection(building.id)}
+                          />
+                          <span className="checkbox-custom">
+                            <FontAwesomeIcon icon={faCheck} />
+                          </span>
+                        </label>
+                      </div>
+                      <div className="building-card-header">
+                        <h3>{building.name}</h3>
+                        <div className="building-actions">
+                          <button
+                            className="btn-icon edit"
+                            onClick={() => handleEditBuilding(building)}
+                          >
+                            <FontAwesomeIcon icon={faEdit} />
+                          </button>
+                          <button
+                            className="btn-icon delete"
+                            onClick={() => handleDeleteBuilding(building.id)}
+                          >
+                            <FontAwesomeIcon icon={faTrash} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="building-card-content">
+                        <p className="building-category">
+                          <strong>Category:</strong> {building.category}
+                        </p>
+                        <p className="building-coords">
+                        <strong>Location:</strong> {building.coordinates[1].toFixed(6)}, {building.coordinates[0].toFixed(6)}
+                        </p>
+                        {(() => {
+                        const roomsArray = building.rooms
+                        let roomCount = 0
+                        if (Array.isArray(roomsArray) && roomsArray.length > 0) {
+                            if (roomsArray[0] && typeof roomsArray[0].count === 'number') {
+                            roomCount = roomsArray[0].count
+                          } else {
+                            roomCount = roomsArray.length
+                          }
+                        }
+                        return roomCount > 0 ? (
+                          <p className="building-rooms">
+                            <strong>Rooms:</strong> {roomCount}
+                          </p>
+                        ) : null
+                      })()}
+                        {building.description && (
+                          <p className="building-description">{building.description}</p>
+                        )}
+                        {building.facilities && building.facilities.length > 0 && (
+                          <p className="building-facilities">
+                            <strong>Facilities:</strong> {building.facilities.join(', ')}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="building-card-content">
-                      <p className="building-category">
-                        <strong>Category:</strong> {building.category}
-                      </p>
-                      <p className="building-coords">
-                        <strong>Location:</strong> {building.coordinates[1].toFixed(6)}, {building.coordinates[0].toFixed(6)}
-                      </p>
-                      {(building.rooms?.[0]?.count || building.room_count) && (
-                        <p className="building-rooms">
-                          <strong>Rooms:</strong> {building.rooms?.[0]?.count || building.room_count}
-                        </p>
-                      )}
-                      {building.description && (
-                        <p className="building-description">{building.description}</p>
-                      )}
-                      {building.facilities && building.facilities.length > 0 && (
-                        <p className="building-facilities">
-                          <strong>Facilities:</strong> {building.facilities.join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -485,6 +625,25 @@ function AdminDashboard() {
               <button className="btn-delete-confirm" onClick={confirmDelete}>
                 <FontAwesomeIcon icon={faTrash} />
                 Delete
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteConfirm && (
+        <Modal onClose={() => setBulkDeleteConfirm(false)}>
+          <div className="delete-confirm">
+            <h2>Delete {selectedBuildings.length} Building{selectedBuildings.length > 1 ? 's' : ''}?</h2>
+            <p>Are you sure you want to delete these buildings? This action cannot be undone and will also delete all associated rooms.</p>
+            <div className="confirm-buttons">
+              <button className="btn-cancel" onClick={() => setBulkDeleteConfirm(false)}>
+                Cancel
+              </button>
+              <button className="btn-delete-confirm" onClick={confirmBulkDelete}>
+                <FontAwesomeIcon icon={faTrash} />
+                Delete All
               </button>
             </div>
           </div>

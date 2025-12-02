@@ -364,13 +364,6 @@ function PublicMap() {
               </button>
             </>
           )}
-          {isMobile && (
-            <>
-              <button className="btn-mobile-menu" onClick={() => setShowSidebar(!showSidebar)}>
-                <FontAwesomeIcon icon={showSidebar ? faTimes : faBars} />
-              </button>
-            </>
-          )}
         </div>
       </header>
 

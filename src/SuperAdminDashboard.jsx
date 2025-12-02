@@ -15,7 +15,8 @@ import {
   faGlobe,
   faMap,
   faClock,
-  faRedoAlt
+  faRedoAlt,
+  faHome
 } from '@fortawesome/free-solid-svg-icons'
 import './SuperAdminDashboard.css'
 
@@ -203,6 +204,26 @@ function SuperAdminDashboard() {
             </button>
           </div>
 
+          <button 
+            className="btn-home"
+            onClick={() => navigate('/')}
+            style={{
+              padding: '10px 20px',
+              background: 'var(--primary)',
+              color: 'white',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '500'
+            }}
+          >
+            <FontAwesomeIcon icon={faHome} />
+            Home
+          </button>
           <button 
             className="btn-view-map"
             onClick={handleViewGlobalMap}

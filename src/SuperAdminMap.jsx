@@ -177,11 +177,6 @@ function SuperAdminMap() {
           </div>
         </div>
         <div className="header-actions">
-          {isMobile && (
-            <button className="btn-mobile-menu" onClick={() => setShowSidebar(!showSidebar)}>
-              <FontAwesomeIcon icon={showSidebar ? faTimes : faBars} />
-            </button>
-          )}
         </div>
       </header>
 

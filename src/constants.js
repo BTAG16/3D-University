@@ -1,18 +1,17 @@
 import { Map, Compass, Smartphone, Building, BarChart3, Share2, Globe, Shield, Zap } from 'lucide-react';
-// import {Testimonial} from './types';
 
 export const FEATURES = [
   {
     id: '1',
     title: 'Interactive 3D Maps',
-    description: 'High-fidelity isometric rendering of your entire campus with dynamic lighting.',
+    description: 'Navigate your campus with clear, interactive visuals.',
     icon: Map,
     color: '#c084fc' // purple-400
   },
   {
     id: '2',
     title: 'Smart Navigation',
-    description: 'Turn-by-turn directions with accessible routes for everyone.',
+    description: 'Get the fastest route from your current location to any campus building, with a direct link to reliable map directions.',
     icon: Compass,
     color: '#22d3ee' // cyan-400
   },
@@ -33,7 +32,7 @@ export const FEATURES = [
   {
     id: '5',
     title: 'Analytics Dashboard',
-    description: 'Understand traffic flow and popular search destinations.',
+    description: 'Get insights into your campus, including total buildings, rooms, and usage trends. More advanced insights coming soon.',
     icon: BarChart3,
     color: '#4ade80' // green-400
   },
@@ -47,9 +46,9 @@ export const FEATURES = [
 ];
 
 export const STATS = [
-  { id: '1', value: '500', label: 'Universities', suffix: '+' },
-  { id: '2', value: '100', label: 'Buildings Mapped', suffix: 'K+' },
-  { id: '3', value: '5', label: 'Students Helped', suffix: 'M+' },
+  { id: '1', value: '10', label: 'Early Adopters', suffix: '+' },
+  { id: '2', value: '50', label: 'Buildings Mapped', suffix: '+' },
+  { id: '3', value: '1', label: 'Students Empowered', suffix: 'K+' },
   { id: '4', value: '99.9', label: 'Uptime', suffix: '%' },
 ];
 
@@ -82,24 +81,44 @@ export const TESTIMONIALS = [
 
 export const PRICING = [
   {
-    name: "Starter",
-    price: "Free",
-    description: "Perfect for small campuses or single buildings.",
-    features: ["Up to 5 Buildings", "Basic 2D Maps", "Standard Support", "Mobile Responsive"],
+    name: "Free",
+    price: "$0",
+    description: "Perfect for small campuses testing the waters.",
+    features: [
+      "Up to 3 Buildings", 
+      "Basic 2D Maps", 
+      "Standard Support", 
+      "Mobile Responsive",
+      "Community Access"
+    ],
     recommended: false
   },
   {
     name: "Pro",
-    price: "$499",
+    price: "$299/mo",
     description: "The complete solution for modern universities.",
-    features: ["Unlimited Buildings", "Interactive 3D Maps", "Room-level Search", "Analytics Dashboard", "Priority Support"],
+    features: [
+      "Unlimited Buildings", 
+      "Interactive 3D Maps", 
+      "Room-level Search", 
+      "Analytics Dashboard", 
+      "Priority Support",
+      "Custom Branding"
+    ],
     recommended: true
   },
   {
     name: "Enterprise",
     price: "Custom",
-    description: "For large university systems and custom needs.",
-    features: ["Multi-campus Support", "SSO Integration", "Custom API Access", "Dedicated Success Manager", "SLA Guarantee"],
+    description: "For large university systems with custom needs.",
+    features: [
+      "Multi-campus Support", 
+      "SSO Integration", 
+      "Custom API Access", 
+      "Dedicated Success Manager", 
+      "SLA Guarantee",
+      "White-label Solution"
+    ],
     recommended: false
   }
 ];
