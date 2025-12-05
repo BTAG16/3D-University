@@ -65,6 +65,7 @@
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .btn-header {
@@ -597,6 +598,11 @@ flex-shrink: 0;
     gap: 8px;
     min-width: 0;
     flex: 1;
+  }
+
+  .header-actions {
+    flex-shrink: 0;
+    margin-left: auto;
   }
 
   .search-container {

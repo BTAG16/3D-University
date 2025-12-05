@@ -307,6 +307,16 @@ function EmbedMap() {
           darkMode={false}
         />
 
+        {/* Floating language selector */}
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 1000
+        }}>
+          <LanguageSelector onChangeLanguage={handleLanguageChange} />
+        </div>
+
         {/* Floating location button - show if location not available */}
         {!userLocation && (
           <button

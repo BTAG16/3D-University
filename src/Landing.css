@@ -96,6 +96,20 @@
 
       /* Specific Component Styles */
       
+      .nav-title {
+        background: none;     
+        border: none;          
+        cursor: pointer;     
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: bold;
+        font-size: 1.25rem;
+        letter-spacing: -0.025em;
+        color: white;
+        padding: 0;
+      }
+
       .glass-card {
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(10px);
@@ -187,6 +201,7 @@
       }
 
       .nav-link {
+        background: none;
         font-size: 0.875rem;
         color: var(--text-muted);
         text-decoration: none;
@@ -245,6 +260,14 @@
 
       /* Mobile Responsiveness Improvements */
       @media (max-width: 768px) {
+        .nav-link {
+          background: none;
+          font-size: 1.3rem;
+          color: var(--text-muted);
+          text-decoration: none;
+          transition: color 0.2s;
+        }
+
         .hero-section {
           padding-top: 7rem;
           padding-bottom: 4rem;

@@ -38,7 +38,8 @@ const MapComponent = forwardRef(({
         mapRef.current.removeSource('route')
       }
       setRouteData(null)
-    }
+    },
+    getMap: () => mapRef.current
   }))
 
   // Get map style based on time of day and dark mode

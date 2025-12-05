@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Play, Check, Menu, X, Star, Globe, Shield, Zap, Home } from 'lucide-react';
-
 import { MagneticButton } from './components/ui/MagneticButton';
 import { useAdminAuth } from './AdminAuthContext';
 import { FEATURES, STATS, TESTIMONIALS, PRICING } from './constants';
@@ -20,6 +19,14 @@ const Landing = () => {
   const { adminSession } = useAdminAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
 
   // Custom Cursor Logic
   useEffect(() => {
@@ -73,13 +80,14 @@ const Landing = () => {
             <div style={{ width: '2rem', height: '2rem', background: 'linear-gradient(to top right, var(--primary), var(--accent))', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ color: 'white', fontSize: '1.125rem' }}>C</span>
             </div>
-            <span>Campus Explorer</span>
+            <button className="nav-title" onClick={() => {scrollToSection("home"); setIsMenuOpen(false);}}><span>Campus Explorer</span></button>
+            
           </div>
 
           {/* Desktop Nav */}
           <div className="md-flex items-center gap-8" style={{ display: 'none' }}>
-            <a href="#features" className="nav-link">Features</a>
-            <a href="#benefits" className="nav-link">Benefits</a>
+            <button className="nav-link" onClick={() => scrollToSection("features")}>Features</button>
+            <button className="nav-link" onClick={() => scrollToSection("benefits")}>Benefits</button>
             {/* <a href="#testimonials" className="nav-link">Stories</a>
             <a href="#pricing" className="nav-link">Pricing</a> */}
             
@@ -93,14 +101,7 @@ const Landing = () => {
               </MagneticButton>
             ) : (
               <>
-                <MagneticButton 
-                  variant="outline" 
-                  className="text-xs" 
-                  style={{ padding: '0.5rem 1.5rem' }}
-                  onClick={() => navigate("/admin/login")}
-                >
-                  Sign In
-                </MagneticButton>
+                
                 <MagneticButton 
                   className="text-xs" 
                   style={{ padding: '0.5rem 1.5rem' }}
@@ -130,8 +131,12 @@ const Landing = () => {
             style={{ position: 'fixed', inset: 0, zIndex: 30, backgroundColor: 'var(--bg-dark)', paddingTop: '6rem', paddingLeft: '1.5rem', paddingRight: '1.5rem' }}
           >
             <div className="flex flex-col gap-6" style={{ fontSize: '1.25rem', fontWeight: 500 }}>
-              <a href="#features" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Features</a>
-              <a href="#benefits" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Benefits</a>
+              <button className="nav-link" onClick={() => {scrollToSection("features");setIsMenuOpen(false);}}>
+                Features
+              </button>
+              <button className="nav-link" onClick={() => {scrollToSection("benefits");setIsMenuOpen(false);}}>
+                Benefits
+              </button>
               {/* <a href="#testimonials" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Testimonials</a>
               <a href="#pricing" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Pricing</a>
               <hr style={{ borderColor: '#1f2937' }} /> */}
@@ -156,7 +161,7 @@ const Landing = () => {
                     navigate("/admin/login");
                   }}
                 >
-                  Get Started Free
+                  Get Started
                 </MagneticButton>
               )}
             </div>
@@ -165,7 +170,7 @@ const Landing = () => {
       </AnimatePresence>
 
       {/* Hero Section */}
-      <section className="hero-section container">
+      <section id='home' className="hero-section container">
         <div className="hero-content" style={{ maxWidth: '56rem', margin: '0 auto', textAlign: 'center' }}>
           
           <motion.h1 
@@ -317,7 +322,7 @@ const Landing = () => {
               ))}
             </div>
             <div style={{ marginTop: '2.5rem' }}>
-              <MagneticButton onClick={() => navigate("/admin/login")}>Schedule a Consultation</MagneticButton>
+              <MagneticButton onClick={() => window.location.href = "mailto:rumeighoraye@gmail.com"}>Schedule a Consultation</MagneticButton>
             </div>
           </div>
         </div>

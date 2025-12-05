@@ -176,8 +176,6 @@ function SuperAdminMap() {
             <p>{universities.length} Universities</p>
           </div>
         </div>
-        <div className="header-actions">
-        </div>
       </header>
 
       {!isMobile && (

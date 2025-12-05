@@ -277,7 +277,7 @@ function PublicMap() {
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href)
-    alert('Link copied to clipboard!')
+    alert('Link copied!')
     setShowShareModal(false)
   }
 
@@ -315,7 +315,7 @@ function PublicMap() {
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }}></div>
-        <p style={{ fontSize: '18px', color: '#666' }}>Loading map...</p>
+        <p style={{ fontSize: '18px', color: '#666' }}>Loading...</p>
       </div>
     )
   }
@@ -331,14 +331,14 @@ function PublicMap() {
         padding: '20px',
         textAlign: 'center'
       }}>
-        <h1 style={{ color: '#dc3545', marginBottom: 20 }}>Error</h1>
+        <h1 style={{ color: '#dc3545', marginBottom: 20 }}>Error loading</h1>
         <div>{error}</div>
       </div>
     )
   }
 
   if (!university) {
-    return <div className="loading">Loading map...</div>
+    return <div className="loading">Loading...</div>
   }
 
   return (
@@ -392,7 +392,7 @@ function PublicMap() {
 
           <div className="buildings-list">
             {filteredBuildings.length === 0 ? (
-              <p className="empty-message">No buildings found</p>
+              <p className="empty-message">No results found</p>
             ) : (
               filteredBuildings.map((building) => {
                 let distance = null
@@ -435,15 +435,15 @@ function PublicMap() {
               <button 
                 className="btn-floating-google-maps"
                 onClick={handleOpenInGoogleMaps}
-                title="Open in Google Maps"
+                title="Directions"
               >
                 <FontAwesomeIcon icon={faMapMarkerAlt} />
-                <span>Open in Google Maps</span>
+                <span>Directions</span>
               </button>
               <button 
                 className="btn-floating-close"
                 onClick={handleCloseDirections}
-                title="Close directions"
+                title="Close"
               >
                 <FontAwesomeIcon icon={faTimes} />
                 <span>Close</span>
@@ -461,7 +461,7 @@ function PublicMap() {
           </button>
           <button className="mobile-action-btn" onClick={handleGetLocation}>
             <FontAwesomeIcon icon={faLocationArrow} />
-            <span>Location</span>
+            <span>My Location</span>
           </button>
           <button className="mobile-action-btn" onClick={handleShare}>
             <FontAwesomeIcon icon={faShareAlt} />
@@ -494,21 +494,21 @@ function PublicMap() {
                 disabled={!userLocation}
               >
                 <FontAwesomeIcon icon={faDirections} />
-                <span>Show Directions</span>
+                <span>Get Directions</span>
               </button>
               <button 
                 className="btn-navigation btn-google-maps"
                 onClick={handleOpenInGoogleMaps}
               >
                 <FontAwesomeIcon icon={faMapMarkerAlt} />
-                <span>Open in Google Maps</span>
+                <span>Directions</span>
               </button>
               <button 
                 className="btn-navigation btn-view-rooms"
                 onClick={() => setShowRoomsList(true)}
               >
                 <FontAwesomeIcon icon={faDoorOpen} />
-                <span>View All Rooms</span>
+                <span>View Rooms</span>
               </button>
             </div>
 
@@ -516,7 +516,7 @@ function PublicMap() {
               <div className="detail-section key-offices-section">
                 <h3>
                   <FontAwesomeIcon icon={faDoorOpen} />
-                  Key Offices ({officeRooms.length})
+                  Office Rooms ({officeRooms.length})
                 </h3>
                 <div className="key-offices-list">
                   {officeRooms.map((office) => (
@@ -553,7 +553,7 @@ function PublicMap() {
               <div className="detail-section key-offices-section">
                 <h3>
                   <FontAwesomeIcon icon={faDoorOpen} />
-                  Key Offices ({selectedBuilding.key_offices.length})
+                  Office Rooms ({selectedBuilding.key_offices.length})
                 </h3>
                 <div className="key-offices-list">
                   {selectedBuilding.key_offices.map((office, idx) => (
@@ -579,7 +579,7 @@ function PublicMap() {
 
             {selectedBuilding.facilities && selectedBuilding.facilities.length > 0 && (
               <div className="detail-section">
-                <h3>Facilities</h3>
+                <h3>Building Facilities</h3>
                 <ul>
                   {selectedBuilding.facilities.map((f, i) => (
                     <li key={i}>{f}</li>
@@ -589,7 +589,7 @@ function PublicMap() {
             )}
             {selectedBuilding.departments && selectedBuilding.departments.length > 0 && (
               <div className="detail-section">
-                <h3>Departments</h3>
+                <h3>Building Departments</h3>
                 <ul>
                   {selectedBuilding.departments.map((d, i) => (
                     <li key={i}>{d}</li>
@@ -599,20 +599,20 @@ function PublicMap() {
             )}
             {selectedBuilding.hours && (
               <div className="detail-section">
-                <h3>Hours</h3>
+                <h3>Building Hours</h3>
                 <p>{selectedBuilding.hours}</p>
               </div>
             )}
             {userLocation && (
               <div className="detail-section">
-                <h3>Distance</h3>
+                <h3>My Location</h3>
                 <p>
                   {calculateDistance(
                     userLocation.latitude,
                     userLocation.longitude,
                     selectedBuilding.coordinates[1],
                     selectedBuilding.coordinates[0]
-                  )} from your location
+                  )} away
                 </p>
               </div>
             )}
@@ -623,7 +623,7 @@ function PublicMap() {
       {showShareModal && (
         <Modal onClose={() => setShowShareModal(false)}>
           <div className="share-modal">
-            <h2>Share Map</h2>
+            <h2>Share This Map</h2>
             <input
               type="text"
               value={window.location.href}
