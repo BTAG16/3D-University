@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
 import { dbService } from './lib/dbService'
+import { useToast } from './components/Toast'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faUserShield,
@@ -21,6 +22,7 @@ import {
 import './SuperAdminDashboard.css'
 
 function SuperAdminDashboard() {
+  const toast = useToast()
   const [universities, setUniversities] = useState([])
   const [stats, setStats] = useState({
     totalUniversities: 0,
@@ -78,6 +80,9 @@ function SuperAdminDashboard() {
     const result = extendSuperAdminSession()
     if (result.success) {
       setTimeRemaining(600) // Reset to 10 minutes
+      toast.success('Session extended by 10 minutes')
+    } else {
+      toast.error('Failed to extend session')
     }
   }
 
@@ -130,16 +135,17 @@ function SuperAdminDashboard() {
   const handleDeleteUniversity = async (universityId) => {
     if (window.confirm('Are you sure you want to delete this university? This action cannot be undone.')) {
       try {
+        toast.info('Deleting university...')
         const result = await dbService.deleteUniversity(universityId)
         if (result.success) {
-          alert('University deleted successfully')
+          toast.success('University deleted successfully')
           loadUniversities()
         } else {
-          alert(`Failed to delete: ${result.error}`)
+          toast.error(`Failed to delete: ${result.error}`)
         }
       } catch (error) {
         console.error('Delete error:', error)
-        alert(`Error: ${error.message}`)
+        toast.error(`Error: ${error.message}`)
       }
     }
   }

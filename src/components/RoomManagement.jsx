@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useToast } from './Toast'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faDoorOpen, faPlus, faUpload, faEdit, faTrash, faStar, faSearch,
@@ -8,6 +9,7 @@ import RoomEditModal from './RoomEditModal'
 import './RoomManagement.css'
 
 function RoomManagement({ universityId, buildings, onClose }) {
+  const toast = useToast()
   const [activeView, setActiveView] = useState('list') // 'list', 'add', 'bulk'
   const [rooms, setRooms] = useState([])
   const [filteredRooms, setFilteredRooms] = useState([])
@@ -74,54 +76,68 @@ function RoomManagement({ universityId, buildings, onClose }) {
     if (!confirm('Are you sure you want to delete this room?')) return
 
     try {
+      toast.info('Deleting room...')
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.deleteRoom(roomId)
       
       if (result.success) {
+        toast.success('Room deleted successfully')
         setSuccess('Room deleted successfully')
         loadRooms()
         setTimeout(() => setSuccess(null), 3000)
       } else {
+        toast.error(result.error)
         setError(result.error)
       }
     } catch (err) {
+      toast.error(err.message)
       setError(err.message)
     }
   }
 
   const handleToggleOffice = async (room) => {
     try {
+      const message = room.is_office ? 'Removing office status...' : 'Marking as office...'
+      toast.info(message)
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.updateRoom(room.id, {
         is_office: !room.is_office
       })
       
       if (result.success) {
-        setSuccess(room.is_office ? 'Office status removed' : 'Marked as office')
+        const successMsg = room.is_office ? 'Office status removed' : 'Marked as office'
+        toast.success(successMsg)
+        setSuccess(successMsg)
         loadRooms()
         setTimeout(() => setSuccess(null), 3000)
       } else {
+        toast.error(result.error)
         setError(result.error)
       }
     } catch (err) {
+      toast.error(err.message)
       setError(err.message)
     }
   }
 
   const handleEditRoom = async (roomId, updates) => {
     try {
+      toast.info('Updating room...')
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.updateRoom(roomId, updates)
       
       if (result.success) {
+        toast.success('Room updated successfully')
         setSuccess('Room updated successfully')
         loadRooms()
         setEditingRoom(null)
         setTimeout(() => setSuccess(null), 3000)
       } else {
+        toast.error(result.error)
         setError(result.error)
       }
     } catch (err) {
+      toast.error(err.message)
       setError(err.message)
     }
   }
@@ -155,6 +171,7 @@ function RoomManagement({ universityId, buildings, onClose }) {
 
   const confirmBulkDelete = async () => {
     try {
+      toast.info(`Deleting ${selectedRooms.length} rooms...`)
       const { dbService } = await import('../lib/dbService')
       
       const deletePromises = selectedRooms.map(roomId => 
@@ -162,13 +179,17 @@ function RoomManagement({ universityId, buildings, onClose }) {
       )
       
       await Promise.all(deletePromises)
-      setSuccess(`Successfully deleted ${selectedRooms.length} room${selectedRooms.length > 1 ? 's' : ''}`)
+      const successMsg = `Successfully deleted ${selectedRooms.length} room${selectedRooms.length > 1 ? 's' : ''}`
+      toast.success(successMsg)
+      setSuccess(successMsg)
       loadRooms()
       setSelectedRooms([])
       setBulkDeleteConfirm(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (error) {
-      setError(`Error deleting rooms: ${error.message}`)
+      const errorMsg = `Error deleting rooms: ${error.message}`
+      toast.error(errorMsg)
+      setError(errorMsg)
       setBulkDeleteConfirm(false)
     }
   }

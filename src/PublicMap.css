@@ -513,6 +513,35 @@ flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
+.btn-indoor-nav {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-indoor-nav::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-indoor-nav:hover::before {
+  left: 100%;
+}
+
+.btn-indoor-nav:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5), 0 0 20px rgba(139, 92, 246, 0.3);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
 .btn-navigation:active {
   transform: translateY(0);
 }

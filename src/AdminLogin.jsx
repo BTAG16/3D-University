@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
+import { useToast } from './components/Toast'
+import { ButtonLoader } from './components/LoadingSpinner'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { 
   faGraduationCap, 
@@ -34,6 +36,7 @@ function AdminLogin() {
 
   const { adminSession, registerAdmin, adminLogin, sendPasswordResetEmail } = useAdminAuth()
   const navigate = useNavigate()
+  const toast = useToast()
 
   useEffect(() => {
     if (adminSession) {
@@ -53,28 +56,28 @@ function AdminLogin() {
 
   const validateForm = () => {
     if (!formData.email || !formData.password) {
-      setError('Email and password are required')
+      toast.error('Email and password are required')
       return false
     }
 
     if (!formData.email.includes('@')) {
-      setError('Please enter a valid email')
+      toast.error('Please enter a valid email')
       return false
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
+      toast.error('Password must be at least 6 characters')
       return false
     }
 
     if (isRegister) {
       if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match')
+        toast.error('Passwords do not match')
         return false
       }
 
       if (!formData.universityName || !formData.city) {
-        setError('University name and city are required')
+        toast.error('University name and city are required')
         return false
       }
     }

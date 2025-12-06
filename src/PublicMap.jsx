@@ -6,6 +6,8 @@ import BuildingCard from './components/BuildingCard'
 import SearchBox from './components/SearchBox'
 import Modal from './components/Modal'
 import RoomsList from './components/RoomsList'
+import IndoorNavModal from './components/IndoorNavModal'
+import { useToast } from './components/Toast'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faMapMarkedAlt, faList, faLocationArrow, faSearch, faShareAlt, faBars, faTimes, 
@@ -15,6 +17,7 @@ import './PublicMap.css'
 
 function PublicMap() {
   const [searchParams] = useSearchParams()
+  const toast = useToast()
   const [university, setUniversity] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -31,6 +34,8 @@ function PublicMap() {
   const [darkMode, setDarkMode] = useState(false)
   const [showRoomsList, setShowRoomsList] = useState(false)
   const [officeRooms, setOfficeRooms] = useState([])
+  const [showIndoorNav, setShowIndoorNav] = useState(false)
+  const [indoorNavUrl, setIndoorNavUrl] = useState('')
   const mapRef = useRef(null)
 
   useEffect(() => {
@@ -188,6 +193,7 @@ function PublicMap() {
 
   const handleGetLocation = () => {
     if ('geolocation' in navigator) {
+      toast.info('Getting your location...')
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const location = {
@@ -195,13 +201,14 @@ function PublicMap() {
             longitude: position.coords.longitude
           }
           setUserLocation(location)
+          toast.success('Location found! You can now get directions.')
         },
         (error) => {
-          alert('Unable to get your location. Please enable location services.')
+          toast.error('Unable to get your location. Please enable location services.')
         }
       )
     } else {
-      alert('Geolocation is not supported by your browser.')
+      toast.error('Geolocation is not supported by your browser.')
     }
   }
 
@@ -229,14 +236,27 @@ function PublicMap() {
     }
   }
 
+  const handleOpenIndoorNav = () => {
+    // Use the building's Mappedin URL if available, otherwise use the default
+    const mappedInUrl = selectedBuilding?.mappedin_url || 'https://app.mappedin.com/map/69332462a1aaeb000b3132d2?embedded=true'
+    setIndoorNavUrl(mappedInUrl)
+    setShowIndoorNav(true)
+  }
+
+  const handleCloseIndoorNav = () => {
+    setShowIndoorNav(false)
+    setIndoorNavUrl('')
+  }
+
   const handleShowDirections = () => {
     if (!userLocation) {
-      alert('Please enable your location first to get directions.')
+      toast.warning('Please enable your location first to get directions.')
       handleGetLocation()
       return
     }
     setShowDirections(true)
     setShowModal(false)
+    toast.success('Directions shown on map')
   }
 
   const handleOpenInGoogleMaps = () => {
@@ -277,7 +297,7 @@ function PublicMap() {
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href)
-    alert('Link copied!')
+    toast.success('Link copied to clipboard!')
     setShowShareModal(false)
   }
 
@@ -489,6 +509,13 @@ function PublicMap() {
             
             <div className="navigation-buttons">
               <button 
+                className="btn-navigation btn-indoor-nav"
+                onClick={handleOpenIndoorNav}
+              >
+                <FontAwesomeIcon icon={faMapMarkedAlt} />
+                <span>Indoor Navigation</span>
+              </button>
+              <button 
                 className="btn-navigation btn-show-directions"
                 onClick={handleShowDirections}
                 disabled={!userLocation}
@@ -645,6 +672,13 @@ function PublicMap() {
             onClose={() => setShowRoomsList(false)}
           />
         </Modal>
+      )}
+
+      {showIndoorNav && (
+        <IndoorNavModal
+          onClose={handleCloseIndoorNav}
+          mappedInUrl={indoorNavUrl}
+        />
       )}
       
       <style>{`

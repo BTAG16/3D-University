@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useToast } from './Toast'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSave, faTimes, faStar, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons'
+import { faSave, faTimes, faStar, faExclamationTriangle, faSpinner } from '@fortawesome/free-solid-svg-icons'
 import './BuildingForm.css'
 
 function BuildingForm({ building, onSave, onCancel }) {
+  const toast = useToast()
   const [formData, setFormData] = useState({
     name: '',
     latitude: '',
@@ -19,6 +21,7 @@ function BuildingForm({ building, onSave, onCancel }) {
   const [officeRooms, setOfficeRooms] = useState([])
   const [errors, setErrors] = useState({})
   const [loadingRooms, setLoadingRooms] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (building) {
@@ -106,30 +109,44 @@ function BuildingForm({ building, onSave, onCancel }) {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!validate()) return
-
-    const buildingData = {
-      name: formData.name.trim(),
-      coordinates: [parseFloat(formData.longitude), parseFloat(formData.latitude)],
-      category: formData.category,
-      description: formData.description.trim(),
-      facilities: formData.facilities
-        .split(',')
-        .map((f) => f.trim())
-        .filter((f) => f),
-      departments: formData.departments
-        .split(',')
-        .map((d) => d.trim())
-        .filter((d) => d),
-      hours: formData.hours.trim(),
-      isAdminBuilding: formData.isAdminBuilding,
-      is_admin_building: formData.isAdminBuilding // Also include snake_case version
+    if (!validate()) {
+      toast.error('Please fix the form errors')
+      return
     }
 
-    onSave(buildingData)
+    setSaving(true)
+    toast.info(building ? 'Updating building...' : 'Adding building...')
+
+    try {
+      const buildingData = {
+        name: formData.name.trim(),
+        coordinates: [parseFloat(formData.longitude), parseFloat(formData.latitude)],
+        category: formData.category,
+        description: formData.description.trim(),
+        facilities: formData.facilities
+          .split(',')
+          .map((f) => f.trim())
+          .filter((f) => f),
+        departments: formData.departments
+          .split(',')
+          .map((d) => d.trim())
+          .filter((d) => d),
+        hours: formData.hours.trim(),
+        isAdminBuilding: formData.isAdminBuilding,
+        is_admin_building: formData.isAdminBuilding // Also include snake_case version
+      }
+
+      await onSave(buildingData)
+      toast.success(building ? 'Building updated successfully!' : 'Building added successfully!')
+    } catch (error) {
+      toast.error('Failed to save building')
+      console.error('Save error:', error)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -315,13 +332,13 @@ function BuildingForm({ building, onSave, onCancel }) {
         )}
 
         <div className="form-actions">
-          <button type="button" className="btn-cancel" onClick={onCancel}>
+          <button type="button" className="btn-cancel" onClick={onCancel} disabled={saving}>
             <FontAwesomeIcon icon={faTimes} />
             Cancel
           </button>
-          <button type="submit" className="btn-save">
-            <FontAwesomeIcon icon={faSave} />
-            {building ? 'Update' : 'Add'} Building
+          <button type="submit" className="btn-save" disabled={saving}>
+            <FontAwesomeIcon icon={saving ? faSpinner : faSave} spin={saving} />
+            {saving ? 'Saving...' : (building ? 'Update' : 'Add') + ' Building'}
           </button>
         </div>
       </form>

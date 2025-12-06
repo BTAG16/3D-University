@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
+import { useToast } from './components/Toast'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faBuilding, faPlus, faEdit, faTrash, faCopy, faSignOutAlt,
@@ -9,7 +10,10 @@ import {
 import Modal from './components/Modal'
 import BuildingForm from './components/BuildingForm'
 import RoomManagement from './components/RoomManagement'
+import { PageLoader } from './components/LoadingSpinner'
+import { NoBuildingsState } from './components/EmptyState'
 import './AdminDashboard.css'
+import './components/MobileResponsive.css'
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
@@ -23,6 +27,7 @@ function AdminDashboard() {
 
   const { adminSession, logout, getUniversity, addBuilding, updateBuilding, deleteBuilding } = useAdminAuth()
   const navigate = useNavigate()
+  const toast = useToast()
 
   useEffect(() => {
     if (!adminSession) {
@@ -59,16 +64,18 @@ function AdminDashboard() {
         await loadUniversity()
         setShowModal(false)
         setEditingBuilding(null)
+        toast.success('Building updated successfully!')
       } else {
-        alert(`Error: ${result.error}`)
+        toast.error(`Failed to update building: ${result.error}`)
       }
     } else {
       const result = await addBuilding(buildingData)
       if (result.success) {
         await loadUniversity()
         setShowModal(false)
+        toast.success('Building added successfully!')
       } else {
-        alert(`Error: ${result.error}`)
+        toast.error(`Failed to add building: ${result.error}`)
       }
     }
   }
@@ -83,8 +90,9 @@ function AdminDashboard() {
       if (result.success) {
         await loadUniversity()
         setDeleteConfirm(null)
+        toast.success('Building deleted successfully')
       } else {
-        alert(`Error: ${result.error}`)
+        toast.error(`Failed to delete building: ${result.error}`)
       }
     }
   }
@@ -109,7 +117,7 @@ function AdminDashboard() {
 
   const handleBulkDelete = () => {
     if (selectedBuildings.length === 0) {
-      alert('Please select at least one building to delete')
+      toast.warning('Please select at least one building to delete')
       return
     }
     setBulkDeleteConfirm(true)
@@ -125,8 +133,9 @@ function AdminDashboard() {
       await loadUniversity()
       setSelectedBuildings([])
       setBulkDeleteConfirm(false)
+      toast.success(`${selectedBuildings.length} building(s) deleted successfully`)
     } catch (error) {
-      alert(`Error deleting buildings: ${error.message}`)
+      toast.error(`Failed to delete buildings: ${error.message}`)
     }
   }
 
@@ -134,6 +143,7 @@ function AdminDashboard() {
     const link = `${window.location.origin}/map?uni=${university.id}`
     navigator.clipboard.writeText(link)
     setCopySuccess(true)
+    toast.success('Link copied to clipboard!')
     setTimeout(() => setCopySuccess(false), 2000)
   }
 
@@ -150,6 +160,7 @@ function AdminDashboard() {
   const copyEmbedCode = () => {
     navigator.clipboard.writeText(getEmbedCode())
     setCopySuccess(true)
+    toast.success('Embed code copied to clipboard!')
     setTimeout(() => setCopySuccess(false), 2000)
   }
 
@@ -172,7 +183,7 @@ function AdminDashboard() {
   }
 
   if (!university) {
-    return <div className="loading">Loading...</div>
+    return <PageLoader text="Loading your dashboard..." />
   }
 
   return (
@@ -395,15 +406,7 @@ function AdminDashboard() {
             </div>
 
             {university.buildings.length === 0 ? (
-              <div className="empty-state-large">
-                <FontAwesomeIcon icon={faBuilding} className="empty-icon" />
-                <h3>No Buildings Yet</h3>
-                <p>Start by adding your first campus building</p>
-                <button className="btn-add-first" onClick={handleAddBuilding}>
-                  <FontAwesomeIcon icon={faPlus} />
-                  Add First Building
-                </button>
-              </div>
+              <NoBuildingsState onAddBuilding={handleAddBuilding} />
             ) : (
               <>
                 <div className="bulk-select-bar">
