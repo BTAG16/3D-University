@@ -54,6 +54,56 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.timetable-mobile-list {
+  display: none;
+  margin-top: 12px;
+}
+
+.timetable-day-card {
+  border: 1px solid #dbe2ee;
+  border-radius: 8px;
+  background: white;
+  padding: 10px;
+}
+
+.timetable-day-card + .timetable-day-card {
+  margin-top: 10px;
+}
+
+.timetable-day-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.timetable-day-card ul {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 6px;
+}
+
+.timetable-day-card li {
+  color: #334155;
+}
+
+.day-slot-time {
+  font-weight: 700;
+  color: #1d4ed8;
+  font-size: 12px;
+}
+
+.day-slot-services {
+  font-size: 12px;
+  color: #475569;
+}
+
+.day-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
 .timetable-grid {
   width: 100%;
   border-collapse: collapse;
@@ -167,23 +217,12 @@
     font-size: 12px;
   }
 
-  .timetable-grid {
-    font-size: 12px;
-    min-width: 500px;
+  .timetable-grid-container {
+    display: none;
   }
 
-  .timetable-grid th,
-  .timetable-grid td {
-    padding: 8px 10px;
-    min-width: 120px;
-  }
-
-  .timetable-grid th {
-    font-size: 12px;
-  }
-
-  .timetable-grid th.day-column {
-    width: 90px;
+  .timetable-mobile-list {
+    display: block;
   }
 
   .service-item {

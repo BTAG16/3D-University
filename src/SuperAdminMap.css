@@ -1,6 +1,7 @@
 .super-admin-map {
   min-height: 100vh;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: #f8fafc;
@@ -19,13 +20,13 @@
   z-index: 100;
 }
 
-.header-left {
+.super-admin-map .header-left {
   display: flex;
   align-items: center;
   gap: 15px;
 }
 
-.btn-back {
+.super-admin-map .btn-back {
   width: 40px;
   height: 40px;
   border-radius: 10px;
@@ -40,30 +41,30 @@
   font-size: 1.1rem;
 }
 
-.btn-back:hover {
+.super-admin-map .btn-back:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: translateX(-3px);
 }
 
-.header-icon {
+.super-admin-map .header-icon {
   font-size: 2rem;
   color: #fbbf24;
 }
 
-.header-text h1 {
+.super-admin-map .header-text h1 {
   color: white !important;
   font-size: 1.5rem;
   margin: 0;
   font-weight: 700;
 }
 
-.header-text p {
+.super-admin-map .header-text p {
   font-size: 0.9rem;
   color: #cbd5e1 !important;
   margin: 0;
 }
 
-.header-actions {
+.super-admin-map .header-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
@@ -400,7 +401,7 @@
   right: 0;
   background: white;
   border-top: 1px solid #e2e8f0;
-  padding: 12px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
   gap: 10px;
   box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
   z-index: 100;
@@ -448,7 +449,7 @@
 @media (max-width: 768px) {
   .super-admin-map {
     height: 100vh;
-    height: -webkit-fill-available;
+    height: 100dvh;
   }
 
   .map-header {
@@ -456,18 +457,18 @@
     min-height: 60px;
   }
 
-  .header-icon {
+  .super-admin-map .header-icon {
     font-size: 1.2rem;
     flex-shrink: 0;
   }
 
-  .header-left {
+  .super-admin-map .header-left {
     gap: 8px;
     min-width: 0;
     flex: 1;
   }
 
-  .header-text h1 {
+  .super-admin-map .header-text h1 {
     font-size: 0.95rem;
     line-height: 1.2;
     white-space: nowrap;
@@ -475,7 +476,7 @@
     text-overflow: ellipsis;
   }
 
-  .header-text p {
+  .super-admin-map .header-text p {
     font-size: 0.7rem;
     line-height: 1.2;
     white-space: nowrap;
@@ -538,7 +539,7 @@
   }
 
   .map-content {
-    margin-bottom: 70px;
+    margin-bottom: calc(70px + env(safe-area-inset-bottom));
     min-height: 0;
   }
 

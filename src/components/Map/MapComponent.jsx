@@ -10,7 +10,8 @@ const MapComponent = forwardRef(({
   onBuildingClick,
   showDirections = false,
   destinationCoords = null,
-  darkMode = false
+  darkMode = false,
+  onRouteDataChange = null
 }, ref) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
@@ -38,6 +39,9 @@ const MapComponent = forwardRef(({
         mapRef.current.removeSource('route')
       }
       setRouteData(null)
+      if (onRouteDataChange) {
+        onRouteDataChange(null)
+      }
     },
     getMap: () => mapRef.current
   }))
@@ -119,7 +123,26 @@ const MapComponent = forwardRef(({
 
     mapRef.current = map
 
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.resize()
+      }
+    })
+
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current)
+    }
+
+    const handleWindowResize = () => {
+      if (mapRef.current) {
+        mapRef.current.resize()
+      }
+    }
+    window.addEventListener('resize', handleWindowResize)
+
     return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', handleWindowResize)
       map.remove()
     }
   }, [mapboxToken, buildings.length])
@@ -267,7 +290,7 @@ const MapComponent = forwardRef(({
     const fetchDirections = async () => {
       const start = `${userLocation.longitude},${userLocation.latitude}`
       const end = `${destinationCoords[0]},${destinationCoords[1]}`
-      const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}?geometries=geojson&access_token=${mapboxToken}`
+      const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}?geometries=geojson&overview=full&steps=true&language=en&access_token=${mapboxToken}`
 
       try {
         const response = await fetch(url)
@@ -275,11 +298,23 @@ const MapComponent = forwardRef(({
 
         if (data.routes && data.routes.length > 0) {
           const route = data.routes[0]
-          setRouteData({
+          const steps = route.legs?.[0]?.steps?.map((step, index) => ({
+            id: `${index}-${step.maneuver?.instruction || 'step'}`,
+            instruction: step.maneuver?.instruction || 'Continue',
+            distance: Math.round(step.distance || 0),
+            duration: Math.round((step.duration || 0) / 60)
+          })) || []
+
+          const nextRouteData = {
             distance: (route.distance / 1000).toFixed(2),
             duration: Math.round(route.duration / 60),
-            geometry: route.geometry
-          })
+            geometry: route.geometry,
+            steps
+          }
+          setRouteData(nextRouteData)
+          if (onRouteDataChange) {
+            onRouteDataChange(nextRouteData)
+          }
 
           if (mapRef.current.getLayer('route')) {
             mapRef.current.removeLayer('route')
@@ -323,11 +358,14 @@ const MapComponent = forwardRef(({
         }
       } catch (error) {
         console.error('Error fetching directions:', error)
+        if (onRouteDataChange) {
+          onRouteDataChange(null)
+        }
       }
     }
 
     fetchDirections()
-  }, [showDirections, userLocation, destinationCoords, mapboxToken])
+  }, [showDirections, userLocation, destinationCoords, mapboxToken, onRouteDataChange])
 
   if (!mapboxToken) {
     return (

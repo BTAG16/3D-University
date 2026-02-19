@@ -2,16 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
 import { useToast } from './components/Toast'
-import { ButtonLoader } from './components/LoadingSpinner'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { 
-  faGraduationCap, 
-  faEnvelope, 
-  faLock, 
-  faBuilding, 
-  faCity, 
-  faUserShield, 
-  faKey, 
+import {
+  faGraduationCap,
+  faEnvelope,
+  faLock,
+  faKey,
   faArrowLeft,
   faCheckCircle,
   faSpinner
@@ -19,39 +15,29 @@ import {
 import './AdminLogin.css'
 
 function AdminLogin() {
-  const [isRegister, setIsRegister] = useState(false)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    confirmPassword: '',
-    universityName: '',
-    city: ''
+    password: ''
   })
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const { adminSession, registerAdmin, adminLogin, sendPasswordResetEmail } = useAdminAuth()
+  const { adminSession, adminLogin, sendPasswordResetEmail } = useAdminAuth()
   const navigate = useNavigate()
   const toast = useToast()
 
   useEffect(() => {
     if (adminSession) {
-      if (adminSession.user.isSuperAdmin) {
-        navigate('/super-admin/dashboard')
-      } else {
-        navigate('/admin/dashboard')
-      }
+      navigate('/admin/dashboard')
     }
   }, [adminSession, navigate])
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
     setError('')
-    setSuccess('')
   }
 
   const validateForm = () => {
@@ -70,61 +56,21 @@ function AdminLogin() {
       return false
     }
 
-    if (isRegister) {
-      if (formData.password !== formData.confirmPassword) {
-        toast.error('Passwords do not match')
-        return false
-      }
-
-      if (!formData.universityName || !formData.city) {
-        toast.error('University name and city are required')
-        return false
-      }
-    }
-
     return true
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
 
     setLoading(true)
     setError('')
-    setSuccess('')
 
     try {
-      let result
-      if (isRegister) {
-        result = await registerAdmin(
-          formData.email,
-          formData.password,
-          formData.universityName,
-          formData.city
-        )
-        
-        if (result.success) {
-          setSuccess(result.message || 'Registration successful! Please check your email to verify your account.')
-          // Clear form
-          setFormData({
-            email: '',
-            password: '',
-            confirmPassword: '',
-            universityName: '',
-            city: ''
-          })
-        } else {
-          setError(result.error || 'Registration failed')
-        }
-      } else {
-        result = await adminLogin(formData.email, formData.password)
-        
-        if (result.success) {
-          // Navigation handled by useEffect
-        } else {
-          setError(result.error || 'Login failed')
-        }
+      const result = await adminLogin(formData.email, formData.password)
+      if (!result.success) {
+        setError(result.error || 'Login failed')
       }
     } catch (err) {
       console.error('Auth error:', err)
@@ -136,7 +82,7 @@ function AdminLogin() {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault()
-    
+
     if (!forgotEmail.trim()) {
       setError('Please enter your email address')
       return
@@ -147,7 +93,7 @@ function AdminLogin() {
 
     try {
       const result = await sendPasswordResetEmail(forgotEmail.trim())
-      
+
       if (result.success) {
         setResetSent(true)
         setError('')
@@ -167,13 +113,12 @@ function AdminLogin() {
     setForgotEmail('')
     setResetSent(false)
     setError('')
-    setSuccess('')
   }
 
   if (showForgotPassword) {
     return (
       <div className="admin-login-page">
-        <button 
+        <button
           className="btn-back-to-landing"
           onClick={() => navigate('/')}
           title="Back to Home"
@@ -194,10 +139,7 @@ function AdminLogin() {
               <FontAwesomeIcon icon={faCheckCircle} className="success-icon" />
               <h3>Reset Email Sent!</h3>
               <p>Check your inbox for password reset instructions.</p>
-              <button
-                className="btn-submit"
-                onClick={handleBackToLogin}
-              >
+              <button className="btn-submit" onClick={handleBackToLogin}>
                 Back to Login
               </button>
             </div>
@@ -250,8 +192,7 @@ function AdminLogin() {
 
   return (
     <div className="admin-login-page">
-      {/* Back to Landing Button */}
-      <button 
+      <button
         className="btn-back-to-landing"
         onClick={() => navigate('/')}
         title="Back to Home"
@@ -264,76 +205,11 @@ function AdminLogin() {
         <div className="login-header">
           <FontAwesomeIcon icon={faGraduationCap} className="login-icon" />
           <h1>Campus Explorer</h1>
-          <p className="login-subtitle">Admin Portal</p>
-        </div>
-
-        <div className="login-tabs">
-          <button
-            className={`tab ${!isRegister ? 'active' : ''}`}
-            onClick={() => {
-              setIsRegister(false)
-              setError('')
-              setSuccess('')
-            }}
-          >
-            Login
-          </button>
-          <button
-            className={`tab ${isRegister ? 'active' : ''}`}
-            onClick={() => {
-              setIsRegister(true)
-              setError('')
-              setSuccess('')
-            }}
-          >
-            Register University
-          </button>
+          <p className="login-subtitle">University Admin Portal</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           {error && <div className="error-message">{error}</div>}
-          {success && <div className="success-message" style={{
-            padding: '12px',
-            background: '#d4edda',
-            border: '1px solid #c3e6cb',
-            borderRadius: '4px',
-            color: '#155724',
-            marginBottom: '20px'
-          }}>{success}</div>}
-
-          {isRegister && (
-            <>
-              <div className="form-group">
-                <label>
-                  <FontAwesomeIcon icon={faBuilding} className="input-icon" />
-                  University Name
-                </label>
-                <input
-                  type="text"
-                  name="universityName"
-                  value={formData.universityName}
-                  onChange={handleChange}
-                  placeholder="Enter university name"
-                  required={isRegister}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <FontAwesomeIcon icon={faCity} className="input-icon" />
-                  City
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  placeholder="Enter city"
-                  required={isRegister}
-                />
-              </div>
-            </>
-          )}
 
           <div className="form-group">
             <label>
@@ -360,59 +236,24 @@ function AdminLogin() {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Enter password (min 6 characters)"
+              placeholder="Enter password"
               required
             />
           </div>
 
-          {isRegister && (
-            <div className="form-group">
-              <label>
-                <FontAwesomeIcon icon={faLock} className="input-icon" />
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="Confirm password"
-                required={isRegister}
-              />
-            </div>
-          )}
-
           <button type="submit" className="btn-submit" disabled={loading}>
-            {loading ? 'Processing...' : isRegister ? 'Register & Create Dashboard' : 'Login to Dashboard'}
+            {loading ? 'Processing...' : 'Login to Dashboard'}
           </button>
 
-          {!isRegister && (
-            <button
-              type="button"
-              className="btn-forgot-password"
-              onClick={() => setShowForgotPassword(true)}
-            >
-              <FontAwesomeIcon icon={faKey} />
-              Forgot Password?
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-forgot-password"
+            onClick={() => setShowForgotPassword(true)}
+          >
+            <FontAwesomeIcon icon={faKey} />
+            Forgot Password?
+          </button>
         </form>
-
-        <div className="login-footer">
-          <p>
-            {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button
-              className="switch-mode-btn"
-              onClick={() => {
-                setIsRegister(!isRegister)
-                setError('')
-                setSuccess('')
-              }}
-            >
-              {isRegister ? 'Login here' : 'Register your university'}
-            </button>
-          </p>
-        </div>
       </div>
     </div>
   )

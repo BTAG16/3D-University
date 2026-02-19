@@ -10,8 +10,8 @@ import IndoorNavModal from './components/IndoorNavModal'
 import { useToast } from './components/Toast'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faMapMarkedAlt, faList, faLocationArrow, faSearch, faShareAlt, faBars, faTimes, 
-  faDirections, faMapMarkerAlt, faMoon, faSun, faDoorOpen
+  faMapMarkedAlt, faList, faLocationArrow, faShareAlt, faTimes,
+  faDirections, faMapMarkerAlt, faSun, faDoorOpen
 } from '@fortawesome/free-solid-svg-icons'
 import './PublicMap.css'
 
@@ -36,6 +36,7 @@ function PublicMap() {
   const [officeRooms, setOfficeRooms] = useState([])
   const [showIndoorNav, setShowIndoorNav] = useState(false)
   const [indoorNavUrl, setIndoorNavUrl] = useState('')
+  const [routeData, setRouteData] = useState(null)
   const mapRef = useRef(null)
 
   useEffect(() => {
@@ -215,6 +216,7 @@ function PublicMap() {
   const handleBuildingClick = async (building) => {
     setSelectedBuilding(building)
     setShowDirections(false)
+    setRouteData(null)
     setShowModal(true)
     setShowRoomsList(false)
     if (mapRef.current?.clearDirections) {
@@ -276,6 +278,7 @@ function PublicMap() {
 
   const handleCloseDirections = () => {
     setShowDirections(false)
+    setRouteData(null)
     setSelectedBuilding(null)
     setShowModal(true)
     if (mapRef.current?.clearDirections) {
@@ -448,25 +451,39 @@ function PublicMap() {
             showDirections={showDirections}
             destinationCoords={selectedBuilding?.coordinates}
             darkMode={darkMode}
+            onRouteDataChange={setRouteData}
           />
 
           {showDirections && selectedBuilding && (
             <div className="floating-navigation-controls">
+              {routeData && (
+                <div className="floating-route-panel">
+                  <h3>Walking Directions</h3>
+                  <p className="route-summary">
+                    {routeData.distance} km · {routeData.duration} min
+                  </p>
+                  <ol>
+                    {routeData.steps.slice(0, 6).map((step) => (
+                      <li key={step.id}>{step.instruction}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
               <button 
                 className="btn-floating-google-maps"
                 onClick={handleOpenInGoogleMaps}
-                title="Directions"
+                title="Open in Google Maps"
               >
                 <FontAwesomeIcon icon={faMapMarkerAlt} />
-                <span>Directions</span>
+                <span>Google Maps (Optional)</span>
               </button>
               <button 
                 className="btn-floating-close"
                 onClick={handleCloseDirections}
-                title="Close"
+                title="Close In-App Directions"
               >
                 <FontAwesomeIcon icon={faTimes} />
-                <span>Close</span>
+                <span>Close Directions</span>
               </button>
             </div>
           )}
@@ -494,6 +511,7 @@ function PublicMap() {
         <Modal onClose={() => {
           setSelectedBuilding(null)
           setShowDirections(false)
+          setRouteData(null)
           setShowModal(true)
           setShowRoomsList(false)
           if (mapRef.current?.clearDirections) {
@@ -528,7 +546,7 @@ function PublicMap() {
                 onClick={handleOpenInGoogleMaps}
               >
                 <FontAwesomeIcon icon={faMapMarkerAlt} />
-                <span>Directions</span>
+                <span>Open in Google Maps</span>
               </button>
               <button 
                 className="btn-navigation btn-view-rooms"

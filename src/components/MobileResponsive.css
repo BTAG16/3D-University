@@ -5,6 +5,7 @@
   /* Adjust padding for mobile */
   .dashboard-content {
     padding: 16px !important;
+    background: white !important;
   }
 
   .tab-header {

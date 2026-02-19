@@ -4,9 +4,6 @@ import { ToastProvider } from './components/Toast'
 import { CookieConsent } from './components/CookieConsent'
 import AdminLogin from './AdminLogin'
 import AdminDashboard from './AdminDashboard'
-import SuperAdminLogin from './SuperAdminLogin'
-import SuperAdminDashboard from './SuperAdminDashboard'
-import SuperAdminMap from './SuperAdminMap'
 import PublicMap from './PublicMap'
 import EmbedMap from './EmbedMap'
 import DemoMap from './DemoMap'
@@ -25,10 +22,10 @@ function App() {
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/super-admin" element={<SuperAdminLogin />} />
-            <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-            <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
-            <Route path="/super-admin/map" element={<SuperAdminMap />} />
+            <Route path="/super-admin" element={<Navigate to="/admin/login" replace />} />
+            <Route path="/super-admin/login" element={<Navigate to="/admin/login" replace />} />
+            <Route path="/super-admin/dashboard" element={<Navigate to="/admin/login" replace />} />
+            <Route path="/super-admin/map" element={<Navigate to="/admin/login" replace />} />
             <Route path="/map" element={<PublicMap />} />
             <Route path="/embed" element={<EmbedMap />} />
             <Route path="/demo" element={<DemoMap />} />

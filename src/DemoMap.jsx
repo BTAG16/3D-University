@@ -106,6 +106,7 @@ function DemoMap() {
   const [showDemoInfo, setShowDemoInfo] = useState(true)
   const [showRoomsList, setShowRoomsList] = useState(false)
   const [officeRooms, setOfficeRooms] = useState([])
+  const [routeData, setRouteData] = useState(null)
   const mapRef = useRef(null)
 
   useEffect(() => {
@@ -162,6 +163,7 @@ function DemoMap() {
   const handleBuildingClick = (building) => {
     setSelectedBuilding(building)
     setShowDirections(false)
+    setRouteData(null)
     setShowModal(true)
     setShowRoomsList(false)
     
@@ -184,6 +186,7 @@ function DemoMap() {
       return
     }
     setShowDirections(true)
+    setRouteData(null)
     setShowModal(false)
   }
 
@@ -204,6 +207,7 @@ function DemoMap() {
 
   const handleCloseDirections = () => {
     setShowDirections(false)
+    setRouteData(null)
     setSelectedBuilding(null)
     setShowModal(true)
     if (mapRef.current?.clearDirections) {
@@ -429,6 +433,7 @@ function DemoMap() {
             onBuildingClick={handleBuildingClick}
             showDirections={showDirections}
             destinationCoords={selectedBuilding?.coordinates}
+            onRouteDataChange={setRouteData}
           />
 
           {showDirections && selectedBuilding && (
@@ -449,6 +454,24 @@ function DemoMap() {
                 <FontAwesomeIcon icon={faTimes} />
                 <span>Close</span>
               </button>
+            </div>
+          )}
+
+          {showDirections && routeData && routeData.steps?.length > 0 && (
+            <div className="floating-route-panel">
+              <h3>Walking Directions</h3>
+              <div className="route-summary">
+                <span>{routeData.distanceText}</span>
+                <span>{routeData.durationText}</span>
+              </div>
+              <ol>
+                {routeData.steps.map((step, idx) => (
+                  <li key={`${step.distance}-${idx}`}>
+                    <span>{step.instruction}</span>
+                    <small>{step.distance}</small>
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
         </div>
@@ -475,6 +498,7 @@ function DemoMap() {
         <Modal onClose={() => {
           setSelectedBuilding(null)
           setShowDirections(false)
+          setRouteData(null)
           setShowModal(true)
           setShowRoomsList(false)
           if (mapRef.current?.clearDirections) {
@@ -506,7 +530,10 @@ function DemoMap() {
               </button>
               <button 
                 className="btn-navigation btn-view-rooms"
-                // onClick={() => setShowRoomsList(true)}
+                onClick={() => {
+                  setShowModal(false)
+                  setShowRoomsList(true)
+                }}
               >
                 <FontAwesomeIcon icon={faDoorOpen} />
                 <span>View All Rooms</span>
@@ -582,11 +609,17 @@ function DemoMap() {
 
       {/* Rooms List Modal - Uses demo data */}
       {selectedBuilding && showRoomsList && (
-        <Modal onClose={() => setShowRoomsList(false)}>
+        <Modal onClose={() => {
+          setShowRoomsList(false)
+          setShowModal(true)
+        }}>
           <DemoRoomsList
             buildingId={selectedBuilding.id}
             buildingName={selectedBuilding.name}
-            onClose={() => setShowRoomsList(false)}
+            onClose={() => {
+              setShowRoomsList(false)
+              setShowModal(true)
+            }}
           />
         </Modal>
       )}

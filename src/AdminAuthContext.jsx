@@ -131,7 +131,7 @@ export function AdminAuthProvider({ children }) {
     }
   }
 
-  // Login existing admin (works for both regular admins and super admin)
+  // Login existing university admin (single-tenant deployment)
   const adminLogin = async (email, password) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -149,6 +149,20 @@ export function AdminAuthProvider({ children }) {
           }
         }
         throw error
+      }
+
+      const adminResult = await dbService.getAdmin(data.user.id)
+      if (!adminResult.success) {
+        await supabase.auth.signOut()
+        return { success: false, error: 'Your account is not configured for this portal.' }
+      }
+
+      if (adminResult.data?.is_super_admin) {
+        await supabase.auth.signOut()
+        return {
+          success: false,
+          error: 'Super admin access is disabled in this deployment.'
+        }
       }
 
       // Session will be loaded by the auth state change listener

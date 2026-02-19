@@ -107,6 +107,52 @@
   flex-wrap: wrap;
 }
 
+.rooms-tools {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.rooms-search-box {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dbe2ee;
+  border-radius: 8px;
+  background: white;
+  padding: 9px 12px;
+}
+
+.rooms-search-box svg {
+  color: #64748b;
+}
+
+.rooms-search-box input {
+  border: 0;
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+  color: #334155;
+}
+
+.offices-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.offices-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #007bff;
+}
+
 .summary-item {
   display: flex;
   align-items: center;
@@ -139,6 +185,24 @@
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
+}
+
+.room-timetable-section {
+  margin-top: 10px;
+}
+
+.btn-toggle-room-timetable {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
+.btn-toggle-room-timetable:hover {
+  border-color: #93c5fd;
 }
 
 .room-card:hover {
@@ -220,6 +284,11 @@
   padding: 15px;
 }
 
+.empty-state.compact {
+  min-height: 120px;
+  margin-top: 10px;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .rooms-list-modal {
@@ -247,6 +316,16 @@
   .rooms-summary {
     gap: 16px;
     padding: 12px;
+  }
+
+  .rooms-tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rooms-search-box {
+    min-width: 0;
+    width: 100%;
   }
 
   .summary-item {

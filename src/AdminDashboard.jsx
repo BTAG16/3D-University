@@ -5,15 +5,16 @@ import { useToast } from './components/Toast'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faBuilding, faPlus, faEdit, faTrash, faCopy, faSignOutAlt,
-  faCheckCircle, faTimes, faMapMarkedAlt, faCog, faChartBar, faDoorOpen, faHome, faCheck
+  faCheckCircle, faTimes, faMapMarkedAlt, faCog, faChartBar, faDoorOpen, faHome, faCheck, faEnvelope,
+  faUserCheck
 } from '@fortawesome/free-solid-svg-icons'
 import Modal from './components/Modal'
 import BuildingForm from './components/BuildingForm'
 import RoomManagement from './components/RoomManagement'
+import AdminSettings from './components/AdminSettings'
 import { PageLoader } from './components/LoadingSpinner'
 import { NoBuildingsState } from './components/EmptyState'
 import './AdminDashboard.css'
-import './components/MobileResponsive.css'
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
@@ -24,6 +25,15 @@ function AdminDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [selectedBuildings, setSelectedBuildings] = useState([])
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+  const [showMobileNav, setShowMobileNav] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [analytics, setAnalytics] = useState({
+    totalBuildings: 0,
+    totalRooms: 0,
+    avgRoomsPerBuilding: 0,
+    categoryBreakdown: {},
+    recentActivity: []
+  })
 
   const { adminSession, logout, getUniversity, addBuilding, updateBuilding, deleteBuilding } = useAdminAuth()
   const navigate = useNavigate()
@@ -40,6 +50,55 @@ function AdminDashboard() {
   const loadUniversity = async () => {
     const uni = await getUniversity()
     setUniversity(uni)
+    
+    // Calculate analytics
+    if (uni && uni.buildings) {
+      calculateAnalytics(uni)
+    }
+  }
+
+  const calculateAnalytics = (uni) => {
+    const buildings = uni.buildings || []
+    const totalBuildings = buildings.length
+    
+    // Calculate total rooms
+    let totalRooms = 0
+    const categoryBreakdown = {}
+    const recentBuildings = []
+
+    buildings.forEach(building => {
+      // Count rooms
+      const roomsArray = building.rooms
+      if (Array.isArray(roomsArray) && roomsArray.length > 0) {
+        if (roomsArray[0] && typeof roomsArray[0].count === 'number') {
+          totalRooms += roomsArray[0].count
+        } else {
+          totalRooms += roomsArray.length
+        }
+      }
+
+      // Category breakdown
+      const category = building.category || 'Other'
+      categoryBreakdown[category] = (categoryBreakdown[category] || 0) + 1
+
+      // Recent buildings
+      recentBuildings.push({
+        name: building.name,
+        category: building.category,
+        date: building.created_at || building.updated_at
+      })
+    })
+
+    // Sort by most recent
+    recentBuildings.sort((a, b) => new Date(b.date) - new Date(a.date))
+
+    setAnalytics({
+      totalBuildings,
+      totalRooms,
+      avgRoomsPerBuilding: totalBuildings > 0 ? (totalRooms / totalBuildings).toFixed(1) : 0,
+      categoryBreakdown,
+      recentActivity: recentBuildings.slice(0, 5)
+    })
   }
 
   const handleLogout = () => {
@@ -186,43 +245,47 @@ function AdminDashboard() {
     return <PageLoader text="Loading your dashboard..." />
   }
 
+  const recentBuildings = [...(university.buildings || [])]
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+    .slice(0, 3)
+
   return (
     <div className="admin-dashboard">
       {/* Header */}
       <header className="dashboard-header">
-        <div className="header-content">
-          <div className="header-left">
-            <FontAwesomeIcon icon={faBuilding} className="header-icon" />
+        <div className="dashboard-header-inner">
+          <div className="dashboard-brand">
+            <span className="dashboard-brand-icon">
+              <FontAwesomeIcon icon={faBuilding} />
+            </span>
             <div>
               <h1>{university.name}</h1>
               <p className="university-city">{university.city}</p>
             </div>
           </div>
-          <div className='dash' style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <button 
-              className="btn-home" 
+          <div className="dashboard-header-actions">
+            <button
+              className="dashboard-btn dashboard-btn-secondary"
+              onClick={() => window.location.href = 'mailto:seuncloud03@gmail.com'}
+            >
+              <FontAwesomeIcon icon={faEnvelope} />
+              Contact
+            </button>
+            <button
+              className="dashboard-btn dashboard-btn-primary"
               onClick={() => navigate('/')}
-              style={{
-                padding: '10px 20px',
-                background: 'var(--primary)',
-                color: 'white',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                transition: 'background 0.3s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.background = 'var(--primary-dark)'}
-              onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
             >
               <FontAwesomeIcon icon={faHome} />
               Home
             </button>
-            <button className="btn-logout" onClick={handleLogout}>
+            <button
+              className="dashboard-btn dashboard-btn-neutral"
+              onClick={() => setShowSettingsModal(true)}
+            >
+              <FontAwesomeIcon icon={faCog} />
+              Settings
+            </button>
+            <button className="dashboard-btn dashboard-btn-danger" onClick={handleLogout}>
               <FontAwesomeIcon icon={faSignOutAlt} />
               Logout
             </button>
@@ -230,8 +293,17 @@ function AdminDashboard() {
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <nav className="dashboard-nav">
+      {/* Mobile Navigation Menu Button */}
+      <button 
+        className="mobile-nav-trigger"
+        onClick={() => setShowMobileNav(true)}
+        aria-label="Open navigation menu"
+      >
+        <FontAwesomeIcon icon={faCog} />
+      </button>
+
+      {/* Navigation Tabs - Desktop */}
+      <nav className="dashboard-nav desktop-nav">
         <button
           className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
           onClick={() => setActiveTab('overview')}
@@ -264,10 +336,80 @@ function AdminDashboard() {
           className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
         >
-          <FontAwesomeIcon icon={faCog} />
-          Settings
+          <FontAwesomeIcon icon={faUserCheck} />
+          Details
         </button>
       </nav>
+
+      {/* Mobile Navigation Modal */}
+      {showMobileNav && (
+        <div className="mobile-nav-overlay" onClick={() => setShowMobileNav(false)}>
+          <div className="mobile-nav-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-nav-header">
+              <h3>Navigation</h3>
+              <button 
+                className="btn-close-mobile-nav"
+                onClick={() => setShowMobileNav(false)}
+                aria-label="Close navigation"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+            <div className="mobile-nav-content">
+              <button
+                className={`mobile-nav-item ${activeTab === 'overview' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('overview')
+                  setShowMobileNav(false)
+                }}
+              >
+                <FontAwesomeIcon icon={faChartBar} />
+                <span>Overview</span>
+              </button>
+              <button
+                className={`mobile-nav-item ${activeTab === 'buildings' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('buildings')
+                  setShowMobileNav(false)
+                }}
+              >
+                <FontAwesomeIcon icon={faBuilding} />
+                <span>Buildings</span>
+              </button>
+              <button
+                className={`mobile-nav-item ${activeTab === 'rooms' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('rooms')
+                  setShowMobileNav(false)
+                }}
+              >
+                <FontAwesomeIcon icon={faDoorOpen} />
+                <span>Rooms</span>
+              </button>
+              <button
+                className={`mobile-nav-item ${activeTab === 'link' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('link')
+                  setShowMobileNav(false)
+                }}
+              >
+                <FontAwesomeIcon icon={faMapMarkedAlt} />
+                <span>Public Link</span>
+              </button>
+              <button
+                className={`mobile-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('settings')
+                  setShowMobileNav(false)
+                }}
+              >
+                <FontAwesomeIcon icon={faUserCheck} />
+                <span>Details</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="dashboard-content">
@@ -349,10 +491,7 @@ function AdminDashboard() {
                 <p className="empty-state">No buildings yet. Add your first building to get started!</p>
               ) : (
                 <div className="buildings-preview">
-                  {university.buildings
-                    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
-                    .slice(0, 3)
-                    .map((building) => (
+                  {recentBuildings.map((building) => (
                     <div key={building.id} className="building-preview-card">
                       <h3>{building.name}</h3>
                       <p className="building-category">{building.category}</p>
@@ -571,7 +710,7 @@ function AdminDashboard() {
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="settings-tab">
-            <h2>University Settings</h2>
+            <h2>University Details</h2>
             <div className="settings-info">
               <div className="info-row">
                 <label>University Name:</label>
@@ -651,6 +790,15 @@ function AdminDashboard() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Admin Settings Modal */}
+      {showSettingsModal && (
+        <AdminSettings
+          onClose={() => setShowSettingsModal(false)}
+          adminSession={adminSession}
+          onLogout={handleLogout}
+        />
       )}
     </div>
   )

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Play, Check, Menu, X, Star, Globe, Shield, Zap, Home } from 'lucide-react';
+import { ChevronRight, Play, Check, Menu, X, Globe, Shield, Zap, Home, Mail } from 'lucide-react';
 import { MagneticButton } from './components/ui/MagneticButton';
 import { useAdminAuth } from './AdminAuthContext';
-import { FEATURES, STATS, TESTIMONIALS, PRICING } from './constants';
+import { FEATURES } from './constants';
 import './Landing.css';
 
 const Landing = () => {
@@ -19,6 +19,7 @@ const Landing = () => {
   const { adminSession } = useAdminAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [useCursorGlow, setUseCursorGlow] = useState(false);
 
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -28,17 +29,44 @@ const Landing = () => {
   };
 
 
+  // Enable cursor glow only on larger pointer devices
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: fine)');
+    const updateMode = () => {
+      setUseCursorGlow(media.matches && window.innerWidth >= 1024);
+    };
+
+    updateMode();
+    if (media.addEventListener) {
+      media.addEventListener('change', updateMode);
+    } else if (media.addListener) {
+      media.addListener(updateMode);
+    }
+    window.addEventListener('resize', updateMode);
+
+    return () => {
+      if (media.removeEventListener) {
+        media.removeEventListener('change', updateMode);
+      } else if (media.removeListener) {
+        media.removeListener(updateMode);
+      }
+      window.removeEventListener('resize', updateMode);
+    };
+  }, []);
+
   // Custom Cursor Logic
   useEffect(() => {
+    if (!useCursorGlow) return undefined;
+
     const updateMousePosition = (e) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
     window.addEventListener('mousemove', updateMousePosition);
     return () => window.removeEventListener('mousemove', updateMousePosition);
-  }, []);
+  }, [useCursorGlow]);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-dark)', color: 'white', overflow: 'hidden' }}>
+    <div className="landing-page" style={{ minHeight: '100vh', backgroundColor: 'var(--bg-dark)', color: 'white', overflow: 'hidden' }}>
       
       {/* Progress Bar */}
       <motion.div
@@ -56,44 +84,41 @@ const Landing = () => {
       />
 
       {/* Custom Cursor Follower (Subtle Glow) */}
-      <div 
-        style={{ 
-          position: 'fixed',
-          width: '600px',
-          height: '600px',
-          background: 'rgba(102, 126, 234, 0.2)',
-          borderRadius: '50%',
-          filter: 'blur(100px)',
-          pointerEvents: 'none',
-          zIndex: -1,
-          left: mousePosition.x - 300, 
-          top: mousePosition.y - 300,
-          transition: 'transform 0.1s ease-out',
-          mixBlendMode: 'screen'
-        }} 
-      />
+      {useCursorGlow && (
+        <div
+          className="cursor-glow"
+          style={{
+            left: mousePosition.x - 300,
+            top: mousePosition.y - 300
+          }}
+        />
+      )}
 
       {/* Navigation */}
       <nav className="navbar">
-        <div className="container" style={{ height: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="container navbar-inner">
           <div className="flex items-center gap-2" style={{ fontWeight: 'bold', fontSize: '1.25rem', letterSpacing: '-0.025em' }}>
             <div style={{ width: '2rem', height: '2rem', background: 'linear-gradient(to top right, var(--primary), var(--accent))', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ color: 'white', fontSize: '1.125rem' }}>C</span>
             </div>
-            <button className="nav-title" onClick={() => {scrollToSection("home"); setIsMenuOpen(false);}}><span>Campus Explorer</span></button>
+            <button type="button" className="nav-title" onClick={() => {scrollToSection("home"); setIsMenuOpen(false);}}><span>Campus Explorer</span></button>
             
           </div>
 
           {/* Desktop Nav */}
           <div className="md-flex items-center gap-8" style={{ display: 'none' }}>
-            <button className="nav-link" onClick={() => scrollToSection("features")}>Features</button>
-            <button className="nav-link" onClick={() => scrollToSection("benefits")}>Benefits</button>
+            <button type="button" className="nav-link" onClick={() => scrollToSection("features")}>Features</button>
+            <button type="button" className="nav-link" onClick={() => scrollToSection("benefits")}>Benefits</button>
+            <button type="button" className="nav-link" onClick={() => window.location.href = 'mailto:seuncloud03@gmail.com'}>
+              <Mail size={16} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+              Contact
+            </button>
             {/* <a href="#testimonials" className="nav-link">Stories</a>
             <a href="#pricing" className="nav-link">Pricing</a> */}
             
             {adminSession ? (
               <MagneticButton 
-                onClick={() => navigate(adminSession.user.isSuperAdmin ? '/super-admin/dashboard' : '/admin/dashboard')}
+                onClick={() => navigate('/admin/dashboard')}
                 className="text-xs" 
                 style={{ padding: '0.5rem 1.5rem' }}
               >
@@ -114,7 +139,12 @@ const Landing = () => {
           </div>
 
           {/* Mobile Menu Toggle */}
-          <button className="md-hidden" style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          <button
+            type="button"
+            className="md-hidden mobile-menu-toggle"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
             {isMenuOpen ? <X /> : <Menu />}
           </button>
         </div>
@@ -127,15 +157,17 @@ const Landing = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="md-hidden"
-            style={{ position: 'fixed', inset: 0, zIndex: 30, backgroundColor: 'var(--bg-dark)', paddingTop: '6rem', paddingLeft: '1.5rem', paddingRight: '1.5rem' }}
+            className="md-hidden mobile-menu-panel"
           >
             <div className="flex flex-col gap-6" style={{ fontSize: '1.25rem', fontWeight: 500 }}>
-              <button className="nav-link" onClick={() => {scrollToSection("features");setIsMenuOpen(false);}}>
+              <button type="button" className="nav-link" onClick={() => {scrollToSection("features");setIsMenuOpen(false);}}>
                 Features
               </button>
-              <button className="nav-link" onClick={() => {scrollToSection("benefits");setIsMenuOpen(false);}}>
+              <button type="button" className="nav-link" onClick={() => {scrollToSection("benefits");setIsMenuOpen(false);}}>
                 Benefits
+              </button>
+              <button type="button" className="nav-link" onClick={() => { window.location.href = 'mailto:seuncloud03@gmail.com'; setIsMenuOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Mail size={20} /> Contact Us
               </button>
               {/* <a href="#testimonials" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Testimonials</a>
               <a href="#pricing" onClick={() => setIsMenuOpen(false)} style={{ color: 'white', textDecoration: 'none' }}>Pricing</a>
@@ -145,7 +177,7 @@ const Landing = () => {
                 <MagneticButton 
                   onClick={() => {
                     setIsMenuOpen(false);
-                    navigate(adminSession.user.isSuperAdmin ? '/super-admin/dashboard' : '/admin/dashboard');
+                    navigate('/admin/dashboard');
                   }}
                   className="justify-center" 
                   style={{ width: '100%' }}
@@ -216,7 +248,7 @@ const Landing = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8 }}
             className="flex items-center gap-4 text-muted text-sm"
-            style={{ marginTop: '3rem', justifyContent: 'center' }}
+            style={{ marginTop: '3rem', justifyContent: 'center', flexWrap: 'wrap' }}
           >
             <div className="flex" style={{ marginLeft: '0.75rem' }}>
               {[1, 2, 3, 4].map((i) => (
@@ -472,7 +504,7 @@ const Landing = () => {
             style={{ padding: '1.25rem 2.5rem', fontSize: '1.125rem' }}
             onClick={() => navigate("/admin/login")}
           >
-            Start Your Free Trial
+            Request Deployment Consultation
           </MagneticButton>
           
           <div className="flex justify-center" style={{ marginTop: '3rem', flexWrap: 'wrap', gap: '2rem', fontSize: '0.875rem', color: '#6b7280', fontWeight: 500 }}>
@@ -484,17 +516,16 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '3rem', paddingBottom: '3rem', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)' }}>
+      <footer className="landing-footer">
         <div className="container">
-          
-          <div className="flex flex-col md-flex justify-between items-center" style={{ paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="flex flex-col md-flex justify-between items-center footer-inner">
             <div className="text-xs" style={{ color: '#4b5563', marginBottom: '1rem' }}>
               © {new Date().getFullYear()} Campus Explorer Inc. All rights reserved.
             </div>
-            <div className="flex gap-6">
-              <div style={{ width: '1.25rem', height: '1.25rem', backgroundColor: '#1f2937', borderRadius: '50%', cursor: 'pointer' }}></div>
-              <div style={{ width: '1.25rem', height: '1.25rem', backgroundColor: '#1f2937', borderRadius: '50%', cursor: 'pointer' }}></div>
-              <div style={{ width: '1.25rem', height: '1.25rem', backgroundColor: '#1f2937', borderRadius: '50%', cursor: 'pointer' }}></div>
+            <div className="flex gap-6 footer-links">
+              <button type="button" className="footer-link" onClick={() => navigate('/privacy')}>Privacy</button>
+              <button type="button" className="footer-link" onClick={() => navigate('/terms')}>Terms</button>
+              <button type="button" className="footer-link" onClick={() => window.location.href = 'mailto:seuncloud03@gmail.com'}>Contact</button>
             </div>
           </div>
         </div>
