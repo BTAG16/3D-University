@@ -3,8 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Campus Explorer - University Campus Mapping Platform</title>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet" />
+    <meta name="description" content="Kampus 3D gives universities an interactive 3D campus map students can actually use. Find buildings, rooms, offices, and directions in seconds." />
+    <title>Kampus 3D - Interactive Campus Mapping for Universities</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Dark mode init: apply before first paint to avoid flash -->
+    <script>(function(){if(localStorage.getItem('kampus-dark')==='true')document.documentElement.setAttribute('data-dark','true');})()</script>
+
+    <!-- Mapbox GL CSS — only needed on map pages, loaded here to avoid FOUC on map routes -->
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet" />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

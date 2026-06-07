@@ -8,16 +8,37 @@ import Modal from './components/Modal'
 import RoomsList from './components/RoomsList'
 import IndoorNavModal from './components/IndoorNavModal'
 import { useToast } from './components/Toast'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faMapMarkedAlt, faList, faLocationArrow, faShareAlt, faTimes,
-  faDirections, faMapMarkerAlt, faSun, faDoorOpen
-} from '@fortawesome/free-solid-svg-icons'
-import './PublicMap.css'
+import { Icon } from './icons'
+import { useDarkMode } from './hooks'
+
+const DARK = {
+  bg:      '#0A0A0C',
+  surface: '#111114',
+  surface2:'#18181C',
+  border:  'rgba(255,255,255,0.07)',
+  border2: 'rgba(255,255,255,0.12)',
+  text:    'rgba(255,255,255,0.92)',
+  textDim: 'rgba(255,255,255,0.5)',
+  textMut: 'rgba(255,255,255,0.3)',
+  accent:  '#0EA5E9',
+}
+const LIGHT = {
+  bg:      '#EEF2F7',
+  surface: '#FFFFFF',
+  surface2:'#F1F5F9',
+  border:  'rgba(0,0,0,0.08)',
+  border2: 'rgba(0,0,0,0.14)',
+  text:    '#0F172A',
+  textDim: '#475569',
+  textMut: '#94A3B8',
+  accent:  '#0EA5E9',
+}
 
 function PublicMap() {
   const [searchParams] = useSearchParams()
   const toast = useToast()
+  const [dark, toggleDark] = useDarkMode()
+  const D = dark ? DARK : LIGHT
   const [university, setUniversity] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -31,186 +52,120 @@ function PublicMap() {
   const [isMobile, setIsMobile] = useState(false)
   const [showDirections, setShowDirections] = useState(false)
   const [showModal, setShowModal] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
   const [showRoomsList, setShowRoomsList] = useState(false)
   const [officeRooms, setOfficeRooms] = useState([])
   const [showIndoorNav, setShowIndoorNav] = useState(false)
   const [indoorNavUrl, setIndoorNavUrl] = useState('')
   const [routeData, setRouteData] = useState(null)
+  const [fpvTour, setFpvTour] = useState(null)
+  const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
 
   useEffect(() => {
-    const checkMobile = () => {
+    const check = () => {
       const mobile = window.innerWidth <= 768
       setIsMobile(mobile)
-      if (mobile) {
-        setShowSidebar(false)
-      }
+      if (mobile) setShowSidebar(false)
     }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Load university data from Supabase
   useEffect(() => {
-    const loadUniversity = async () => {
+    const load = async () => {
       const uniId = searchParams.get('uni')
       if (!uniId) {
         setError('University ID is required. Please use the link provided by your university.')
         setLoading(false)
         return
       }
-
       try {
         setLoading(true)
-        console.log('Looking for university with ID:', uniId)
-
-        // Try to get by UUID first
         let result = await dbService.getUniversity(uniId)
-
-        // If not found by UUID, try to find by name or get all and search
         if (!result.success) {
-          console.log('Not found by ID, trying to find by name...')
-          
-          // Get all universities and try to match by old ID or name
-          const allResult = await dbService.getAllUniversities()
-          if (allResult.success && allResult.data) {
-            // Try to find a university that matches
-            const found = allResult.data.find(u => 
-              u.id === uniId || 
-              u.name.toLowerCase().replace(/\s+/g, '').includes(uniId.toLowerCase())
+          const all = await dbService.getAllUniversities()
+          if (all.success && all.data) {
+            const found = all.data.find(u =>
+              u.id === uniId || u.name.toLowerCase().replace(/\s+/g, '').includes(uniId.toLowerCase())
             )
-            
-            if (found) {
-              // Get full details for this university
-              result = await dbService.getUniversity(found.id)
-            }
+            if (found) result = await dbService.getUniversity(found.id)
           }
         }
-
         if (!result.success || !result.data) {
-          console.error('University not found:', result.error)
-          setError(
-            <div>
-              <p>University not found. The ID might have changed during import.</p>
-              <p style={{ marginTop: 10, fontSize: 14, color: '#666' }}>
-                Old ID: <code>{uniId}</code>
-              </p>
-              <button 
-                onClick={() => window.location.href = '/universities'}
-                style={{
-                  marginTop: 15,
-                  padding: '8px 16px',
-                  background: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 4,
-                  cursor: 'pointer'
-                }}
-              >
-                View All Universities
-              </button>
-            </div>
-          )
+          setError('University not found. The ID may have changed.')
           setLoading(false)
           return
         }
-
-        console.log('Found university:', result.data)
         setUniversity(result.data)
-        
-        // Sort buildings - administrative building first
-        const sortedBuildings = (result.data.buildings || []).sort((a, b) => {
+        const sorted = (result.data.buildings || []).sort((a, b) => {
           if (a.is_admin_building && !b.is_admin_building) return -1
           if (!a.is_admin_building && b.is_admin_building) return 1
           return 0
         })
-        
-        setBuildings(sortedBuildings)
-        setFilteredBuildings(sortedBuildings)
+        setBuildings(sorted)
+        setFilteredBuildings(sorted)
         setLoading(false)
       } catch (err) {
-        console.error('Error loading university:', err)
-        setError('Failed to load university data. Please try again later.')
+        setError('Failed to load university data. Please try again.')
         setLoading(false)
       }
     }
-
-    loadUniversity()
+    load()
   }, [searchParams])
 
   useEffect(() => {
-    const searchBuildings = async () => {
-      if (searchQuery) {
-        // Search both buildings and rooms
-        try {
-          const result = await dbService.searchBuildingsAndRooms(searchQuery, university.id)
-          if (result.success) {
-            // Get unique buildings from both building search and room search
-            const buildingIds = new Set()
-            const matchedBuildings = []
-            
-            // Add buildings that match directly
-            result.data.buildings?.forEach(b => {
-              if (!buildingIds.has(b.id)) {
-                buildingIds.add(b.id)
-                matchedBuildings.push(b)
-              }
-            })
-            
-            // Add buildings that contain matching rooms
-            result.data.rooms?.forEach(room => {
-              if (room.building_id && !buildingIds.has(room.building_id)) {
-                const building = buildings.find(b => b.id === room.building_id)
-                if (building) {
-                  buildingIds.add(building.id)
-                  matchedBuildings.push(building)
-                }
-              }
-            })
-            
-            setFilteredBuildings(matchedBuildings)
-          }
-        } catch (err) {
-          console.error('Search error:', err)
-          // Fallback to basic filtering
-          const filtered = buildings.filter(b =>
-            b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            b.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            b.departments?.some(d => d.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            b.facilities?.some(f => f.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            b.key_offices?.some(o => o.name.toLowerCase().includes(searchQuery.toLowerCase()))
-          )
-          setFilteredBuildings(filtered)
+    const search = async () => {
+      if (!searchQuery) { setFilteredBuildings(buildings); return }
+      if (!university) return
+      try {
+        const result = await dbService.searchBuildingsAndRooms(searchQuery, university.id)
+        if (result.success) {
+          const ids = new Set()
+          const matched = []
+          result.data.buildings?.forEach(b => { if (!ids.has(b.id)) { ids.add(b.id); matched.push(b) } })
+          result.data.rooms?.forEach(r => {
+            if (r.building_id && !ids.has(r.building_id)) {
+              const b = buildings.find(x => x.id === r.building_id)
+              if (b) { ids.add(b.id); matched.push(b) }
+            }
+          })
+          setFilteredBuildings(matched)
         }
-      } else {
-        setFilteredBuildings(buildings)
+      } catch {
+        setFilteredBuildings(buildings.filter(b =>
+          b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.category?.toLowerCase().includes(searchQuery.toLowerCase())
+        ))
       }
     }
-    
-    searchBuildings()
+    search()
   }, [searchQuery, buildings, university])
 
-  const handleGetLocation = () => {
-    if ('geolocation' in navigator) {
-      toast.info('Getting your location...')
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          }
-          setUserLocation(location)
-          toast.success('Location found! You can now get directions.')
-        },
-        (error) => {
-          toast.error('Unable to get your location. Please enable location services.')
-        }
-      )
-    } else {
-      toast.error('Geolocation is not supported by your browser.')
+  // Reset tour flag when directions panel closes
+  useEffect(() => {
+    if (!showDirections) tourStartedRef.current = false
+  }, [showDirections])
+
+  // Auto-start FPV tour once route data arrives
+  useEffect(() => {
+    if (showDirections && routeData?.steps?.length && !tourStartedRef.current) {
+      tourStartedRef.current = true
+      setFpvTour({ step: null, stepIndex: 0, totalSteps: routeData.steps.length, paused: false })
+      mapRef.current?.startFpvTour(routeData, {
+        onStep: (step, idx) => setFpvTour(t => t ? { ...t, step, stepIndex: idx } : t),
+        onComplete: () => { setFpvTour(null); tourStartedRef.current = false; handleCloseDirections() },
+      })
     }
+  }, [showDirections, routeData])
+
+  const handleGetLocation = () => {
+    if (!('geolocation' in navigator)) { toast.error('Geolocation not supported.'); return }
+    toast.info('Getting your location...')
+    navigator.geolocation.getCurrentPosition(
+      pos => { setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); toast.success('Location found!') },
+      () => toast.error('Unable to get location. Enable location services.')
+    )
   }
 
   const handleBuildingClick = async (building) => {
@@ -219,80 +174,52 @@ function PublicMap() {
     setRouteData(null)
     setShowModal(true)
     setShowRoomsList(false)
-    if (mapRef.current?.clearDirections) {
-      mapRef.current.clearDirections()
-    }
-    if (isMobile) {
-      setShowSidebar(false)
-    }
-    
-    // Load office rooms for this building
+    if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
+    if (isMobile) setShowSidebar(false)
     try {
-      const result = await dbService.getRooms(building.id)
-      if (result.success) {
-        const offices = result.data.filter(room => room.is_office)
-        setOfficeRooms(offices)
-      }
-    } catch (err) {
-      console.error('Error loading office rooms:', err)
-    }
+      const r = await dbService.getRooms(building.id)
+      if (r.success) setOfficeRooms(r.data.filter(x => x.is_office))
+    } catch { /* ignore */ }
   }
 
   const handleOpenIndoorNav = () => {
-    // Use the building's Mappedin URL if available, otherwise use the default
-    const mappedInUrl = selectedBuilding?.mappedin_url || 'https://app.mappedin.com/map/69332462a1aaeb000b3132d2?embedded=true'
-    setIndoorNavUrl(mappedInUrl)
+    setIndoorNavUrl(selectedBuilding?.mappedin_url || 'https://app.mappedin.com/map/69332462a1aaeb000b3132d2?embedded=true')
     setShowIndoorNav(true)
   }
 
-  const handleCloseIndoorNav = () => {
-    setShowIndoorNav(false)
-    setIndoorNavUrl('')
-  }
-
   const handleShowDirections = () => {
-    if (!userLocation) {
-      toast.warning('Please enable your location first to get directions.')
-      handleGetLocation()
-      return
-    }
+    if (!userLocation) { toast.warning('Enable your location first.'); handleGetLocation(); return }
+    mapRef.current?.stopFpvTour()
+    tourStartedRef.current = false
+    setFpvTour(null)
     setShowDirections(true)
     setShowModal(false)
-    toast.success('Directions shown on map')
+    toast.info('Calculating route…')
   }
 
   const handleOpenInGoogleMaps = () => {
     if (!selectedBuilding) return
-    
     const [lng, lat] = selectedBuilding.coordinates
-    let url
-    
-    if (userLocation) {
-      url = `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${lat},${lng}&travelmode=walking`
-    } else {
-      url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-    }
-    
+    const url = userLocation
+      ? `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${lat},${lng}&travelmode=walking`
+      : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
     window.open(url, '_blank')
   }
 
   const handleCloseDirections = () => {
+    mapRef.current?.stopFpvTour()
+    tourStartedRef.current = false
+    setFpvTour(null)
     setShowDirections(false)
     setRouteData(null)
     setSelectedBuilding(null)
     setShowModal(true)
-    if (mapRef.current?.clearDirections) {
-      mapRef.current.clearDirections()
-    }
+    if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
   }
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: `${university.name} Campus Map`,
-        text: `Explore ${university.name} campus`,
-        url: window.location.href
-      })
+      navigator.share({ title: `${university.name} Campus Map`, text: `Explore ${university.name}`, url: window.location.href })
     } else {
       setShowShareModal(true)
     }
@@ -300,148 +227,213 @@ function PublicMap() {
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href)
-    toast.success('Link copied to clipboard!')
+    toast.success('Link copied!')
     setShowShareModal(false)
   }
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const calcDist = (lat1, lon1, lat2, lon2) => {
     const R = 6371e3
-    const φ1 = (lat1 * Math.PI) / 180
-    const φ2 = (lat2 * Math.PI) / 180
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
-    const distance = R * c
-    return distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`
+    const f1 = lat1 * Math.PI / 180, f2 = lat2 * Math.PI / 180
+    const df = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(df/2)**2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl/2)**2
+    const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return d < 1000 ? `${Math.round(d)}m` : `${(d/1000).toFixed(1)}km`
   }
 
-  if (loading) {
-    return (
-      <div className="loading-container" style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        gap: '20px'
-      }}>
-        <div className="loading-spinner" style={{
-          width: '50px',
-          height: '50px',
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #007bff',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
-        <p style={{ fontSize: '18px', color: '#666' }}>Loading...</p>
+  // ─── Loading / error states ──────────────────────────────────────────────
+  if (loading) return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: D.bg, color: D.textDim, gap: 16 }}>
+      <div style={{ width: 36, height: 36, border: `3px solid ${D.border2}`, borderTopColor: D.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <span style={{ fontSize: 14 }}>Loading campus map…</span>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+
+  if (error) return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: D.bg, color: D.text, gap: 12, padding: '0 24px', textAlign: 'center' }}>
+      <Icon name="alertCircle" size={40} color="#ef4444" />
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 20, margin: 0 }}>Could not load this campus</h1>
+      <p style={{ color: D.textDim, fontSize: 14, margin: 0 }}>{typeof error === 'string' ? error : 'Something went wrong.'}</p>
+    </div>
+  )
+
+  const sidebarW = 300
+
+  // ─── Building detail modal content ──────────────────────────────────────
+  const BuildingDetail = () => (
+    <div style={{ color: 'var(--text-primary)' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, margin: '0 0 4px' }}>{selectedBuilding.name}</h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 16px' }}>{selectedBuilding.category}</p>
+      {selectedBuilding.description && (
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{selectedBuilding.description}</p>
+      )}
+
+      {/* Navigation actions */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {[
+          { label: 'Indoor Nav', icon: 'navigation', onClick: handleOpenIndoorNav },
+          { label: 'Directions', icon: 'compass', onClick: handleShowDirections, disabled: !userLocation },
+          { label: 'Google Maps', icon: 'mapPin', onClick: handleOpenInGoogleMaps },
+          { label: 'View Rooms', icon: 'door', onClick: () => setShowRoomsList(true) },
+        ].map(a => (
+          <button key={a.label} onClick={a.onClick} disabled={a.disabled} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
+            borderRadius: 8, border: '1px solid var(--border)', cursor: a.disabled ? 'default' : 'pointer',
+            background: 'transparent', color: a.disabled ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+            fontSize: 12, fontWeight: 500, opacity: a.disabled ? 0.5 : 1,
+          }}>
+            <Icon name={a.icon} size={13} />
+            {a.label}
+          </button>
+        ))}
       </div>
-    )
-  }
 
-  if (error) {
-    return (
-      <div className="public-map-error" style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        padding: '20px',
-        textAlign: 'center'
-      }}>
-        <h1 style={{ color: '#dc3545', marginBottom: 20 }}>Error loading</h1>
-        <div>{error}</div>
-      </div>
-    )
-  }
-
-  if (!university) {
-    return <div className="loading">Loading...</div>
-  }
-
-  return (
-    <div className="public-map">
-      <header className="public-header">
-        <div className="header-left">
-          <FontAwesomeIcon icon={faMapMarkedAlt} className="header-icon" />
-          <div className="header-text">
-            <h1>{university.name}</h1>
-            <p>{university.city}</p>
+      {/* Office rooms */}
+      {(officeRooms.length > 0 || (selectedBuilding.key_offices?.length > 0 && officeRooms.length === 0)) && (
+        <div style={{ marginBottom: 12 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="door" size={13} />
+            Office Rooms ({officeRooms.length || selectedBuilding.key_offices.length})
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(officeRooms.length > 0 ? officeRooms : selectedBuilding.key_offices || []).map((o, i) => (
+              <div key={o.id || i} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                  <strong style={{ fontSize: 13 }}>{o.room_name || o.name}</strong>
+                  {(o.room_number || o.roomNumber) && <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{o.room_number || o.roomNumber}</span>}
+                </div>
+                {o.purpose && <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 3px' }}>{o.purpose}</p>}
+                {o.hours && <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={11} />{o.hours}</p>}
+              </div>
+            ))}
           </div>
         </div>
-        <div className="header-actions">
-          {!isMobile && (
-            <>
-              <button className="btn-header" onClick={handleGetLocation}>
-                <FontAwesomeIcon icon={faLocationArrow} />
-                My Location
-              </button>
-              <button className="btn-header" onClick={handleShare}>
-                <FontAwesomeIcon icon={faShareAlt} />
-                Share
-              </button>
-            </>
+      )}
+
+      {/* Facilities */}
+      {selectedBuilding.facilities?.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>Facilities</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {selectedBuilding.facilities.map((f, i) => (
+              <span key={i} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 99, background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 500 }}>{f}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Departments */}
+      {selectedBuilding.departments?.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>Departments</h3>
+          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+            {selectedBuilding.departments.map((d, i) => <li key={i}>{d}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {selectedBuilding.hours && (
+        <div>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>Hours</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>{selectedBuilding.hours}</p>
+        </div>
+      )}
+
+      {userLocation && (
+        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Icon name="mapPin" size={12} />
+          {calcDist(userLocation.latitude, userLocation.longitude, selectedBuilding.coordinates[1], selectedBuilding.coordinates[0])} away
+        </p>
+      )}
+    </div>
+  )
+
+  return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: D.bg, color: D.text, overflow: 'hidden' }}>
+
+      {/* Header */}
+      <header style={{
+        flexShrink: 0, background: D.surface, borderBottom: `1px solid ${D.border}`,
+        padding: '0 18px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="compass" size={14} color="#fff" />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: D.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{university.name}</div>
+            {university.city && <div style={{ fontSize: 11, color: D.textMut }}>{university.city}</div>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button onClick={handleGetLocation} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
+            <Icon name="navigation" size={13} color={D.textDim} />
+            {!isMobile && 'My Location'}
+          </button>
+          <button onClick={toggleDark} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
+            <Icon name={dark ? 'sun' : 'moon'} size={13} color={D.textDim} />
+          </button>
+          <button onClick={handleShare} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
+            <Icon name="share" size={13} color={D.textDim} />
+            {!isMobile && 'Share'}
+          </button>
+          {isMobile && (
+            <button onClick={() => setShowSidebar(s => !s)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.border2}`, background: showSidebar ? 'rgba(14,165,233,0.15)' : 'transparent', color: showSidebar ? D.accent : D.textDim, fontSize: 12, cursor: 'pointer' }}>
+              <Icon name="layers" size={13} color={showSidebar ? D.accent : D.textDim} />
+            </button>
           )}
         </div>
       </header>
 
-      {!isMobile && (
-        <div className="search-container">
-          <SearchBox value={searchQuery} onChange={setSearchQuery} />
-        </div>
-      )}
+      {/* Body: sidebar + map */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-      <div className="public-content">
-        <aside className={`public-sidebar ${showSidebar ? 'visible' : 'hidden'} ${isMobile ? 'mobile' : ''}`}>
-          {isMobile && (
-            <div className="mobile-search">
-              <SearchBox value={searchQuery} onChange={setSearchQuery} />
+        {/* Sidebar */}
+        {(!isMobile || showSidebar) && (
+          <aside style={{
+            width: isMobile ? '100%' : sidebarW,
+            flexShrink: 0,
+            background: D.surface,
+            borderRight: `1px solid ${D.border}`,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            position: isMobile ? 'absolute' : 'relative',
+            inset: isMobile ? 0 : undefined,
+            zIndex: isMobile ? 10 : undefined,
+          }}>
+            <div style={{ padding: '12px 12px 8px', borderBottom: `1px solid ${D.border}` }}>
+              <SearchBox value={searchQuery} onChange={setSearchQuery} dark />
             </div>
-          )}
+            <div style={{ padding: '10px 12px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Buildings ({filteredBuildings.length})
+              </span>
+              {isMobile && (
+                <button onClick={() => setShowSidebar(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.textDim, padding: 4 }}>
+                  <Icon name="x" size={16} color={D.textDim} />
+                </button>
+              )}
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
+              {filteredBuildings.length === 0 ? (
+                <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 24 }}>No results found</p>
+              ) : filteredBuildings.map(b => (
+                <BuildingCard
+                  key={b.id}
+                  building={b}
+                  distance={userLocation ? calcDist(userLocation.latitude, userLocation.longitude, b.coordinates[1], b.coordinates[0]) : null}
+                  onClick={handleBuildingClick}
+                  selected={selectedBuilding?.id === b.id}
+                  dark
+                />
+              ))}
+            </div>
+          </aside>
+        )}
 
-          <div className="sidebar-header">
-            <h2>Buildings ({filteredBuildings.length})</h2>
-            {isMobile && (
-              <button className="btn-close-sidebar" onClick={() => setShowSidebar(false)}>
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            )}
-          </div>
-
-          <div className="buildings-list">
-            {filteredBuildings.length === 0 ? (
-              <p className="empty-message">No results found</p>
-            ) : (
-              filteredBuildings.map((building) => {
-                let distance = null
-                if (userLocation) {
-                  distance = calculateDistance(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    building.coordinates[1],
-                    building.coordinates[0]
-                  )
-                }
-                return (
-                  <BuildingCard
-                    key={building.id}
-                    building={building}
-                    distance={distance}
-                    onClick={() => handleBuildingClick(building)}
-                    selected={selectedBuilding?.id === building.id}
-                  />
-                )
-              })
-            )}
-          </div>
-        </aside>
-
-        <div className="map-container">
+        {/* Map */}
+        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <MapComponent
             ref={mapRef}
             buildings={buildings}
@@ -450,63 +442,86 @@ function PublicMap() {
             onBuildingClick={handleBuildingClick}
             showDirections={showDirections}
             destinationCoords={selectedBuilding?.coordinates}
-            darkMode={darkMode}
+            darkMode={dark}
             onRouteDataChange={setRouteData}
           />
 
+          {/* FPV Tour HUD */}
           {showDirections && selectedBuilding && (
-            <div className="floating-navigation-controls">
-              {routeData && (
-                <div className="floating-route-panel">
-                  <h3>Walking Directions</h3>
-                  <p className="route-summary">
-                    {routeData.distance} km · {routeData.duration} min
-                  </p>
-                  <ol>
-                    {routeData.steps.slice(0, 6).map((step) => (
-                      <li key={step.id}>{step.instruction}</li>
-                    ))}
-                  </ol>
+            <div style={{
+              position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+              background: dark ? 'rgba(17,17,20,0.92)' : 'rgba(255,255,255,0.94)',
+              backdropFilter: 'blur(18px)',
+              border: `1px solid ${D.border2}`, borderRadius: 14,
+              padding: '14px 16px', maxWidth: 400, width: 'calc(100% - 32px)', zIndex: 10,
+              boxShadow: `0 8px 32px rgba(0,0,0,${dark ? '0.5' : '0.12'})`,
+            }}>
+              {/* Instruction row */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: fpvTour ? 10 : 12 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name={routeData ? 'navigation' : 'loader'} size={16} color="#fff" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: D.text, lineHeight: 1.35, marginBottom: 2 }}>
+                    {fpvTour?.step?.instruction ?? (routeData ? `En route to ${selectedBuilding.name}` : 'Calculating route…')}
+                  </div>
+                  {fpvTour && (
+                    <div style={{ fontSize: 12, color: D.textDim }}>
+                      Step {fpvTour.stepIndex + 1} / {fpvTour.totalSteps}
+                      {fpvTour.step?.distance ? ` · ${fpvTour.step.distance}m` : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              {fpvTour && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ height: 3, background: D.border2, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', background: D.accent, borderRadius: 2,
+                      width: `${((fpvTour.stepIndex + 1) / fpvTour.totalSteps) * 100}%`,
+                      transition: 'width 0.6s ease',
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: D.textMut, marginTop: 4, textAlign: 'right' }}>
+                    {routeData?.distance} km · ~{routeData?.duration} min walk
+                  </div>
                 </div>
               )}
-              <button 
-                className="btn-floating-google-maps"
-                onClick={handleOpenInGoogleMaps}
-                title="Open in Google Maps"
-              >
-                <FontAwesomeIcon icon={faMapMarkerAlt} />
-                <span>Google Maps (Optional)</span>
-              </button>
-              <button 
-                className="btn-floating-close"
-                onClick={handleCloseDirections}
-                title="Close In-App Directions"
-              >
-                <FontAwesomeIcon icon={faTimes} />
-                <span>Close Directions</span>
-              </button>
+
+              {/* Controls */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                {fpvTour && (
+                  <>
+                    <button onClick={() => {
+                      if (fpvTour.paused) { mapRef.current?.resumeFpvTour(); setFpvTour(t => ({ ...t, paused: false })) }
+                      else { mapRef.current?.pauseFpvTour(); setFpvTour(t => ({ ...t, paused: true })) }
+                    }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <Icon name={fpvTour.paused ? 'play' : 'pause'} size={12} color={D.text} />
+                      {fpvTour.paused ? 'Resume' : 'Pause'}
+                    </button>
+                    <button onClick={() => mapRef.current?.skipFpvStep()} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
+                      <Icon name="chevronRight" size={12} color={D.textDim} />
+                      Skip
+                    </button>
+                  </>
+                )}
+                <button onClick={handleOpenInGoogleMaps} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
+                  <Icon name="mapPin" size={12} color={D.textDim} />
+                  {!isMobile && 'Maps'}
+                </button>
+                <button onClick={handleCloseDirections} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>
+                  <Icon name="x" size={12} color="#ef4444" />
+                  Exit
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {isMobile && (
-        <div className="mobile-actions">
-          <button className="mobile-action-btn" onClick={() => setShowSidebar(!showSidebar)}>
-            <FontAwesomeIcon icon={showSidebar ? faMapMarkedAlt : faList} />
-            <span>{showSidebar ? 'Map' : 'List'}</span>
-          </button>
-          <button className="mobile-action-btn" onClick={handleGetLocation}>
-            <FontAwesomeIcon icon={faLocationArrow} />
-            <span>My Location</span>
-          </button>
-          <button className="mobile-action-btn" onClick={handleShare}>
-            <FontAwesomeIcon icon={faShareAlt} />
-            <span>Share</span>
-          </button>
-        </div>
-      )}
-
+      {/* Building detail modal */}
       {selectedBuilding && showModal && !showRoomsList && (
         <Modal onClose={() => {
           setSelectedBuilding(null)
@@ -514,174 +529,26 @@ function PublicMap() {
           setRouteData(null)
           setShowModal(true)
           setShowRoomsList(false)
-          if (mapRef.current?.clearDirections) {
-            mapRef.current.clearDirections()
-          }
+          if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
         }}>
-          <div className="building-details">
-            <h2>{selectedBuilding.name}</h2>
-            <p className="building-category">{selectedBuilding.category}</p>
-            {selectedBuilding.description && (
-              <p className="building-description">{selectedBuilding.description}</p>
-            )}
-            
-            <div className="navigation-buttons">
-              <button 
-                className="btn-navigation btn-indoor-nav"
-                onClick={handleOpenIndoorNav}
-              >
-                <FontAwesomeIcon icon={faMapMarkedAlt} />
-                <span>Indoor Navigation</span>
-              </button>
-              <button 
-                className="btn-navigation btn-show-directions"
-                onClick={handleShowDirections}
-                disabled={!userLocation}
-              >
-                <FontAwesomeIcon icon={faDirections} />
-                <span>Get Directions</span>
-              </button>
-              <button 
-                className="btn-navigation btn-google-maps"
-                onClick={handleOpenInGoogleMaps}
-              >
-                <FontAwesomeIcon icon={faMapMarkerAlt} />
-                <span>Open in Google Maps</span>
-              </button>
-              <button 
-                className="btn-navigation btn-view-rooms"
-                onClick={() => setShowRoomsList(true)}
-              >
-                <FontAwesomeIcon icon={faDoorOpen} />
-                <span>View Rooms</span>
-              </button>
-            </div>
-
-            {officeRooms.length > 0 && (
-              <div className="detail-section key-offices-section">
-                <h3>
-                  <FontAwesomeIcon icon={faDoorOpen} />
-                  Office Rooms ({officeRooms.length})
-                </h3>
-                <div className="key-offices-list">
-                  {officeRooms.map((office) => (
-                    <div key={office.id} className="key-office-card">
-                      <div className="office-header">
-                        <strong>{office.room_name}</strong>
-                        <span className="room-number">{office.room_number}</span>
-                      </div>
-                      {office.purpose && (
-                        <p className="office-purpose">{office.purpose}</p>
-                      )}
-                      {office.hours && (
-                        <p className="office-hours">
-                          <FontAwesomeIcon icon={faSun} />
-                          {office.hours}
-                        </p>
-                      )}
-                      {office.timetable && (
-                        <div className="office-timetable-preview">
-                          <span className="timetable-badge">
-                            <FontAwesomeIcon icon={faSun} />
-                            Has Weekly Schedule
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Also show legacy key offices from building data */}
-            {selectedBuilding.key_offices && selectedBuilding.key_offices.length > 0 && officeRooms.length === 0 && (
-              <div className="detail-section key-offices-section">
-                <h3>
-                  <FontAwesomeIcon icon={faDoorOpen} />
-                  Office Rooms ({selectedBuilding.key_offices.length})
-                </h3>
-                <div className="key-offices-list">
-                  {selectedBuilding.key_offices.map((office, idx) => (
-                    <div key={idx} className="key-office-card">
-                      <div className="office-header">
-                        <strong>{office.name}</strong>
-                        {office.roomNumber && <span className="room-number">{office.roomNumber}</span>}
-                      </div>
-                      {office.purpose && (
-                        <p className="office-purpose">{office.purpose}</p>
-                      )}
-                      {office.hours && (
-                        <p className="office-hours">
-                          <FontAwesomeIcon icon={faSun} />
-                          {office.hours}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {selectedBuilding.facilities && selectedBuilding.facilities.length > 0 && (
-              <div className="detail-section">
-                <h3>Building Facilities</h3>
-                <ul>
-                  {selectedBuilding.facilities.map((f, i) => (
-                    <li key={i}>{f}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {selectedBuilding.departments && selectedBuilding.departments.length > 0 && (
-              <div className="detail-section">
-                <h3>Building Departments</h3>
-                <ul>
-                  {selectedBuilding.departments.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {selectedBuilding.hours && (
-              <div className="detail-section">
-                <h3>Building Hours</h3>
-                <p>{selectedBuilding.hours}</p>
-              </div>
-            )}
-            {userLocation && (
-              <div className="detail-section">
-                <h3>My Location</h3>
-                <p>
-                  {calculateDistance(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    selectedBuilding.coordinates[1],
-                    selectedBuilding.coordinates[0]
-                  )} away
-                </p>
-              </div>
-            )}
-          </div>
+          <BuildingDetail />
         </Modal>
       )}
 
+      {/* Share modal */}
       {showShareModal && (
         <Modal onClose={() => setShowShareModal(false)}>
-          <div className="share-modal">
-            <h2>Share This Map</h2>
-            <input
-              type="text"
-              value={window.location.href}
-              readOnly
-              className="share-input"
-            />
-            <button className="btn-copy-link" onClick={copyLink}>
-              Copy Link
-            </button>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, margin: '0 0 12px' }}>Share This Map</h2>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input type="text" value={window.location.href} readOnly style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 12, fontFamily: 'monospace', outline: 'none' }} />
+              <button onClick={copyLink} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Copy</button>
+            </div>
           </div>
         </Modal>
       )}
 
+      {/* Rooms list modal */}
       {selectedBuilding && showRoomsList && (
         <Modal onClose={() => setShowRoomsList(false)}>
           <RoomsList
@@ -692,19 +559,12 @@ function PublicMap() {
         </Modal>
       )}
 
+      {/* Indoor nav modal */}
       {showIndoorNav && (
-        <IndoorNavModal
-          onClose={handleCloseIndoorNav}
-          mappedInUrl={indoorNavUrl}
-        />
+        <IndoorNavModal onClose={() => { setShowIndoorNav(false); setIndoorNavUrl('') }} mappedInUrl={indoorNavUrl} />
       )}
-      
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

@@ -3,6 +3,15 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import './MapComponent.css'
 
+const getBearing = (from, to) => {
+  const rad = Math.PI / 180
+  const dLng = (to[0] - from[0]) * rad
+  const lat1 = from[1] * rad, lat2 = to[1] * rad
+  const y = Math.sin(dLng) * Math.cos(lat2)
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng)
+  return (Math.atan2(y, x) / rad + 360) % 360
+}
+
 const MapComponent = forwardRef(({
   buildings = [],
   selectedBuilding,
@@ -17,6 +26,7 @@ const MapComponent = forwardRef(({
   const mapRef = useRef(null)
   const markersRef = useRef([])
   const userMarkerRef = useRef(null)
+  const tourRef = useRef({ active: false, paused: false, timeoutId: null, nextAdvance: null })
   const [routeData, setRouteData] = useState(null)
 
   const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
@@ -43,13 +53,86 @@ const MapComponent = forwardRef(({
         onRouteDataChange(null)
       }
     },
-    getMap: () => mapRef.current
+    getMap: () => mapRef.current,
+
+    startFpvTour: (routeData, { onStep, onComplete } = {}) => {
+      const map = mapRef.current
+      if (!map || !routeData) return
+      const t = tourRef.current
+      if (t.timeoutId) clearTimeout(t.timeoutId)
+      t.active = true; t.paused = false; t.timeoutId = null; t.nextAdvance = null
+
+      const { steps, geometry } = routeData
+      const coords = geometry.coordinates
+
+      const schedule = (fn, delay) => {
+        if (t.timeoutId) clearTimeout(t.timeoutId)
+        t.nextAdvance = fn
+        t.timeoutId = setTimeout(() => {
+          t.timeoutId = null
+          if (t.active && !t.paused) { t.nextAdvance = null; fn() }
+          // if paused, leave t.nextAdvance set so resumeFpvTour can call it
+        }, delay)
+      }
+
+      const advance = (i) => {
+        if (!t.active) return
+        if (i >= steps.length) {
+          const last = coords[coords.length - 1]
+          map.flyTo({ center: last, zoom: 18, pitch: 50, bearing: 0, duration: 2500 })
+          schedule(() => { onComplete?.(); t.active = false }, 2700)
+          return
+        }
+        const step = steps[i]
+        onStep?.(step, i)
+        const stepCoord = step.location || coords[Math.floor((i / steps.length) * coords.length)]
+        const nextCoord = steps[i + 1]?.location ||
+          coords[Math.min(Math.floor(((i + 1) / steps.length) * coords.length), coords.length - 1)]
+        const bearing = getBearing(stepCoord, nextCoord)
+        const dur = Math.min(Math.max((step.distance || 60) * 50, 3000), 8000)
+        map.easeTo({ center: stepCoord, bearing, pitch: 76, zoom: 19, duration: dur, essential: true })
+        schedule(() => advance(i + 1), dur + 400)
+      }
+
+      const start = steps[0]?.location || coords[0]
+      const initBearing = coords.length > 2 ? getBearing(coords[0], coords[Math.min(3, coords.length - 1)]) : 0
+      map.flyTo({ center: start, zoom: 17, pitch: 62, bearing: initBearing, duration: 2500 })
+      schedule(() => advance(0), 2700)
+    },
+
+    stopFpvTour: () => {
+      const t = tourRef.current
+      if (t.timeoutId) { clearTimeout(t.timeoutId); t.timeoutId = null }
+      t.active = false; t.paused = false; t.nextAdvance = null
+    },
+
+    pauseFpvTour: () => {
+      const t = tourRef.current
+      if (!t.active || t.paused) return
+      t.paused = true
+      if (t.timeoutId) { clearTimeout(t.timeoutId); t.timeoutId = null }
+      mapRef.current?.stop()
+    },
+
+    resumeFpvTour: () => {
+      const t = tourRef.current
+      if (!t.active || !t.paused) return
+      t.paused = false
+      if (t.nextAdvance) { const fn = t.nextAdvance; t.nextAdvance = null; fn() }
+    },
+
+    skipFpvStep: () => {
+      const t = tourRef.current
+      if (!t.active) return
+      if (t.timeoutId) { clearTimeout(t.timeoutId); t.timeoutId = null }
+      mapRef.current?.stop()
+      t.paused = false
+      if (t.nextAdvance) { const fn = t.nextAdvance; t.nextAdvance = null; fn() }
+    },
   }))
 
-  // Get map style based on time of day and dark mode
-  const getMapStyle = () => {
-      return 'mapbox://styles/mapbox/outdoors-v12'
-  }
+  const getMapStyle = () =>
+    darkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/outdoors-v12'
 
   // Initialize map
   useEffect(() => {
@@ -92,7 +175,7 @@ const MapComponent = forwardRef(({
           type: 'fill-extrusion',
           minzoom: 14,
           paint: {
-            'fill-extrusion-color': '#aaa',
+            'fill-extrusion-color': darkMode ? '#2d3748' : '#c8d0dc',
             'fill-extrusion-height': [
               'interpolate',
               ['linear'],
@@ -143,6 +226,9 @@ const MapComponent = forwardRef(({
     return () => {
       resizeObserver.disconnect()
       window.removeEventListener('resize', handleWindowResize)
+      const t = tourRef.current
+      if (t.timeoutId) clearTimeout(t.timeoutId)
+      t.active = false
       map.remove()
     }
   }, [mapboxToken, buildings.length])
@@ -170,7 +256,7 @@ const MapComponent = forwardRef(({
               type: 'fill-extrusion',
               minzoom: 14,
               paint: {
-                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-color': darkMode ? '#2d3748' : '#c8d0dc',
                 'fill-extrusion-height': [
                   'interpolate',
                   ['linear'],
@@ -302,7 +388,8 @@ const MapComponent = forwardRef(({
             id: `${index}-${step.maneuver?.instruction || 'step'}`,
             instruction: step.maneuver?.instruction || 'Continue',
             distance: Math.round(step.distance || 0),
-            duration: Math.round((step.duration || 0) / 60)
+            duration: Math.round((step.duration || 0) / 60),
+            location: step.maneuver?.location
           })) || []
 
           const nextRouteData = {
