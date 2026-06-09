@@ -1,9 +1,9 @@
 .room-timetable {
   margin-top: 20px;
   padding: 20px;
-  background: #f8f9fa;
+  background: var(--bg);
   border-radius: 8px;
-  border-left: 4px solid #007bff;
+  border-left: 4px solid var(--accent);
 }
 
 .timetable-header {
@@ -13,7 +13,7 @@
 .timetable-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #333;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -22,15 +22,15 @@
 .services-legend {
   margin-bottom: 20px;
   padding: 15px;
-  background: white;
+  background: var(--surface);
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
 }
 
 .services-legend strong {
   display: block;
   margin-bottom: 10px;
-  color: #007bff;
+  color: var(--accent);
   font-size: 14px;
 }
 
@@ -42,16 +42,17 @@
 
 .services-legend li {
   margin: 5px 0;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .timetable-grid-container {
   overflow-x: auto;
-  background: white;
+  background: var(--surface);
   border-radius: 6px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
 }
 
 .timetable-mobile-list {
@@ -60,9 +61,9 @@
 }
 
 .timetable-day-card {
-  border: 1px solid #dbe2ee;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   padding: 10px;
 }
 
@@ -73,7 +74,7 @@
 .timetable-day-card h4 {
   margin: 0 0 8px;
   font-size: 14px;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .timetable-day-card ul {
@@ -84,24 +85,24 @@
 }
 
 .timetable-day-card li {
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .day-slot-time {
   font-weight: 700;
-  color: #1d4ed8;
+  color: var(--accent);
   font-size: 12px;
 }
 
 .day-slot-services {
   font-size: 12px;
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 .day-empty {
   margin: 0;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 .timetable-grid {
@@ -111,8 +112,8 @@
 }
 
 .timetable-grid thead {
-  background: #007bff;
-  color: white;
+  background: var(--accent);
+  color: #fff;
 }
 
 .timetable-grid th {
@@ -120,37 +121,39 @@
   text-align: left;
   font-weight: 600;
   font-size: 14px;
-  border: 1px solid #0056b3;
+  border: 1px solid rgba(0,0,0,0.15);
   white-space: nowrap;
+  color: #fff;
 }
 
 .timetable-grid th.day-column {
   width: 120px;
-  background: #0056b3;
+  background: rgba(0,0,0,0.15);
 }
 
 .timetable-grid td {
   padding: 12px 15px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border);
   vertical-align: top;
   min-width: 150px;
+  color: var(--text-primary);
 }
 
 .timetable-grid td.day-label {
   font-weight: 600;
-  background: #f8f9fa;
-  color: #333;
+  background: var(--bg);
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
 .timetable-grid td.has-service {
-  background: #e7f3ff;
+  background: var(--accent-subtle);
 }
 
 .timetable-grid td.no-service {
-  background: #fafafa;
+  background: var(--bg);
   text-align: center;
-  color: #ccc;
+  color: var(--text-tertiary);
 }
 
 .slot-content {
@@ -161,38 +164,43 @@
 
 .service-item {
   padding: 6px 10px;
-  background: white;
-  border-left: 3px solid #007bff;
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
   border-radius: 4px;
   font-size: 13px;
-  color: #333;
+  color: var(--text-primary);
   line-height: 1.4;
 }
 
 .no-service-indicator {
   font-size: 18px;
-  color: #ddd;
+  color: var(--text-tertiary);
   font-weight: bold;
 }
 
 .timetable-notes {
   margin-top: 15px;
   padding: 12px 15px;
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: var(--warning-subtle, #FFFAEB);
+  border: 1px solid var(--warning, #F79009);
   border-radius: 6px;
   display: flex;
   align-items: flex-start;
   gap: 10px;
   font-size: 14px;
-  color: #856404;
+  color: #854d0e;
   line-height: 1.5;
+}
+
+[data-dark="true"] .timetable-notes {
+  background: rgba(247, 144, 9, 0.08);
+  color: #fbbf24;
 }
 
 .timetable-notes svg {
   margin-top: 2px;
   flex-shrink: 0;
-  color: #ffc107;
+  color: var(--warning, #F79009);
 }
 
 /* Mobile Responsive */
@@ -233,26 +241,5 @@
   .timetable-notes {
     font-size: 12px;
     padding: 10px 12px;
-  }
-}
-
-/* Print styles */
-@media print {
-  .room-timetable {
-    background: white;
-    border: 1px solid #000;
-    page-break-inside: avoid;
-  }
-
-  .timetable-grid th {
-    background: #333 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .timetable-grid td.has-service {
-    background: #f0f0f0 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
 }

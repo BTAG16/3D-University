@@ -5,7 +5,6 @@ import BuildingCard from './components/BuildingCard'
 import SearchBox from './components/SearchBox'
 import Modal from './components/Modal'
 import BuildingForm from './components/BuildingForm'
-import RoomsList from './components/RoomsList'
 import { Icon } from './icons'
 import { getOfficeRoomsForBuilding, getAllRoomsForBuilding } from './demoRoomsData'
 import RoomTimetable from './components/RoomTimetable'
@@ -87,12 +86,11 @@ function DemoMap() {
   )
   const [selectedBuilding, setSelectedBuilding] = useState(null)
   const [userLocation, setUserLocation] = useState(null)
-  const [showSidebar, setShowSidebar] = useState(true)
+  const [sheetState, setSheetState] = useState('peek')
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredBuildings, setFilteredBuildings] = useState(buildings)
   const [isMobile, setIsMobile] = useState(false)
   const [showDirections, setShowDirections] = useState(false)
-  const [showModal, setShowModal] = useState(true)
   const [showBuildingForm, setShowBuildingForm] = useState(false)
   const [editingBuilding, setEditingBuilding] = useState(null)
   const [showDemoBanner, setShowDemoBanner] = useState(true)
@@ -107,7 +105,6 @@ function DemoMap() {
     const check = () => {
       const mobile = window.innerWidth <= 768
       setIsMobile(mobile)
-      if (mobile) setShowSidebar(false)
     }
     check()
     window.addEventListener('resize', check)
@@ -153,11 +150,10 @@ function DemoMap() {
     setSelectedBuilding(building)
     setShowDirections(false)
     setRouteData(null)
-    setShowModal(true)
     setShowRoomsList(false)
     setOfficeRooms(getOfficeRoomsForBuilding(building.id))
     if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
-    if (isMobile) setShowSidebar(false)
+    if (isMobile) setSheetState('card')
   }
 
   const handleShowDirections = () => {
@@ -167,7 +163,6 @@ function DemoMap() {
     setFpvTour(null)
     setShowDirections(true)
     setRouteData(null)
-    setShowModal(false)
   }
 
   const handleOpenInGoogleMaps = () => {
@@ -179,6 +174,15 @@ function DemoMap() {
     window.open(url, '_blank')
   }
 
+  const handleOpenTransit = () => {
+    if (!selectedBuilding) return
+    const [lng, lat] = selectedBuilding.coordinates
+    const url = userLocation
+      ? `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${lat},${lng}&travelmode=transit`
+      : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+    window.open(url, '_blank')
+  }
+
   const handleCloseDirections = () => {
     mapRef.current?.stopFpvTour()
     tourStartedRef.current = false
@@ -186,7 +190,7 @@ function DemoMap() {
     setShowDirections(false)
     setRouteData(null)
     setSelectedBuilding(null)
-    setShowModal(true)
+    if (isMobile) setSheetState('peek')
     if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
   }
 
@@ -238,71 +242,108 @@ function DemoMap() {
 
   const sidebarW = 300
 
-  // ─── Building detail modal content ──────────────────────────────────────
-  const BuildingDetail = () => (
-    <div style={{ color: 'var(--text-primary)' }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, margin: '0 0 4px' }}>{selectedBuilding.name}</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 16px' }}>{selectedBuilding.category}</p>
-      {selectedBuilding.description && (
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.6 }}>{selectedBuilding.description}</p>
-      )}
+  // ─── Building detail sidebar panel ─────────────────────────────────────
+  const BuildingDetailPanel = () => (
+    <>
+      <button onClick={() => { setSelectedBuilding(null); setOfficeRooms([]); if (isMobile) setSheetState('list') }} style={{
+        display: 'flex', alignItems: 'center', gap: 6, padding: '13px 16px', width: '100%', textAlign: 'left',
+        background: 'none', border: 'none', borderBottom: `1px solid ${D.border}`,
+        cursor: 'pointer', fontSize: 13, color: D.accent, fontFamily: 'var(--font-display)', fontWeight: 500, flexShrink: 0,
+      }}>
+        ← All buildings
+      </button>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-        {[
-          { label: 'Directions', icon: 'compass', onClick: handleShowDirections, disabled: !userLocation },
-          { label: 'Google Maps', icon: 'mapPin', onClick: handleOpenInGoogleMaps },
-          { label: 'View Rooms', icon: 'door', onClick: () => { setShowModal(false); setShowRoomsList(true) } },
-        ].map(a => (
-          <button key={a.label} onClick={a.onClick} disabled={a.disabled} style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
-            borderRadius: 8, border: '1px solid var(--border)', cursor: a.disabled ? 'default' : 'pointer',
-            background: 'transparent', color: a.disabled ? 'var(--text-tertiary)' : 'var(--text-secondary)',
-            fontSize: 12, fontWeight: 500, opacity: a.disabled ? 0.5 : 1,
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="building" size={22} color={D.accent} />
+          </div>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, margin: '0 0 4px', color: D.text, lineHeight: 1.2 }}>{selectedBuilding.name}</h2>
+            <span style={{ fontSize: 12, color: D.textDim, background: dark ? 'rgba(255,255,255,0.08)' : '#f3f4f6', padding: '2px 8px', borderRadius: 9999, display: 'inline-block' }}>{selectedBuilding.category}</span>
+          </div>
+        </div>
+
+        {selectedBuilding.description && (
+          <p style={{ fontSize: 13, color: D.textDim, lineHeight: 1.6, marginBottom: 14 }}>{selectedBuilding.description}</p>
+        )}
+
+        {selectedBuilding.hours && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 13, color: D.textDim }}>
+            <Icon name="calendar" size={14} color={D.textMut} />
+            {selectedBuilding.hours}
+          </div>
+        )}
+
+        {userLocation && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13, color: D.accent }}>
+            <Icon name="mapPin" size={14} color={D.accent} />
+            {calcDist(userLocation.latitude, userLocation.longitude, selectedBuilding.coordinates[1], selectedBuilding.coordinates[0])} away
+          </div>
+        )}
+
+        {selectedBuilding.facilities?.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+            {selectedBuilding.facilities.map((f, i) => (
+              <span key={i} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 9999, background: dark ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: D.textDim, fontWeight: 500 }}>{f}</span>
+            ))}
+          </div>
+        )}
+
+        {selectedBuilding.departments?.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+            {selectedBuilding.departments.map((d, i) => (
+              <span key={i} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 9999, background: `${D.accent}15`, color: D.accent, fontWeight: 500 }}>{d}</span>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+          <button onClick={handleShowDirections} disabled={!userLocation} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+            fontFamily: 'var(--font-display)', cursor: userLocation ? 'pointer' : 'not-allowed',
+            background: userLocation ? D.accent : D.border2, color: '#fff', border: 'none',
+            opacity: userLocation ? 1 : 0.6, transition: 'opacity 0.15s',
           }}>
-            <Icon name={a.icon} size={13} />
-            {a.label}
+            <Icon name="navigation" size={15} color="#fff" /> Get Directions
           </button>
-        ))}
-      </div>
+          <button onClick={() => setShowRoomsList(true)} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+            cursor: 'pointer', background: 'transparent', color: D.text, border: `1px solid ${D.border}`,
+          }}>
+            <Icon name="door" size={15} color={D.textDim} /> View Rooms
+          </button>
+          <button onClick={handleOpenInGoogleMaps} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+            cursor: 'pointer', background: 'transparent', color: D.textDim, border: `1px solid ${D.border}`,
+          }}>
+            <Icon name="mapPin" size={15} color={D.textDim} /> Open in Google Maps
+          </button>
+        </div>
 
-      {officeRooms.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="door" size={13} /> Key Offices ({officeRooms.length})
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {officeRooms.length > 0 && (
+          <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: 16 }}>
+            <h4 style={{ fontSize: 13, fontWeight: 600, color: D.text, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="door" size={13} color={D.textMut} /> Key Offices ({officeRooms.length})
+            </h4>
             {officeRooms.map(o => (
-              <div key={o.id} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                  <strong style={{ fontSize: 13 }}>{o.room_name}</strong>
-                  {o.room_number && <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{o.room_number}</span>}
+              <div key={o.id} style={{ padding: '10px 0', borderBottom: `1px solid ${D.border}`, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                {o.room_number && <span style={{ fontSize: 12, fontWeight: 700, color: D.accent, minWidth: 44, flexShrink: 0 }}>{o.room_number}</span>}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: D.text }}>{o.room_name}</div>
+                  {o.purpose && <div style={{ fontSize: 12, color: D.textDim, marginTop: 2 }}>{o.purpose}</div>}
+                  {o.hours && <div style={{ fontSize: 11, color: D.textMut, marginTop: 2 }}>{o.hours}</div>}
                 </div>
-                {o.purpose && <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 3px' }}>{o.purpose}</p>}
-                {o.hours && <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0 }}>{o.hours}</p>}
+                <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 9999, background: `${D.accent}15`, color: D.accent, fontWeight: 700, flexShrink: 0 }}>Office</span>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {selectedBuilding.facilities?.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>Facilities</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {selectedBuilding.facilities.map((f, i) => (
-              <span key={i} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 99, background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 500 }}>{f}</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {selectedBuilding.hours && (
-        <div>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>Hours</h3>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>{selectedBuilding.hours}</p>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   )
 
   return (
@@ -331,103 +372,95 @@ function DemoMap() {
       {/* Header */}
       <header style={{
         flexShrink: 0, background: D.surface, borderBottom: `1px solid ${D.border}`,
-        padding: '0 18px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20,
+        padding: '0 14px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20, gap: 8,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => navigate('/')} style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: D.textDim, display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <button onClick={() => navigate('/')} style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 8, padding: '7px', cursor: 'pointer', color: D.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="arrowRight" size={14} color={D.textDim} style={{ transform: 'rotate(180deg)' }} />
           </button>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name="compass" size={14} color="#fff" />
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="compass" size={16} color="#fff" />
           </div>
-          <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: D.text }}>Campus Explorer</div>
-            <div style={{ fontSize: 11, color: D.textMut }}>Demo University · Interactive Tour</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: D.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Campus Explorer</div>
+            {!isMobile && <div style={{ fontSize: 11, color: D.textMut, marginTop: 1 }}>Demo · Interactive Tour</div>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button onClick={handleGetLocation} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
-            <Icon name="navigation" size={13} color={D.textDim} />
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+          <button onClick={handleGetLocation} title="My Location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '8px' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <Icon name="navigation" size={14} color={D.textDim} />
             {!isMobile && 'My Location'}
           </button>
-          <button onClick={toggleDark} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
-            <Icon name={dark ? 'sun' : 'moon'} size={13} color={D.textDim} />
+          <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer' }}>
+            <Icon name={dark ? 'sun' : 'moon'} size={14} color={D.textDim} />
           </button>
-          <button onClick={handleAddBuilding} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.accent}`, background: 'rgba(14,165,233,0.12)', color: D.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            <Icon name="plus" size={13} color={D.accent} />
-            {!isMobile && `Add Building${userAddedBuilding ? ' (1/1)' : ''}`}
+          <button onClick={handleAddBuilding} title="Add building" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '8px' : '7px 12px', borderRadius: 8, border: `1px solid ${D.accent}`, background: 'rgba(14,165,233,0.12)', color: D.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <Icon name="plus" size={14} color={D.accent} />
+            {!isMobile && (userAddedBuilding ? 'Added (1/1)' : 'Add Building')}
           </button>
-          {isMobile && (
-            <button onClick={() => setShowSidebar(s => !s)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${D.border2}`, background: showSidebar ? 'rgba(14,165,233,0.15)' : 'transparent', color: showSidebar ? D.accent : D.textDim, fontSize: 12, cursor: 'pointer' }}>
-              <Icon name="layers" size={13} color={showSidebar ? D.accent : D.textDim} />
-            </button>
-          )}
         </div>
       </header>
 
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-        {/* Sidebar */}
-        {(!isMobile || showSidebar) && (
+        {/* Sidebar — desktop only */}
+        {!isMobile && (
           <aside style={{
-            width: isMobile ? '100%' : sidebarW,
+            width: sidebarW,
             flexShrink: 0,
             background: D.surface,
             borderRight: `1px solid ${D.border}`,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            position: isMobile ? 'absolute' : 'relative',
-            inset: isMobile ? 0 : undefined,
-            zIndex: isMobile ? 10 : undefined,
           }}>
-            <div style={{ padding: '12px 12px 8px', borderBottom: `1px solid ${D.border}` }}>
-              <SearchBox value={searchQuery} onChange={setSearchQuery} dark />
-            </div>
-            <div style={{ padding: '10px 12px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Buildings ({filteredBuildings.length})
-              </span>
-              {isMobile && (
-                <button onClick={() => setShowSidebar(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.textDim, padding: 4 }}>
-                  <Icon name="x" size={16} color={D.textDim} />
-                </button>
-              )}
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
-              {filteredBuildings.length === 0 ? (
-                <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 24 }}>No buildings found</p>
-              ) : filteredBuildings.map(b => {
-                const isDemo = b.id.startsWith('demo-')
-                return (
-                  <div key={b.id} style={{ position: 'relative' }}>
-                    <BuildingCard
-                      building={b}
-                      distance={userLocation ? calcDist(userLocation.latitude, userLocation.longitude, b.coordinates[1], b.coordinates[0]) : null}
-                      onClick={() => handleBuildingClick(b)}
-                      selected={selectedBuilding?.id === b.id}
-                      dark
-                    />
-                    {/* Demo badge or edit/delete */}
-                    <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4, alignItems: 'center' }}>
-                      {isDemo ? (
-                        <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 99, background: 'rgba(14,165,233,0.15)', color: D.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Demo</span>
-                      ) : (
-                        <>
-                          <button onClick={e => { e.stopPropagation(); handleEditBuilding(b) }} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 5, padding: '4px', cursor: 'pointer', color: D.textDim, display: 'flex' }}>
-                            <Icon name="edit" size={11} color={D.textDim} />
-                          </button>
-                          <button onClick={e => { e.stopPropagation(); handleDeleteBuilding(b.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '4px', cursor: 'pointer', color: '#ef4444', display: 'flex' }}>
-                            <Icon name="trash" size={11} color="#ef4444" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            {selectedBuilding && !showDirections ? (
+              <BuildingDetailPanel />
+            ) : (
+              <>
+                <div style={{ padding: '12px 12px 8px', borderBottom: `1px solid ${D.border}` }}>
+                  <SearchBox value={searchQuery} onChange={setSearchQuery} dark={dark} />
+                </div>
+                <div style={{ padding: '10px 12px 6px' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Buildings ({filteredBuildings.length})
+                  </span>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
+                  {filteredBuildings.length === 0 ? (
+                    <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 24 }}>No buildings found</p>
+                  ) : filteredBuildings.map(b => {
+                    const isDemo = b.id.startsWith('demo-')
+                    return (
+                      <div key={b.id} style={{ position: 'relative' }}>
+                        <BuildingCard
+                          building={b}
+                          distance={userLocation ? calcDist(userLocation.latitude, userLocation.longitude, b.coordinates[1], b.coordinates[0]) : null}
+                          onClick={() => handleBuildingClick(b)}
+                          selected={selectedBuilding?.id === b.id}
+                          dark={dark}
+                        />
+                        <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4, alignItems: 'center' }}>
+                          {isDemo ? (
+                            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 99, background: 'rgba(14,165,233,0.15)', color: D.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Demo</span>
+                          ) : (
+                            <>
+                              <button onClick={e => { e.stopPropagation(); handleEditBuilding(b) }} style={{ background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 5, padding: '4px', cursor: 'pointer', color: D.textDim, display: 'flex' }}>
+                                <Icon name="edit" size={11} color={D.textDim} />
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); handleDeleteBuilding(b.id) }} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '4px', cursor: 'pointer', color: '#ef4444', display: 'flex' }}>
+                                <Icon name="trash" size={11} color="#ef4444" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
           </aside>
         )}
 
@@ -472,13 +505,24 @@ function DemoMap() {
                 </div>
               </div>
 
+              {/* Transit nudge */}
+              {routeData?.duration > 12 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '7px 10px', marginBottom: 10, fontSize: 12 }}>
+                  <span style={{ color: '#d97706' }}>Long walk (~{routeData.duration} min)</span>
+                  <button onClick={handleOpenTransit} style={{ color: '#d97706', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12, padding: 0, whiteSpace: 'nowrap' }}>
+                    Transit / taxi →
+                  </button>
+                </div>
+              )}
+
               {fpvTour && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ height: 3, background: D.border2, borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{ height: '100%', background: D.accent, borderRadius: 2, width: `${((fpvTour.stepIndex + 1) / fpvTour.totalSteps) * 100}%`, transition: 'width 0.6s ease' }} />
                   </div>
-                  <div style={{ fontSize: 11, color: D.textMut, marginTop: 4, textAlign: 'right' }}>
-                    {routeData?.distance} km · ~{routeData?.duration} min walk
+                  <div style={{ fontSize: 11, color: D.textMut, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Step {fpvTour.stepIndex + 1}/{fpvTour.totalSteps}</span>
+                    <span>{routeData?.distance} km · ~{routeData?.duration} min</span>
                   </div>
                 </div>
               )}
@@ -509,30 +553,126 @@ function DemoMap() {
               </div>
             </div>
           )}
+
+          {/* ── Mobile bottom sheet ── */}
+          {isMobile && !showDirections && (() => {
+            const translateY = {
+              peek:   'calc(85dvh - 68px)',
+              list:   'calc(85dvh - 48dvh)',
+              card:   'calc(85dvh - 224px)',
+              detail: '0dvh',
+            }[sheetState] ?? 'calc(85dvh - 68px)'
+
+            const MobileQuickCard = () => (
+              <div style={{ padding: '0 16px 20px', overflowY: 'auto', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon name="building" size={20} color={D.accent} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: D.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedBuilding.name}</div>
+                    <div style={{ fontSize: 12, color: D.textDim, display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                      <span>{selectedBuilding.category}</span>
+                      {routeData && <><span>·</span><span style={{ color: D.accent, fontWeight: 600 }}>~{routeData.duration} min walk</span></>}
+                    </div>
+                  </div>
+                  <button onClick={() => setSheetState('detail')} style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 7, padding: '5px 10px', cursor: 'pointer', color: D.textDim, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    Details
+                  </button>
+                </div>
+
+                {routeData?.duration > 12 && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12 }}>
+                    <span style={{ color: '#d97706' }}>Long walk (~{routeData.duration} min)</span>
+                    <button onClick={handleOpenTransit} style={{ color: '#d97706', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12, padding: 0, whiteSpace: 'nowrap' }}>Transit / taxi →</button>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleShowDirections} disabled={!userLocation} style={{ flex: 1, padding: '12px', borderRadius: 10, background: userLocation ? D.accent : D.border2, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: userLocation ? 'pointer' : 'not-allowed', opacity: userLocation ? 1 : 0.6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                    <Icon name="navigation" size={15} color="#fff" />
+                    {userLocation ? 'Navigate' : 'Enable Location'}
+                  </button>
+                  <button onClick={handleOpenInGoogleMaps} style={{ width: 46, height: 46, borderRadius: 10, background: 'transparent', border: `1px solid ${D.border2}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon name="mapPin" size={16} color={D.textDim} />
+                  </button>
+                </div>
+              </div>
+            )
+
+            return (
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                height: '85dvh',
+                background: D.surface,
+                borderRadius: '18px 18px 0 0',
+                border: `1px solid ${D.border2}`,
+                borderBottom: 'none',
+                transform: `translateY(${translateY})`,
+                transition: 'transform 0.32s cubic-bezier(0.16,1,0.3,1)',
+                display: 'flex', flexDirection: 'column',
+                zIndex: 10,
+                overflow: 'hidden',
+                boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              }}>
+                {/* Drag handle */}
+                <div
+                  onClick={() => {
+                    if (sheetState === 'peek') setSheetState('list')
+                    else if (sheetState === 'list') setSheetState('peek')
+                    else if (sheetState === 'card') setSheetState('detail')
+                    else setSheetState('card')
+                  }}
+                  style={{ padding: '10px 0 6px', display: 'flex', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  <div style={{ width: 36, height: 4, borderRadius: 2, background: D.border2 }} />
+                </div>
+
+                {/* Search bar */}
+                <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>
+                  <SearchBox
+                    value={searchQuery}
+                    onChange={(q) => { setSearchQuery(q); if (sheetState === 'peek') setSheetState('list') }}
+                    dark={dark}
+                  />
+                </div>
+
+                {/* Content */}
+                {(sheetState === 'peek' || sheetState === 'list') && (
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 8px' }}>
+                      Buildings ({filteredBuildings.length})
+                    </div>
+                    {filteredBuildings.length === 0 ? (
+                      <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 16 }}>No buildings found</p>
+                    ) : filteredBuildings.map(b => (
+                      <BuildingCard
+                        key={b.id}
+                        building={b}
+                        distance={userLocation ? calcDist(userLocation.latitude, userLocation.longitude, b.coordinates[1], b.coordinates[0]) : null}
+                        onClick={() => handleBuildingClick(b)}
+                        selected={selectedBuilding?.id === b.id}
+                        dark={dark}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {sheetState === 'card' && selectedBuilding && <MobileQuickCard />}
+                {sheetState === 'detail' && selectedBuilding && <BuildingDetailPanel />}
+              </div>
+            )
+          })()}
         </div>
       </div>
 
-      {/* Building detail modal */}
-      {selectedBuilding && showModal && !showBuildingForm && !showRoomsList && (
-        <Modal onClose={() => {
-          setSelectedBuilding(null)
-          setShowDirections(false)
-          setRouteData(null)
-          setShowModal(true)
-          setShowRoomsList(false)
-          if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
-        }}>
-          <BuildingDetail />
-        </Modal>
-      )}
-
       {/* Rooms list modal */}
       {selectedBuilding && showRoomsList && (
-        <Modal onClose={() => { setShowRoomsList(false); setShowModal(true) }}>
+        <Modal onClose={() => setShowRoomsList(false)}>
           <DemoRoomsList
             buildingId={selectedBuilding.id}
             buildingName={selectedBuilding.name}
-            onClose={() => { setShowRoomsList(false); setShowModal(true) }}
+            onClose={() => setShowRoomsList(false)}
           />
         </Modal>
       )}

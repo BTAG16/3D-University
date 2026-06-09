@@ -1,5 +1,6 @@
 .rooms-list-modal {
-  background: white;
+  background: var(--surface);
+  color: var(--text-primary);
   border-radius: 12px;
   width: 100%;
   max-width: 700px;
@@ -14,8 +15,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #f8f9fa;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .rooms-list-header .header-left {
@@ -26,21 +27,21 @@
 
 .rooms-list-header .header-icon {
   font-size: 24px;
-  color: #007bff;
+  color: var(--accent);
 }
 
 .rooms-list-header h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .btn-close-rooms {
   background: none;
   border: none;
   font-size: 24px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 8px;
   transition: color 0.2s;
@@ -50,7 +51,7 @@
 }
 
 .btn-close-rooms:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .rooms-list-content {
@@ -69,30 +70,30 @@
   justify-content: center;
   min-height: 300px;
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .loading-icon {
   font-size: 40px;
-  color: #007bff;
+  color: var(--accent);
   margin-bottom: 16px;
 }
 
 .empty-icon {
   font-size: 48px;
-  color: #ccc;
+  color: var(--text-tertiary);
   margin-bottom: 16px;
 }
 
 .empty-state h3 {
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 18px;
 }
 
 .empty-state p {
   margin: 0;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -101,7 +102,7 @@
   display: flex;
   gap: 24px;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--bg);
   border-radius: 8px;
   margin-bottom: 20px;
   flex-wrap: wrap;
@@ -121,14 +122,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #dbe2ee;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   padding: 9px 12px;
 }
 
 .rooms-search-box svg {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .rooms-search-box input {
@@ -136,7 +137,8 @@
   outline: none;
   width: 100%;
   font-size: 14px;
-  color: #334155;
+  color: var(--text-primary);
+  background: transparent;
 }
 
 .offices-toggle {
@@ -144,13 +146,13 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .offices-toggle input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #007bff;
+  accent-color: var(--accent);
 }
 
 .summary-item {
@@ -158,11 +160,11 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .summary-item strong {
-  color: #333;
+  color: var(--text-primary);
   font-size: 18px;
 }
 
@@ -178,8 +180,8 @@
 }
 
 .room-card {
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 16px;
   transition: all 0.2s;
@@ -192,27 +194,28 @@
 }
 
 .btn-toggle-room-timetable {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
-  color: #1d4ed8;
+  background: var(--surface);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
   padding: 7px 10px;
+  cursor: pointer;
 }
 
 .btn-toggle-room-timetable:hover {
-  border-color: #93c5fd;
+  border-color: var(--accent);
 }
 
 .room-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: #007bff;
+  border-color: var(--accent);
 }
 
 .room-card.office {
-  background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
-  border-color: #ffc107;
+  background: var(--accent-subtle);
+  border-color: var(--accent-muted);
 }
 
 .room-card-header {
@@ -225,15 +228,15 @@
 .room-number {
   font-size: 18px;
   font-weight: 700;
-  color: #007bff;
-  background: #e7f3ff;
+  color: var(--accent);
+  background: var(--accent-subtle);
   padding: 4px 12px;
   border-radius: 6px;
 }
 
 .room-card.office .room-number {
-  background: #fff3cd;
-  color: #856404;
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
 }
 
 .office-badge {
@@ -242,7 +245,7 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #856404;
+  color: #7c3a00;
   background: #ffc107;
   padding: 4px 8px;
   border-radius: 4px;
@@ -256,26 +259,26 @@
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .room-purpose {
   margin: 0 0 8px 0;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
 .room-hours {
   margin: 0;
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   padding-top: 8px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border);
 }
 
 .room-hours strong {
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Timetable in room card adjustments */

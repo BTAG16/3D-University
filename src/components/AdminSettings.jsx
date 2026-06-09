@@ -3,13 +3,14 @@ import {
   Settings, User, Lock, Trash2, AlertTriangle,
   Mail, Key, CheckCircle, X, Bell, Palette,
   Globe, Clock, Shield, Download, Camera,
-  Building2, Calendar, Moon, Sun, History
+  Building2, Calendar, Moon, Sun, History, Image
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { dbService } from '../lib/dbService'
 import { useToast } from './Toast'
 import './AdminSettings.css'
 
-function AdminSettings({ onClose, adminSession, onLogout }) {
+function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate }) {
   const [activeTab, setActiveTab] = useState('profile')
   const [loading, setLoading] = useState(false)
   const toast = useToast()
@@ -59,6 +60,9 @@ function AdminSettings({ onClose, adminSession, onLogout }) {
   const [deletePassword, setDeletePassword] = useState('')
   const [activityLog, setActivityLog] = useState([])
   const [avatarPreview, setAvatarPreview] = useState('')
+
+  const [logoUrl, setLogoUrl] = useState(adminSession.university?.logo_url || '')
+  const [logoSaving, setLogoSaving] = useState(false)
 
   useEffect(() => {
     loadUserPreferences()
@@ -329,6 +333,24 @@ function AdminSettings({ onClose, adminSession, onLogout }) {
     }
   }
 
+  const handleSaveLogo = async (e) => {
+    e.preventDefault()
+    const universityId = adminSession.university?.id
+    if (!universityId) { toast.error('No university linked to this account'); return }
+    setLogoSaving(true)
+    try {
+      const result = await dbService.updateUniversity(universityId, { logo_url: logoUrl || null })
+      if (!result.success) throw new Error(result.error || 'Update failed')
+      logActivity('Updated university logo')
+      if (onUniversityUpdate) onUniversityUpdate({ logo_url: logoUrl || null })
+      toast.success('Logo updated')
+    } catch (err) {
+      toast.error(err.message || 'Failed to update logo')
+    } finally {
+      setLogoSaving(false)
+    }
+  }
+
   const logActivity = (action) => {
     const log = JSON.parse(localStorage.getItem('adminActivityLog') || '[]')
     log.unshift({ action, timestamp: new Date().toISOString() })
@@ -347,6 +369,7 @@ function AdminSettings({ onClose, adminSession, onLogout }) {
   const navItems = [
     { id: 'profile', label: 'Profile', icon: <User size={15} /> },
     { id: 'account', label: 'Account', icon: <Building2 size={15} /> },
+    { id: 'branding', label: 'Branding', icon: <Image size={15} /> },
     { id: 'security', label: 'Security', icon: <Shield size={15} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={15} /> },
     { id: 'appearance', label: 'Appearance', icon: <Palette size={15} /> },
@@ -556,6 +579,54 @@ function AdminSettings({ onClose, adminSession, onLogout }) {
                   </div>
                   <p className="help-text">Download a copy of your profile, preferences, and university data</p>
                 </div>
+              </div>
+            )}
+
+            {/* Branding */}
+            {activeTab === 'branding' && (
+              <div className="settings-section">
+                <div className="section-header">
+                  <h3>University branding</h3>
+                  <p>Upload your logo to display on the campus map header</p>
+                </div>
+
+                <div className="avatar-row" style={{ alignItems: 'flex-start', gap: 20 }}>
+                  <div style={{ width: 72, height: 72, borderRadius: 14, overflow: 'hidden', background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {logoUrl
+                      ? <img src={logoUrl} alt="Logo preview" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} onError={(e) => { e.target.style.display = 'none' }} />
+                      : <Image size={28} style={{ opacity: 0.3 }} />
+                    }
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="help-text" style={{ marginBottom: 8 }}>
+                      Paste a public image URL (PNG, SVG, or JPG). The logo appears in the top-left corner of the public campus map instead of the default compass icon.
+                    </p>
+                    <p className="help-text">Recommended: square or landscape image, at least 64×64 px.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSaveLogo} className="settings-form" style={{ marginTop: 20 }}>
+                  <div className="form-field">
+                    <label htmlFor="logoUrl">Logo image URL</label>
+                    <input
+                      id="logoUrl"
+                      type="url"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="https://youruni.edu/logo.png"
+                    />
+                  </div>
+                  <div className="form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={logoSaving}>
+                      {logoSaving ? 'Saving...' : 'Save logo'}
+                    </button>
+                    {logoUrl && (
+                      <button type="button" className="btn-link danger-link" onClick={() => setLogoUrl('')}>
+                        Remove logo
+                      </button>
+                    )}
+                  </div>
+                </form>
               </div>
             )}
 

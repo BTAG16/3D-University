@@ -23,7 +23,8 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--surface, #ffffff);
+  color: var(--text-primary, #101828);
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   max-width: 600px;
@@ -32,6 +33,7 @@
   overflow-y: auto;
   position: relative;
   animation: slideUp 0.3s ease;
+  border: 1px solid var(--border, transparent);
 }
 
 @keyframes slideUp {

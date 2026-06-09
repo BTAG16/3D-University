@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import './MapComponent.css'
@@ -27,7 +27,6 @@ const MapComponent = forwardRef(({
   const markersRef = useRef([])
   const userMarkerRef = useRef(null)
   const tourRef = useRef({ active: false, paused: false, timeoutId: null, nextAdvance: null })
-  const [routeData, setRouteData] = useState(null)
 
   const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
 
@@ -48,7 +47,6 @@ const MapComponent = forwardRef(({
         mapRef.current.removeLayer('route')
         mapRef.current.removeSource('route')
       }
-      setRouteData(null)
       if (onRouteDataChange) {
         onRouteDataChange(null)
       }
@@ -295,17 +293,13 @@ const MapComponent = forwardRef(({
 
     buildings.forEach((building) => {
       const isAdminBuilding = building.is_admin_building
-      const markerColor = isAdminBuilding ? '#ef4444' : '#667eea' // Red for admin, purple for others
-      
+
       const el = document.createElement('div')
-      el.className = `building-marker ${isAdminBuilding ? 'admin-marker' : ''}`
+      el.className = `building-marker${isAdminBuilding ? ' admin-marker' : ''}`
       el.innerHTML = `
-        <div class="marker-icon">
-          <svg width="30" height="40" viewBox="0 0 30 40">
-            <path fill="${markerColor}" d="M15 0C6.716 0 0 6.716 0 15c0 10 15 25 15 25s15-15 15-25c0-8.284-6.716-15-15-15zm0 20c-2.761 0-5-2.239-5-5s2.239-5 5-5 5 2.239 5 5-2.239 5-5 5z"/>
-          </svg>
-        </div>
-        <div class="marker-label" style="${isAdminBuilding ? 'font-weight: bold;' : ''}">${building.name}</div>
+        <div class="marker-chip">${building.name}</div>
+        <div class="marker-stem"></div>
+        <div class="marker-dot"></div>
       `
 
       el.addEventListener('click', () => {
@@ -398,7 +392,6 @@ const MapComponent = forwardRef(({
             geometry: route.geometry,
             steps
           }
-          setRouteData(nextRouteData)
           if (onRouteDataChange) {
             onRouteDataChange(nextRouteData)
           }

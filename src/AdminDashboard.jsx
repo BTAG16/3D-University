@@ -625,11 +625,41 @@ function AdminDashboard() {
           </div>
 
           <div style={{ ...card, padding: '24px' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 14px' }}>Preview</h3>
-            <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--accent)', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>
-              <Icon name="externalLink" size={14} color="var(--accent)" />
-              Open Public Map
-            </a>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>Live Preview</h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Exactly what students see when they open your map link.</p>
+              </div>
+              <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--accent)', textDecoration: 'none', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <Icon name="externalLink" size={13} color="var(--accent)" />
+                Open full map
+              </a>
+            </div>
+
+            {/* Browser chrome mockup */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
+              {/* Browser bar */}
+              <div style={{ background: 'var(--bg)', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} />
+                </div>
+                <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '4px 10px', fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {publicUrl}
+                </div>
+              </div>
+              {/* Live iframe */}
+              <iframe
+                src={publicUrl}
+                title="Campus Map Preview"
+                style={{ width: '100%', height: 420, border: 'none', display: 'block' }}
+                loading="lazy"
+              />
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '10px 0 0', textAlign: 'center' }}>
+              Live preview — building changes reflect immediately
+            </p>
           </div>
         </div>
       </div>
@@ -755,6 +785,7 @@ function AdminDashboard() {
           onClose={() => setShowSettingsModal(false)}
           adminSession={adminSession}
           onLogout={handleLogout}
+          onUniversityUpdate={(patch) => setUniversity(prev => prev ? { ...prev, ...patch } : prev)}
         />
       )}
     </div>
