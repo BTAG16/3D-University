@@ -32,6 +32,10 @@ function RoomManagement({ universityId, buildings, onClose }) {
     filterRooms()
   }, [searchQuery, selectedBuilding, rooms])
 
+  useEffect(() => {
+    setSelectedRooms([])
+  }, [activeView, searchQuery, selectedBuilding])
+
   const loadRooms = async () => {
     setLoading(true)
     setError(null)
@@ -65,7 +69,8 @@ function RoomManagement({ universityId, buildings, onClose }) {
       filtered = filtered.filter(room =>
         room.room_number.toLowerCase().includes(query) ||
         room.room_name.toLowerCase().includes(query) ||
-        (room.purpose && room.purpose.toLowerCase().includes(query))
+        (room.purpose && room.purpose.toLowerCase().includes(query)) ||
+        (room.building?.name && room.building.name.toLowerCase().includes(query))
       )
     }
 
@@ -73,7 +78,7 @@ function RoomManagement({ universityId, buildings, onClose }) {
   }
 
   const handleDeleteRoom = async (roomId) => {
-    if (!confirm('Are you sure you want to delete this room?')) return
+    if (!window.confirm('Are you sure you want to delete this room?')) return
 
     try {
       toast.info('Deleting room...')
@@ -210,6 +215,11 @@ function RoomManagement({ universityId, buildings, onClose }) {
     return building ? building.name : 'Unknown Building'
   }
 
+  const clearFilters = () => {
+    setSelectedBuilding('all')
+    setSearchQuery('')
+  }
+
   return (
     <div className="room-management">
       <div className="room-management-header">
@@ -292,6 +302,14 @@ function RoomManagement({ universityId, buildings, onClose }) {
                   />
                 </div>
               </div>
+              {(searchQuery || selectedBuilding !== 'all') && (
+                <div className="filter-group filter-group-auto">
+                  <button className="btn-clear-filters" onClick={clearFilters}>
+                    <FontAwesomeIcon icon={faTimes} />
+                    Clear
+                  </button>
+                </div>
+              )}
               {selectedRooms.length > 0 && (
                 <div className="filter-group">
                   <button 
@@ -365,10 +383,10 @@ function RoomManagement({ universityId, buildings, onClose }) {
                               </span>
                             </label>
                           </td>
-                          <td className="room-number">{room.room_number}</td>
-                          <td>{room.room_name}</td>
-                          <td>{room.building?.name || getBuildingName(room.building_id)}</td>
-                          <td>
+                          <td className="room-number" data-label="Room Number">{room.room_number}</td>
+                          <td data-label="Room Name">{room.room_name}</td>
+                          <td data-label="Building">{room.building?.name || getBuildingName(room.building_id)}</td>
+                          <td data-label="Type">
                             {room.is_office ? (
                               <span className="office-badge">
                                 <FontAwesomeIcon icon={faStar} /> Office
@@ -377,7 +395,7 @@ function RoomManagement({ universityId, buildings, onClose }) {
                               <span className="room-badge">Room</span>
                             )}
                           </td>
-                          <td>
+                          <td data-label="Actions">
                             <div className="room-actions">
                               <button
                                 className="btn-icon"
@@ -406,6 +424,55 @@ function RoomManagement({ universityId, buildings, onClose }) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="rooms-mobile-cards">
+                  {filteredRooms.map(room => (
+                    <article key={`mobile-${room.id}`} className={`room-mobile-card ${selectedRooms.includes(room.id) ? 'selected' : ''}`}>
+                      <header className="room-mobile-card-header">
+                        <label className="room-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={selectedRooms.includes(room.id)}
+                            onChange={() => toggleRoomSelection(room.id)}
+                          />
+                          <span className="room-checkbox-custom">
+                            <FontAwesomeIcon icon={faCheck} />
+                          </span>
+                        </label>
+                        <div>
+                          <h4>{room.room_name}</h4>
+                          <p className="room-mobile-meta">{room.room_number} · {room.building?.name || getBuildingName(room.building_id)}</p>
+                        </div>
+                        <span className={room.is_office ? 'office-badge' : 'room-badge'}>
+                          <FontAwesomeIcon icon={room.is_office ? faStar : faDoorOpen} />
+                          {room.is_office ? 'Office' : 'Room'}
+                        </span>
+                      </header>
+                      <div className="room-actions">
+                        <button
+                          className="btn-icon"
+                          onClick={() => handleToggleOffice(room)}
+                          title={room.is_office ? 'Remove office status' : 'Mark as office'}
+                        >
+                          <FontAwesomeIcon icon={faStar} />
+                        </button>
+                        <button
+                          className="btn-icon edit"
+                          onClick={() => setEditingRoom(room)}
+                          title="Edit room"
+                        >
+                          <FontAwesomeIcon icon={faEdit} />
+                        </button>
+                        <button
+                          className="btn-icon delete"
+                          onClick={() => handleDeleteRoom(room.id)}
+                          title="Delete room"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </div>
+                    </article>
+                  ))}
                 </div>
               </>
             )}

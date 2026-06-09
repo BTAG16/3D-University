@@ -5,7 +5,7 @@ import MapComponent from './components/Map/MapComponent'
 import Modal from './components/Modal'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faDirections, faMapMarkerAlt, faDoorOpen, faExternalLinkAlt
+  faDirections, faMapMarkerAlt, faDoorOpen, faExternalLinkAlt, faTimes
 } from '@fortawesome/free-solid-svg-icons'
 import './PublicMap.css'
 
@@ -20,6 +20,7 @@ function EmbedMap() {
   const [showDirections, setShowDirections] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [officeRooms, setOfficeRooms] = useState([])
+  const [routeData, setRouteData] = useState(null)
   const mapRef = useRef(null)
 
   // Automatically get user location on mount
@@ -142,6 +143,7 @@ function EmbedMap() {
   const handleBuildingClick = async (building) => {
     setSelectedBuilding(building)
     setShowDirections(false)
+    setRouteData(null)
     setShowModal(true)
     if (mapRef.current?.clearDirections) {
       mapRef.current.clearDirections()
@@ -195,7 +197,7 @@ function EmbedMap() {
 
   const handleShowDirections = () => {
     if (!userLocation) {
-      if (confirm('Location is required for directions. Would you like to enable location access?')) {
+      if (window.confirm('Location is required for directions. Would you like to enable location access?')) {
         handleRequestLocation()
       }
       return
@@ -222,7 +224,17 @@ function EmbedMap() {
   const handleCloseModal = () => {
     setSelectedBuilding(null)
     setShowDirections(false)
+    setRouteData(null)
     setShowModal(false)
+    if (mapRef.current?.clearDirections) {
+      mapRef.current.clearDirections()
+    }
+  }
+
+  const handleCloseDirections = () => {
+    setShowDirections(false)
+    setRouteData(null)
+    setShowModal(true)
     if (mapRef.current?.clearDirections) {
       mapRef.current.clearDirections()
     }
@@ -295,7 +307,7 @@ function EmbedMap() {
   return (
     <div className="public-map embed-mode">
       {/* Full screen map - no header, no sidebar */}
-      <div className="map-container" style={{ height: '100vh', width: '100vw' }}>
+      <div className="map-container">
         <MapComponent
           ref={mapRef}
           buildings={buildings}
@@ -305,42 +317,48 @@ function EmbedMap() {
           showDirections={showDirections}
           destinationCoords={selectedBuilding?.coordinates}
           darkMode={false}
+          onRouteDataChange={setRouteData}
         />
 
-        {/* Floating language selector */}
-        <div style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          zIndex: 1000
-        }}>
-          <LanguageSelector onChangeLanguage={handleLanguageChange} />
-        </div>
+        {showDirections && selectedBuilding && (
+          <div className="floating-navigation-controls">
+            {routeData && (
+              <div className="floating-route-panel">
+                <h3>Walking Directions</h3>
+                <p className="route-summary">
+                  {routeData.distance} km · {routeData.duration} min
+                </p>
+                <ol>
+                  {routeData.steps.slice(0, 5).map((step) => (
+                    <li key={step.id}>{step.instruction}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            <button
+              className="btn-floating-google-maps"
+              onClick={handleOpenInGoogleMaps}
+              title="Open in Google Maps"
+            >
+              <FontAwesomeIcon icon={faMapMarkerAlt} />
+              <span>Google Maps (Optional)</span>
+            </button>
+            <button
+              className="btn-floating-close"
+              onClick={handleCloseDirections}
+              title="Close In-App Directions"
+            >
+              <FontAwesomeIcon icon={faTimes} />
+              <span>Close Directions</span>
+            </button>
+          </div>
+        )}
 
         {/* Floating location button - show if location not available */}
         {!userLocation && (
           <button
             onClick={handleRequestLocation}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              background: '#007bff',
-              color: 'white',
-              border: 'none',
-              padding: '12px 20px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              zIndex: 1000,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseOver={(e) => e.target.style.background = '#0056b3'}
-            onMouseOut={(e) => e.target.style.background = '#007bff'}
+            className="embed-location-btn"
           >
             <FontAwesomeIcon icon={faMapMarkerAlt} />
             Enable Location
@@ -348,17 +366,7 @@ function EmbedMap() {
         )}
 
         {/* Floating watermark/branding */}
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          right: '20px',
-          background: 'rgba(255, 255, 255, 0.95)',
-          padding: '10px 15px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          fontSize: '12px',
-          zIndex: 1000
-        }}>
+        <div className="embed-branding">
           <strong>{university.name}</strong>
         </div>
       </div>
@@ -443,9 +451,10 @@ function EmbedMap() {
                 onClick={handleOpenInGoogleMaps}
               >
                 <FontAwesomeIcon icon={faMapMarkerAlt} />
-                <span>Google Maps</span>
+                <span>Open in Google Maps</span>
               </button>
             </div>
+
 
             {/* Link to full map */}
             <div style={{
@@ -481,35 +490,6 @@ function EmbedMap() {
           </div>
         </Modal>
       )}
-      
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        .embed-mode .public-header,
-        .embed-mode .search-container,
-        .embed-mode .public-sidebar,
-        .embed-mode .mobile-actions {
-          display: none !important;
-        }
-        
-        .embed-mode .map-container {
-          height: 100vh !important;
-          width: 100vw !important;
-        }
-        
-        .embed-summary .detail-section {
-          margin-bottom: 15px;
-        }
-        
-        .embed-summary h3 {
-          font-size: 14px;
-          margin-bottom: 8px;
-          color: #333;
-        }
-      `}</style>
     </div>
   )
 }

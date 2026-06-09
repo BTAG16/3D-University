@@ -1,0 +1,114 @@
+/* Kampus 3D — Design Tokens */
+
+:root {
+  /* Typography */
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  /* Type scale */
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  30px;
+  --text-4xl:  36px;
+  --text-5xl:  48px;
+  --text-6xl:  64px;
+
+  /* Colors — Core */
+  --white:        #FFFFFF;
+  --bg:           #FAFAFA;
+  --surface:      #FFFFFF;
+  --border:       #E4E7EC;
+  --border-light: #F2F4F7;
+
+  /* Text */
+  --text-primary:   #101828;
+  --text-secondary: #667085;
+  --text-tertiary:  #98A2B3;
+  --text-inverse:   #FFFFFF;
+
+  /* Accent */
+  --accent:        #0EA5E9;
+  --accent-hover:  #0284C7;
+  --accent-subtle: #F0F9FF;
+  --accent-muted:  #E0F2FE;
+
+  /* Semantic */
+  --success:        #12B76A;
+  --success-subtle: #ECFDF3;
+  --error:          #F04438;
+  --error-subtle:   #FEF3F2;
+  --warning:        #F79009;
+  --warning-subtle: #FFFAEB;
+
+  /* Dark navy surfaces */
+  --navy:         #0D1B2A;
+  --navy-light:   #0F1B2D;
+  --navy-surface: #162336;
+
+  /* Spacing (4px base) */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+
+  /* Border radius */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+  --shadow-md: 0 4px 8px -2px rgba(16,24,40,0.08), 0 2px 4px -2px rgba(16,24,40,0.04);
+  --shadow-lg: 0 12px 16px -4px rgba(16,24,40,0.08), 0 4px 6px -2px rgba(16,24,40,0.03);
+  --shadow-xl: 0 20px 24px -4px rgba(16,24,40,0.08), 0 8px 8px -4px rgba(16,24,40,0.03);
+  --shadow-focus: 0 0 0 3px rgba(14,165,233,0.2);
+
+  /* Motion */
+  --ease:        cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration:    200ms;
+  --duration-md: 300ms;
+  --duration-lg: 700ms;
+
+  /* Layout */
+  --container:     1200px;
+  --nav-height:    64px;
+  --sidebar-width: 240px;
+}
+
+/* ——— Dark mode ——— */
+[data-dark="true"] {
+  --bg:           #0B1120;
+  --surface:      #111B2E;
+  --text-primary: #E2E8F0;
+  --text-secondary: #8494A7;
+  --text-tertiary:  #4A5568;
+  --text-inverse:   #0B1120;
+  --border:       #1E2D45;
+  --border-light: #152238;
+  --navy:         #060B14;
+  --navy-light:   #0A1020;
+  --navy-surface: #0F1A2F;
+  --white:        #111B2E;
+  --accent-subtle: rgba(14,165,233,0.12);
+  --accent-muted:  rgba(14,165,233,0.18);
+}
+
+[data-dark="true"] body {
+  background: #0B1120;
+  color: #E2E8F0;
+}

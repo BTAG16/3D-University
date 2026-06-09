@@ -1,40 +1,66 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, ArrowLeft, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, ArrowLeft, AlertCircle, CheckCircle, XCircle, Mail } from 'lucide-react';
 
 const Terms = () => {
   const navigate = useNavigate();
-  const lastUpdated = "December 1, 2024";
+  const lastUpdated = "December 7, 2024";
+  const contactEmail = "seuncloud03@gmail.com";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div style={{ minHeight: '100vh', backgroundColor: '#0a0a0f', color: 'white' }}>
       {/* Header */}
-      <header className="border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header style={{
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'rgba(10, 10, 15, 0.8)',
+        backdropFilter: 'blur(12px)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 40
+      }}>
+        <div style={{ maxWidth: '64rem', margin: '0 auto', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#9ca3af',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.color = 'white'}
+            onMouseLeave={(e) => e.target.style.color = '#9ca3af'}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft style={{ width: '1.25rem', height: '1.25rem' }} />
             Back to Home
           </button>
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-[#667eea]" />
-            <span className="font-semibold">Terms of Service</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileText style={{ width: '1.25rem', height: '1.25rem', color: '#667eea' }} />
+            <span style={{ fontWeight: '600' }}>Terms of Service</span>
           </div>
         </div>
       </header>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main style={{ maxWidth: '64rem', margin: '0 auto', padding: '3rem 1.5rem' }}>
         {/* Title Section */}
-        <div className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Terms of Service</h1>
-          <p className="text-gray-400 text-lg">
-            Last updated: <span className="text-[#667eea]">{lastUpdated}</span>
+        <div style={{ marginBottom: '3rem' }}>
+          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 'bold', marginBottom: '1rem' }}>Terms of Service</h1>
+          <p style={{ color: '#9ca3af', fontSize: '1.125rem' }}>
+            Last updated: <span style={{ color: '#667eea' }}>{lastUpdated}</span>
           </p>
-          <div className="mt-6 p-4 bg-[#667eea]/10 border border-[#667eea]/20 rounded-lg">
-            <p className="text-sm text-gray-300">
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            background: 'rgba(102, 126, 234, 0.1)',
+            border: '1px solid rgba(102, 126, 234, 0.2)',
+            borderRadius: '0.5rem'
+          }}>
+            <p style={{ fontSize: '0.875rem', color: '#d1d5db' }}>
               <strong>TL;DR:</strong> Use our platform respectfully, don't break things, we're not 
               liable for everything, and you retain ownership of your content. Standard legal stuff.
             </p>
@@ -59,14 +85,14 @@ const Terms = () => {
             Campus Explorer provides a 3D campus mapping platform designed for educational institutions. 
             The Service includes:
           </p>
-          <ul className="list-disc list-inside space-y-2 mt-4">
+          <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             <li>Interactive 3D campus maps</li>
             <li>Building and room management tools</li>
             <li>Navigation and wayfinding features</li>
             <li>Administrative dashboard and analytics</li>
             <li>API access (for applicable subscription tiers)</li>
           </ul>
-          <p className="mt-4">
+          <p style={{ marginTop: '1rem' }}>
             We reserve the right to modify, suspend, or discontinue any aspect of the Service at any time 
             with or without notice.
           </p>
@@ -74,11 +100,11 @@ const Terms = () => {
 
         {/* Account Registration */}
         <Section title="3. Account Registration and Security">
-          <h3 className="text-xl font-semibold mb-3">3.1 Account Creation</h3>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem' }}>3.1 Account Creation</h3>
           <p>
             To use certain features of the Service, you must register for an account. You agree to:
           </p>
-          <ul className="list-disc list-inside space-y-2 mt-4">
+          <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             <li>Provide accurate, current, and complete information</li>
             <li>Maintain and update your information to keep it accurate</li>
             <li>Maintain the security of your account credentials</li>
@@ -86,13 +112,13 @@ const Terms = () => {
             <li>Notify us immediately of any unauthorized access</li>
           </ul>
 
-          <h3 className="text-xl font-semibold mb-3 mt-6">3.2 Account Eligibility</h3>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem', marginTop: '1.5rem' }}>3.2 Account Eligibility</h3>
           <p>
             You must be at least 18 years old or have reached the age of majority in your jurisdiction 
             to create an account. Accounts are intended for authorized university administrators only.
           </p>
 
-          <h3 className="text-xl font-semibold mb-3 mt-6">3.3 Account Termination</h3>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem', marginTop: '1.5rem' }}>3.3 Account Termination</h3>
           <p>
             We reserve the right to suspend or terminate accounts that violate these Terms or engage in 
             fraudulent, abusive, or illegal activity.
@@ -101,13 +127,13 @@ const Terms = () => {
 
         {/* Acceptable Use */}
         <Section title="4. Acceptable Use Policy">
-          <div className="space-y-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div>
-              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-400" />
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle style={{ width: '1.25rem', height: '1.25rem', color: '#10b981' }} />
                 You May:
               </h3>
-              <ul className="list-disc list-inside space-y-2 text-gray-300">
+              <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', color: '#d1d5db' }}>
                 <li>Use the Service for legitimate educational and administrative purposes</li>
                 <li>Create and manage campus maps for your institution</li>
                 <li>Integrate the Service with other authorized tools</li>
@@ -116,11 +142,11 @@ const Terms = () => {
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                <XCircle className="w-5 h-5 text-red-400" />
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <XCircle style={{ width: '1.25rem', height: '1.25rem', color: '#ef4444' }} />
                 You May Not:
               </h3>
-              <ul className="list-disc list-inside space-y-2 text-gray-300">
+              <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', color: '#d1d5db' }}>
                 <li>Violate any laws or regulations</li>
                 <li>Infringe on intellectual property rights</li>
                 <li>Transmit malware, viruses, or malicious code</li>
@@ -135,7 +161,7 @@ const Terms = () => {
             </div>
           </div>
 
-          <InfoBox type="warning" className="mt-6">
+          <InfoBox type="warning" style={{ marginTop: '1.5rem' }}>
             Violation of this Acceptable Use Policy may result in immediate account suspension or 
             termination without refund.
           </InfoBox>
@@ -143,7 +169,7 @@ const Terms = () => {
 
         {/* Intellectual Property */}
         <Section title="5. Intellectual Property Rights">
-          <h3 className="text-xl font-semibold mb-3">5.1 Our Intellectual Property</h3>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem' }}>5.1 Our Intellectual Property</h3>
           <p>
             The Service, including all software, designs, text, graphics, logos, and other content, is 
             owned by Campus Explorer and protected by copyright, trademark, and other intellectual property 
@@ -151,20 +177,20 @@ const Terms = () => {
             solely as permitted by these Terms.
           </p>
 
-          <h3 className="text-xl font-semibold mb-3 mt-6">5.2 Your Content</h3>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem', marginTop: '1.5rem' }}>5.2 Your Content</h3>
           <p>
             You retain ownership of all content you upload to the Service ("User Content"). By uploading 
             User Content, you grant us a worldwide, non-exclusive, royalty-free license to use, store, 
             display, and process your User Content solely to provide the Service.
           </p>
-          <InfoBox type="info" className="mt-4">
+          <InfoBox type="info" style={{ marginTop: '1rem' }}>
             We will never sell your User Content or use it for purposes other than providing and improving 
             the Service.
           </InfoBox>
 
-          <h3 className="text-xl font-semibold mb-3 mt-6">5.3 User Content Responsibility</h3>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.75rem', marginTop: '1.5rem' }}>5.3 User Content Responsibility</h3>
           <p>You are solely responsible for your User Content and warrant that:</p>
-          <ul className="list-disc list-inside space-y-2 mt-4">
+          <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             <li>You own or have rights to all User Content you upload</li>
             <li>User Content does not violate any third-party rights</li>
             <li>User Content complies with all applicable laws</li>
@@ -172,45 +198,27 @@ const Terms = () => {
           </ul>
         </Section>
 
-        {/* Payment Terms */}
-        <Section title="6. Payment and Subscription">
-          <h3 className="text-xl font-semibold mb-3">6.1 Fees</h3>
-          <p>
-            Certain features of the Service require payment of fees. All fees are stated in USD and are 
-            non-refundable except as required by law or as expressly stated in these Terms.
-          </p>
-
-          <h3 className="text-xl font-semibold mb-3 mt-6">6.2 Billing</h3>
-          <ul className="list-disc list-inside space-y-2">
-            <li>Subscriptions are billed on a recurring basis (monthly or annually)</li>
-            <li>You authorize us to charge your payment method automatically</li>
-            <li>Prices may change with 30 days' notice to existing customers</li>
-            <li>Failed payments may result in service suspension</li>
-          </ul>
-
-          <h3 className="text-xl font-semibold mb-3 mt-6">6.3 Cancellation and Refunds</h3>
-          <p>
-            You may cancel your subscription at any time. Cancellations take effect at the end of the 
-            current billing period. We offer a 14-day money-back guarantee for annual plans only.
-          </p>
-        </Section>
-
         {/* Warranties and Disclaimers */}
         <Section title="7. Warranties and Disclaimers">
-          <div className="p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="font-semibold mb-3 uppercase">Important Legal Notice:</p>
-            <p className="text-sm">
+          <div style={{
+            padding: '1.5rem',
+            background: 'rgba(234, 179, 8, 0.1)',
+            border: '1px solid rgba(234, 179, 8, 0.3)',
+            borderRadius: '0.5rem'
+          }}>
+            <p style={{ fontWeight: '600', marginBottom: '0.75rem', textTransform: 'uppercase' }}>Important Legal Notice:</p>
+            <p style={{ fontSize: '0.875rem' }}>
               THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS 
               OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
               PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
             </p>
-            <p className="text-sm mt-3">
+            <p style={{ fontSize: '0.875rem', marginTop: '0.75rem' }}>
               WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, SECURE, OR FREE FROM 
               VIRUSES OR OTHER HARMFUL COMPONENTS.
             </p>
           </div>
 
-          <p className="mt-4">
+          <p style={{ marginTop: '1rem' }}>
             We make reasonable efforts to ensure the accuracy and reliability of the Service, but we 
             cannot guarantee perfect operation at all times. Use of the Service is at your own risk.
           </p>
@@ -218,163 +226,30 @@ const Terms = () => {
 
         {/* Limitation of Liability */}
         <Section title="8. Limitation of Liability">
-          <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <p className="font-semibold mb-3 uppercase">Liability Cap:</p>
-            <p className="text-sm">
+          <div style={{
+            padding: '1.5rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '0.5rem'
+          }}>
+            <p style={{ fontWeight: '600', marginBottom: '0.75rem', textTransform: 'uppercase' }}>Liability Cap:</p>
+            <p style={{ fontSize: '0.875rem' }}>
               TO THE MAXIMUM EXTENT PERMITTED BY LAW, CAMPUS EXPLORER SHALL NOT BE LIABLE FOR ANY 
               INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS 
               OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, 
               OR OTHER INTANGIBLE LOSSES.
             </p>
-            <p className="text-sm mt-3">
+            <p style={{ fontSize: '0.875rem', marginTop: '0.75rem' }}>
               OUR TOTAL LIABILITY TO YOU FOR ANY CLAIMS ARISING FROM OR RELATED TO THE SERVICE SHALL NOT 
               EXCEED THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS PRIOR TO THE EVENT GIVING RISE TO 
               THE CLAIM.
             </p>
           </div>
 
-          <InfoBox type="info" className="mt-4">
+          <InfoBox type="info" style={{ marginTop: '1rem' }}>
             Some jurisdictions do not allow the exclusion or limitation of certain damages, so some of 
             the above limitations may not apply to you.
           </InfoBox>
-        </Section>
-
-        {/* Indemnification */}
-        <Section title="9. Indemnification">
-          <p>
-            You agree to indemnify, defend, and hold harmless Campus Explorer, its officers, directors, 
-            employees, and agents from any claims, damages, losses, liabilities, and expenses (including 
-            reasonable attorneys' fees) arising out of or related to:
-          </p>
-          <ul className="list-disc list-inside space-y-2 mt-4">
-            <li>Your use or misuse of the Service</li>
-            <li>Your violation of these Terms</li>
-            <li>Your User Content</li>
-            <li>Your violation of any rights of another party</li>
-            <li>Your violation of any applicable laws</li>
-          </ul>
-        </Section>
-
-        {/* Privacy */}
-        <Section title="10. Privacy">
-          <p>
-            Your use of the Service is also governed by our Privacy Policy, which is incorporated into 
-            these Terms by reference. Please review our{' '}
-            <a href="/privacy" className="text-[#667eea] hover:underline">Privacy Policy</a> to 
-            understand our data practices.
-          </p>
-        </Section>
-
-        {/* Third-Party Services */}
-        <Section title="11. Third-Party Services">
-          <p>
-            The Service may integrate with or contain links to third-party services, websites, or 
-            applications. We are not responsible for the content, functionality, privacy practices, or 
-            terms of any third-party services. Your use of third-party services is at your own risk 
-            and subject to their respective terms.
-          </p>
-          <p className="mt-4">Third-party services we use include:</p>
-          <ul className="list-disc list-inside space-y-2 mt-2 text-gray-300">
-            <li>Supabase (database and authentication)</li>
-            <li>Mapbox (mapping services)</li>
-            <li>Resend (email delivery)</li>
-          </ul>
-        </Section>
-
-        {/* Termination */}
-        <Section title="12. Termination">
-          <p>
-            Either party may terminate these Terms at any time. You may terminate by canceling your 
-            subscription and ceasing use of the Service. We may terminate or suspend your access 
-            immediately, without prior notice, for any reason, including:
-          </p>
-          <ul className="list-disc list-inside space-y-2 mt-4">
-            <li>Violation of these Terms</li>
-            <li>Fraudulent or illegal activity</li>
-            <li>Non-payment of fees</li>
-            <li>Request by law enforcement</li>
-            <li>Extended inactivity</li>
-          </ul>
-          <p className="mt-4">
-            Upon termination, your right to use the Service ceases immediately. Provisions that by their 
-            nature should survive termination shall survive, including ownership provisions, warranty 
-            disclaimers, and limitations of liability.
-          </p>
-        </Section>
-
-        {/* Changes to Terms */}
-        <Section title="13. Changes to Terms">
-          <p>
-            We may modify these Terms at any time. We will provide notice of material changes by:
-          </p>
-          <ul className="list-disc list-inside space-y-2 mt-4">
-            <li>Posting the updated Terms with a new "Last Updated" date</li>
-            <li>Sending email notification to registered users</li>
-            <li>Displaying a notice on the Service</li>
-          </ul>
-          <p className="mt-4">
-            Your continued use of the Service after changes become effective constitutes acceptance of 
-            the revised Terms. If you do not agree to the changes, you must stop using the Service.
-          </p>
-        </Section>
-
-        {/* Dispute Resolution */}
-        <Section title="14. Dispute Resolution and Governing Law">
-          <h3 className="text-xl font-semibold mb-3">14.1 Governing Law</h3>
-          <p>
-            These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of 
-            law principles.
-          </p>
-
-          <h3 className="text-xl font-semibold mb-3 mt-6">14.2 Dispute Resolution</h3>
-          <p>
-            For EU customers: You have the right to bring disputes before the courts of your country of 
-            residence. Alternatively, disputes may be resolved through arbitration or mediation.
-          </p>
-          <p className="mt-4">
-            For non-EU customers: Any disputes shall be resolved through binding arbitration in accordance 
-            with commercial arbitration rules, except that either party may seek injunctive relief in court.
-          </p>
-        </Section>
-
-        {/* General Provisions */}
-        <Section title="15. General Provisions">
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">15.1 Entire Agreement</h4>
-              <p className="text-sm text-gray-300">
-                These Terms, along with the Privacy Policy, constitute the entire agreement between you 
-                and Campus Explorer regarding the Service.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">15.2 Severability</h4>
-              <p className="text-sm text-gray-300">
-                If any provision of these Terms is found to be invalid, the remaining provisions remain 
-                in full effect.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">15.3 Waiver</h4>
-              <p className="text-sm text-gray-300">
-                Failure to enforce any provision does not constitute a waiver of that provision.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">15.4 Assignment</h4>
-              <p className="text-sm text-gray-300">
-                You may not assign these Terms without our consent. We may assign these Terms without 
-                restriction.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">15.5 Force Majeure</h4>
-              <p className="text-sm text-gray-300">
-                We are not liable for delays or failures caused by circumstances beyond our reasonable 
-                control.
-              </p>
-            </div>
-          </div>
         </Section>
 
         {/* Contact */}
@@ -382,29 +257,43 @@ const Terms = () => {
           <p>
             If you have questions about these Terms, please contact us:
           </p>
-          <div className="mt-6 p-6 bg-white/5 rounded-lg space-y-3">
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1.5rem',
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '0.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}>
             <div>
               <strong>Email:</strong>{' '}
-              <a href="mailto:legal@campusexplorer.com" className="text-[#667eea] hover:underline">
-                legal@campusexplorer.com
+              <a href={`mailto:${contactEmail}`} style={{ color: '#667eea', textDecoration: 'none' }}>
+                {contactEmail}
               </a>
             </div>
             <div>
               <strong>Support:</strong>{' '}
-              <a href="mailto:support@campusexplorer.com" className="text-[#667eea] hover:underline">
-                support@campusexplorer.com
+              <a href={`mailto:${contactEmail}`} style={{ color: '#667eea', textDecoration: 'none' }}>
+                {contactEmail}
               </a>
             </div>
           </div>
         </Section>
 
         {/* Acknowledgment */}
-        <div className="mt-16 p-8 bg-gradient-to-r from-[#667eea]/20 to-[#764ba2]/20 rounded-2xl border border-[#667eea]/20">
-          <div className="flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-[#667eea] flex-shrink-0 mt-1" />
+        <div style={{
+          marginTop: '4rem',
+          padding: '2rem',
+          background: 'linear-gradient(to right, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2))',
+          borderRadius: '1rem',
+          border: '1px solid rgba(102, 126, 234, 0.2)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+            <AlertCircle style={{ width: '1.5rem', height: '1.5rem', color: '#667eea', flexShrink: 0, marginTop: '0.25rem' }} />
             <div>
-              <h3 className="text-xl font-bold mb-2">Acknowledgment</h3>
-              <p className="text-gray-300">
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Acknowledgment</h3>
+              <p style={{ color: '#d1d5db' }}>
                 BY USING THE SERVICE, YOU ACKNOWLEDGE THAT YOU HAVE READ THESE TERMS OF SERVICE, 
                 UNDERSTAND THEM, AND AGREE TO BE BOUND BY THEM. IF YOU DO NOT AGREE TO THESE TERMS, 
                 YOU MUST NOT USE THE SERVICE.
@@ -415,35 +304,132 @@ const Terms = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 mt-20 py-8 text-center text-gray-500 text-sm">
-        <p>© {new Date().getFullYear()} Campus Explorer. All rights reserved.</p>
-      </footer>
+      <Footer contactEmail={contactEmail} />
     </div>
   );
 };
 
 // Helper Components
 const Section = ({ title, children }) => (
-  <section className="mb-12">
-    <h2 className="text-2xl md:text-3xl font-bold mb-6">{title}</h2>
-    <div className="space-y-4 text-gray-300 leading-relaxed">
+  <section style={{ marginBottom: '3rem' }}>
+    <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 1.875rem)', fontWeight: 'bold', marginBottom: '1.5rem' }}>{title}</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', color: '#d1d5db', lineHeight: '1.75' }}>
       {children}
     </div>
   </section>
 );
 
-const InfoBox = ({ type = 'info', children, className = '' }) => {
+const InfoBox = ({ type = 'info', children, style = {} }) => {
   const styles = {
-    info: 'bg-blue-500/10 border-blue-500/30 text-blue-300',
-    warning: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300',
-    success: 'bg-green-500/10 border-green-500/30 text-green-300',
+    info: { background: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.3)', color: '#93c5fd' },
+    warning: { background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.3)', color: '#fde047' },
+    success: { background: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.3)', color: '#86efac' },
   };
 
   return (
-    <div className={`p-4 rounded-lg border ${styles[type]} ${className} mt-4`}>
+    <div style={{
+      padding: '1rem',
+      borderRadius: '0.5rem',
+      border: '1px solid',
+      marginTop: '1rem',
+      ...styles[type],
+      ...style
+    }}>
       {children}
     </div>
   );
 };
+
+const Footer = ({ contactEmail }) => (
+  <footer style={{
+    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+    marginTop: '5rem',
+    padding: '3rem 1.5rem',
+    backgroundColor: '#0a0a0f'
+  }}>
+    <div style={{ maxWidth: '64rem', margin: '0 auto' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: '2rem',
+        marginBottom: '2rem'
+      }}>
+        {/* Company Info */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div style={{
+              width: '2rem',
+              height: '2rem',
+              background: 'linear-gradient(to top right, #667eea, #32b8c6)',
+              borderRadius: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <span style={{ color: 'white', fontSize: '1.125rem', fontWeight: 'bold' }}>C</span>
+            </div>
+            <span style={{ fontWeight: 'bold', fontSize: '1.125rem' }}>Campus Explorer</span>
+          </div>
+          <p style={{ color: '#9ca3af', fontSize: '0.875rem', lineHeight: '1.5' }}>
+            Modern 3D campus mapping platform for universities worldwide.
+          </p>
+        </div>
+
+        {/* Quick Links */}
+        <div>
+          <h3 style={{ fontWeight: '600', marginBottom: '1rem' }}>Quick Links</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <a href="/" style={{ color: '#9ca3af', textDecoration: 'none', fontSize: '0.875rem' }}>Home</a>
+            <a href="/privacy" style={{ color: '#9ca3af', textDecoration: 'none', fontSize: '0.875rem' }}>Privacy Policy</a>
+            <a href="/terms" style={{ color: '#9ca3af', textDecoration: 'none', fontSize: '0.875rem' }}>Terms of Service</a>
+            <a href="/admin/login" style={{ color: '#9ca3af', textDecoration: 'none', fontSize: '0.875rem' }}>Admin Login</a>
+          </div>
+        </div>
+
+        {/* Contact */}
+        <div>
+          <h3 style={{ fontWeight: '600', marginBottom: '1rem' }}>Contact Us</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <a
+              href={`mailto:${contactEmail}`}
+              style={{
+                color: '#9ca3af',
+                textDecoration: 'none',
+                fontSize: '0.875rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Mail style={{ width: '1rem', height: '1rem' }} />
+              {contactEmail}
+            </a>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+              Response time: Within 48 hours
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div style={{
+        paddingTop: '2rem',
+        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '1rem',
+        textAlign: 'center'
+      }}>
+        <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+          © {new Date().getFullYear()} Campus Explorer. All rights reserved.
+        </p>
+        <p style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+          GDPR Compliant | EU Data Privacy Framework
+        </p>
+      </div>
+    </div>
+  </footer>
+);
 
 export default Terms;
