@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faDoorOpen, faStar, faTimes, faSpinner, faSearch } from '@fortawesome/free-solid-svg-icons'
+import { faDoorOpen, faStar, faSpinner, faSearch, faCalendarAlt, faArrowLeft } from '@fortawesome/free-solid-svg-icons'
 import RoomTimetable from './RoomTimetable'
 import './RoomsList.css'
 
@@ -8,13 +8,11 @@ function RoomsList({ buildingId, buildingName, onClose }) {
   const [rooms, setRooms] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showOnlyOffices, setShowOnlyOffices] = useState(false)
-  const [expandedTimetables, setExpandedTimetables] = useState({})
+  const [timetableRoom, setTimetableRoom] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    loadRooms()
-  }, [buildingId])
+  useEffect(() => { loadRooms() }, [buildingId])
 
   const loadRooms = async () => {
     setLoading(true)
@@ -22,9 +20,7 @@ function RoomsList({ buildingId, buildingName, onClose }) {
     try {
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.getRooms(buildingId)
-      
       if (result.success) {
-        // Sort: offices first, then by room number
         const sorted = (result.data || []).sort((a, b) => {
           if (a.is_office && !b.is_office) return -1
           if (!a.is_office && b.is_office) return 1
@@ -42,38 +38,75 @@ function RoomsList({ buildingId, buildingName, onClose }) {
   }
 
   const filteredRooms = rooms.filter(room => {
-    const query = searchQuery.trim().toLowerCase()
-    const matchesSearch = !query || room.room_number.toLowerCase().includes(query) || room.room_name.toLowerCase().includes(query) || (room.purpose && room.purpose.toLowerCase().includes(query))
-    const matchesOffice = !showOnlyOffices || room.is_office
-    return matchesSearch && matchesOffice
+    const q = searchQuery.trim().toLowerCase()
+    const matchesSearch = !q ||
+      room.room_number.toLowerCase().includes(q) ||
+      room.room_name.toLowerCase().includes(q) ||
+      (room.purpose && room.purpose.toLowerCase().includes(q))
+    return matchesSearch && (!showOnlyOffices || room.is_office)
   })
 
-  const toggleTimetable = (roomId) => {
-    setExpandedTimetables(prev => ({ ...prev, [roomId]: !prev[roomId] }))
-  }
+  const officeCount = rooms.filter(r => r.is_office).length
+  const scheduleCount = rooms.filter(r => r.timetable).length
 
   return (
     <div className="rooms-list-modal">
+
+      {/* ── Header ───────────────────────────────────────── */}
       <div className="rooms-list-header">
-        <div className="header-left">
-          <FontAwesomeIcon icon={faDoorOpen} className="header-icon" />
-          <h2>Rooms in {buildingName}</h2>
-        </div>
-        <button className="btn-close-rooms" onClick={onClose} aria-label="Close rooms list">
-          <FontAwesomeIcon icon={faTimes} />
-        </button>
+        {timetableRoom ? (
+          <div className="header-timetable">
+            <button className="btn-back" onClick={() => setTimetableRoom(null)}>
+              <FontAwesomeIcon icon={faArrowLeft} />
+              <span>All Rooms</span>
+            </button>
+            <div className="header-timetable-meta">
+              <span className="header-room-number">{timetableRoom.room_number}</span>
+              <span className="header-room-name">{timetableRoom.room_name}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="header-main">
+            <div className="header-icon-wrap">
+              <FontAwesomeIcon icon={faDoorOpen} />
+            </div>
+            <div>
+              <h2 className="header-title">Rooms in {buildingName}</h2>
+              <p className="header-meta">
+                {rooms.length} rooms
+                {officeCount > 0 && ` · ${officeCount} offices`}
+                {scheduleCount > 0 && ` · ${scheduleCount} with schedule`}
+              </p>
+            </div>
+          </div>
+        )}
+        {onClose && (
+          <button className="rooms-list-close" onClick={onClose} aria-label="Close">✕</button>
+        )}
       </div>
 
+      {/* ── Timetable panel ──────────────────────────────── */}
+      {timetableRoom ? (
+        <div className="timetable-panel">
+          {timetableRoom.purpose && (
+            <p className="timetable-panel-purpose">{timetableRoom.purpose}</p>
+          )}
+          {timetableRoom.hours && (
+            <p className="timetable-panel-hours">{timetableRoom.hours}</p>
+          )}
+          <RoomTimetable timetable={timetableRoom.timetable} />
+        </div>
+      ) : (
+
+      /* ── Grid view ───────────────────────────────────── */
       <div className="rooms-list-content">
         {loading ? (
           <div className="loading-state">
             <FontAwesomeIcon icon={faSpinner} spin className="loading-icon" />
-            <p>Loading rooms...</p>
+            <p>Loading rooms…</p>
           </div>
         ) : error ? (
-          <div className="error-state">
-            <p>Error: {error}</p>
-          </div>
+          <div className="error-state"><p>Error: {error}</p></div>
         ) : rooms.length === 0 ? (
           <div className="empty-state">
             <FontAwesomeIcon icon={faDoorOpen} className="empty-icon" />
@@ -82,23 +115,13 @@ function RoomsList({ buildingId, buildingName, onClose }) {
           </div>
         ) : (
           <>
-            <div className="rooms-summary">
-              <span className="summary-item">
-                <strong>{rooms.length}</strong> Total Rooms
-              </span>
-              <span className="summary-item">
-                <FontAwesomeIcon icon={faStar} />
-                <strong>{rooms.filter(r => r.is_office).length}</strong> Offices
-              </span>
-            </div>
-
             <div className="rooms-tools">
               <div className="rooms-search-box">
                 <FontAwesomeIcon icon={faSearch} />
                 <input
                   type="text"
                   value={searchQuery}
-                  placeholder="Search by room number, name, or purpose"
+                  placeholder="Search room, name, or purpose"
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
@@ -108,7 +131,7 @@ function RoomsList({ buildingId, buildingName, onClose }) {
                   checked={showOnlyOffices}
                   onChange={(e) => setShowOnlyOffices(e.target.checked)}
                 />
-                <span>Show only offices</span>
+                <span>Offices only</span>
               </label>
             </div>
 
@@ -117,48 +140,42 @@ function RoomsList({ buildingId, buildingName, onClose }) {
                 <div key={room.id} className={`room-card ${room.is_office ? 'office' : ''}`}>
                   <div className="room-card-header">
                     <span className="room-number">{room.room_number}</span>
-                    {room.is_office && (
-                      <span className="office-badge">
-                        <FontAwesomeIcon icon={faStar} /> Office
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="room-name">{room.room_name}</h4>
-                  {room.purpose && (
-                    <p className="room-purpose">{room.purpose}</p>
-                  )}
-                  {room.hours && (
-                    <p className="room-hours">
-                      <strong>Hours:</strong> {room.hours}
-                    </p>
-                  )}
-                  
-                  {/* Display timetable if available */}
-                  {room.timetable && (
-                    <div className="room-timetable-section">
-                      <button
-                        className="btn-toggle-room-timetable"
-                        onClick={() => toggleTimetable(room.id)}
-                      >
-                        {expandedTimetables[room.id] ? 'Hide timetable' : 'View timetable'}
-                      </button>
-                      {expandedTimetables[room.id] && (
-                        <RoomTimetable timetable={room.timetable} />
+                    <div className="room-card-actions">
+                      {room.is_office && (
+                        <span className="office-badge">
+                          <FontAwesomeIcon icon={faStar} /> Office
+                        </span>
+                      )}
+                      {room.timetable && (
+                        <button
+                          className="btn-schedule"
+                          onClick={() => setTimetableRoom(room)}
+                          title="View weekly schedule"
+                        >
+                          <FontAwesomeIcon icon={faCalendarAlt} />
+                        </button>
                       )}
                     </div>
+                  </div>
+                  <h4 className="room-name">{room.room_name}</h4>
+                  {room.purpose && <p className="room-purpose">{room.purpose}</p>}
+                  {room.hours && (
+                    <p className="room-hours"><strong>Hours:</strong> {room.hours}</p>
                   )}
                 </div>
               ))}
             </div>
+
             {filteredRooms.length === 0 && (
               <div className="empty-state compact">
                 <h3>No matching rooms</h3>
-                <p>Try changing your search or filter settings.</p>
+                <p>Try changing your search or filters.</p>
               </div>
             )}
           </>
         )}
       </div>
+      )}
     </div>
   )
 }

@@ -679,6 +679,60 @@
   color: #B91C1C;
 }
 
+/* ── Dark mode ─────────────────────────────────────────── */
+[data-dark="true"] {
+  --color-bg:             var(--bg);
+  --color-surface:        var(--surface);
+  --color-border:         var(--border);
+  --color-border-strong:  #2a3d56;
+  --color-text:           var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted:     var(--text-tertiary);
+  --color-accent:         var(--accent);
+  --color-accent-hover:   #38BDF8;
+  --color-accent-subtle:  rgba(14, 165, 233, 0.12);
+}
+
+[data-dark="true"] .settings-nav-item.active {
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--accent);
+}
+
+[data-dark="true"] .theme-option.active {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+[data-dark="true"] .danger-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #FCA5A5;
+}
+
+[data-dark="true"] .danger-banner p {
+  color: #FCA5A5;
+}
+
+[data-dark="true"] .settings-nav-item.danger {
+  color: #F87171;
+}
+
+[data-dark="true"] .settings-nav-item.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #FCA5A5;
+}
+
+[data-dark="true"] .btn-secondary {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .btn-secondary:hover {
+  background: var(--bg);
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .settings-overlay {
@@ -700,17 +754,36 @@
     border-right: none;
     border-bottom: 1px solid var(--color-border);
     flex-direction: row;
-    flex-wrap: wrap;
-    padding: var(--space-2);
-    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0;
+    gap: 0;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .settings-nav-item {
-    flex: 1 1 auto;
-    min-width: fit-content;
+    flex-shrink: 0;
+    flex-direction: column;
+    min-width: 64px;
+    width: auto;
     justify-content: center;
-    font-size: var(--text-xs);
-    padding: var(--space-2);
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 10px 8px;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .settings-nav-item.active {
+    background: transparent;
+    border-bottom: 2px solid var(--color-accent, #0EA5E9);
+    color: var(--color-accent, #0EA5E9);
   }
 
   .settings-nav-item.danger {
@@ -723,5 +796,9 @@
 
   .form-row-2 {
     grid-template-columns: 1fr;
+  }
+
+  [data-dark="true"] .settings-nav-item.active {
+    background: transparent;
   }
 }

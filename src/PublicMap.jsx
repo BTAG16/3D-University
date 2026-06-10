@@ -59,6 +59,9 @@ function PublicMap() {
   const [fpvTour, setFpvTour] = useState(null)
   const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
+  const sheetRef = useRef(null)
+  const sheetStateRef = useRef(sheetState)
+  const touchDrag = useRef({ active: false, startY: 0, startTx: 0, moved: false })
 
   useEffect(() => {
     const check = () => {
@@ -68,6 +71,26 @@ function PublicMap() {
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Keep sheetStateRef in sync so touch handlers always see the current value
+  useEffect(() => { sheetStateRef.current = sheetState }, [sheetState])
+
+  // Non-passive touchmove listener — needed to call preventDefault and block page scroll while dragging
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!touchDrag.current.active) return
+      e.preventDefault()
+      const dy = e.touches[0].clientY - touchDrag.current.startY
+      if (Math.abs(dy) > 5) touchDrag.current.moved = true
+      const sheet = sheetRef.current
+      if (!sheet) return
+      const maxTx = 0.85 * window.innerHeight - 68
+      const newTx = Math.max(0, Math.min(maxTx, touchDrag.current.startTx + dy))
+      sheet.style.transform = `translateY(${newTx}px)`
+    }
+    document.addEventListener('touchmove', onMove, { passive: false })
+    return () => document.removeEventListener('touchmove', onMove)
   }, [])
 
   useEffect(() => {
@@ -618,7 +641,7 @@ function PublicMap() {
             )
 
             return (
-              <div style={{
+              <div ref={sheetRef} style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
                 height: '85dvh',
                 background: D.surface,
@@ -632,15 +655,69 @@ function PublicMap() {
                 overflow: 'hidden',
                 boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
               }}>
-                {/* Drag handle — taps cycle state */}
+                {/* Drag handle — draggable up/down, tap cycles state */}
                 <div
-                  onClick={() => {
-                    if (sheetState === 'peek') setSheetState('list')
-                    else if (sheetState === 'list') setSheetState('peek')
-                    else if (sheetState === 'card') setSheetState('detail')
-                    else setSheetState('card')
+                  onTouchStart={(e) => {
+                    const h = window.innerHeight
+                    const state = sheetStateRef.current
+                    const txMap = {
+                      peek:   0.85 * h - 68,
+                      list:   0.85 * h - 0.48 * h,
+                      card:   0.85 * h - 224,
+                      detail: 0,
+                    }
+                    touchDrag.current = {
+                      active: true,
+                      startY: e.touches[0].clientY,
+                      startTx: txMap[state] ?? (0.85 * h - 68),
+                      moved: false,
+                    }
+                    const sheet = sheetRef.current
+                    if (sheet) sheet.style.transition = 'none'
                   }}
-                  style={{ padding: '10px 0 6px', display: 'flex', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                  onTouchEnd={(e) => {
+                    if (!touchDrag.current.active) return
+                    touchDrag.current.active = false
+                    const sheet = sheetRef.current
+
+                    if (!touchDrag.current.moved) {
+                      // Tap: cycle state
+                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
+                      const cur = sheetStateRef.current
+                      if (cur === 'peek') setSheetState('list')
+                      else if (cur === 'list') setSheetState('peek')
+                      else if (cur === 'card') setSheetState('detail')
+                      else setSheetState('card')
+                      return
+                    }
+
+                    // Snap to nearest state
+                    const finalDy = e.changedTouches[0].clientY - touchDrag.current.startY
+                    const finalTx = touchDrag.current.startTx + finalDy
+                    const h = window.innerHeight
+                    const cur = sheetStateRef.current
+                    const candidates = [
+                      { state: 'peek', tx: 0.85 * h - 68 },
+                      { state: 'list', tx: 0.85 * h - 0.48 * h },
+                    ]
+                    if (cur === 'card' || cur === 'detail') {
+                      candidates.push({ state: 'card', tx: 0.85 * h - 224 })
+                      candidates.push({ state: 'detail', tx: 0 })
+                    }
+                    const best = candidates.reduce((a, b) =>
+                      Math.abs(b.tx - finalTx) < Math.abs(a.tx - finalTx) ? b : a
+                    )
+                    if (sheet) {
+                      sheet.style.transition = 'transform 0.32s cubic-bezier(0.16,1,0.3,1)'
+                      sheet.style.transform = `translateY(${best.tx}px)`
+                    }
+                    setSheetState(best.state)
+                    // Let React take over after the snap animation ends
+                    setTimeout(() => {
+                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
+                    }, 340)
+                  }}
+                  style={{ padding: '10px 0 6px', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}
                 >
                   <div style={{ width: 36, height: 4, borderRadius: 2, background: D.border2 }} />
                 </div>

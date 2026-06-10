@@ -666,3 +666,73 @@
     margin-top: 20px;
   }
 }
+
+/* ── Dark mode overrides ─────────────────────────────── */
+[data-dark="true"] .room-edit-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+[data-dark="true"] .room-edit-header {
+  background: var(--surface);
+  border-bottom-color: var(--border);
+}
+
+[data-dark="true"] .room-edit-header h2 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .btn-close-modal {
+  color: var(--text-secondary);
+}
+
+[data-dark="true"] .btn-close-modal:hover {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group label {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group input,
+[data-dark="true"] .form-group select,
+[data-dark="true"] .form-group textarea {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group input:focus,
+[data-dark="true"] .form-group select:focus,
+[data-dark="true"] .form-group textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+}
+
+[data-dark="true"] .checkbox-label {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .timetable-section {
+  border-top-color: var(--border);
+}
+
+[data-dark="true"] .section-header-row h4 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .btn-toggle-timetable {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--accent);
+}
+
+[data-dark="true"] .timetable-editor {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .help-text {
+  color: var(--text-secondary);
+}

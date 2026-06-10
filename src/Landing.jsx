@@ -151,7 +151,6 @@ export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [entered, setEntered] = useState(false)
-  const [cookieVisible, setCookieVisible] = useState(true)
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 60)
@@ -625,19 +624,6 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* ── Cookie banner ────────────────────────────────────── */}
-      {cookieVisible && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: 'var(--surface)', borderTop: '1px solid var(--border)', padding: '14px 24px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16, flexDirection: isMobile ? 'column' : 'row' }}>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-            We use cookies to improve your experience.{' '}
-            <button onClick={() => navigate('/privacy')} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, textDecoration: 'underline', padding: 0 }}>Read our Privacy Policy</button>.
-          </p>
-          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-            <button onClick={() => setCookieVisible(false)} style={{ display: 'inline-flex', alignItems: 'center', padding: '8px 16px', borderRadius: 9999, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer' }}>Accept all</button>
-            <button onClick={() => setCookieVisible(false)} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Reject non-essential</button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

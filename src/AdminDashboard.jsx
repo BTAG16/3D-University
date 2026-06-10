@@ -259,7 +259,8 @@ function AdminDashboard() {
   const [university, setUniversity] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editingBuilding, setEditingBuilding] = useState(null)
-  const [copySuccess, setCopySuccess] = useState(false)
+  const [copyPublicSuccess, setCopyPublicSuccess] = useState(false)
+  const [copyEmbedSuccess, setCopyEmbedSuccess] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [selectedBuildings, setSelectedBuildings] = useState([])
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
@@ -368,9 +369,9 @@ function AdminDashboard() {
 
   const copyPublicLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}/map?uni=${university.id}`)
-    setCopySuccess(true)
+    setCopyPublicSuccess(true)
     toast.success('Link copied!')
-    setTimeout(() => setCopySuccess(false), 2000)
+    setTimeout(() => setCopyPublicSuccess(false), 2000)
   }
 
   const getEmbedCode = () =>
@@ -378,9 +379,9 @@ function AdminDashboard() {
 
   const copyEmbedCode = () => {
     navigator.clipboard.writeText(getEmbedCode())
-    setCopySuccess(true)
+    setCopyEmbedSuccess(true)
     toast.success('Embed code copied!')
-    setTimeout(() => setCopySuccess(false), 2000)
+    setTimeout(() => setCopyEmbedSuccess(false), 2000)
   }
 
   if (!university) return <PageLoader text="Loading dashboard..." />
@@ -603,9 +604,9 @@ function AdminDashboard() {
                 readOnly
                 style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'monospace', outline: 'none' }}
               />
-              <button onClick={copyPublicLink} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: copySuccess ? '#22c55e' : 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                <Icon name={copySuccess ? 'check' : 'copy'} size={14} color="#fff" />
-                {copySuccess ? 'Copied!' : 'Copy'}
+              <button onClick={copyPublicLink} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: copyPublicSuccess ? '#22c55e' : 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                <Icon name={copyPublicSuccess ? 'check' : 'copy'} size={14} color="#fff" />
+                {copyPublicSuccess ? 'Copied!' : 'Copy link'}
               </button>
             </div>
           </div>
@@ -617,50 +618,13 @@ function AdminDashboard() {
               <pre style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: 'var(--text-secondary)', overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {getEmbedCode()}
               </pre>
-              <button onClick={copyEmbedCode} style={{ position: 'absolute', top: 8, right: 8, display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', background: copySuccess ? '#22c55e' : 'var(--surface)', color: copySuccess ? '#fff' : 'var(--text-secondary)', fontSize: 12, fontWeight: 600, boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
-                <Icon name={copySuccess ? 'check' : 'copy'} size={12} color={copySuccess ? '#fff' : 'var(--text-secondary)'} />
-                {copySuccess ? 'Copied!' : 'Copy'}
+              <button onClick={copyEmbedCode} style={{ position: 'absolute', top: 8, right: 8, display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', background: copyEmbedSuccess ? '#22c55e' : 'var(--surface)', color: copyEmbedSuccess ? '#fff' : 'var(--text-secondary)', fontSize: 12, fontWeight: 600, boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
+                <Icon name={copyEmbedSuccess ? 'check' : 'copy'} size={12} color={copyEmbedSuccess ? '#fff' : 'var(--text-secondary)'} />
+                {copyEmbedSuccess ? 'Copied!' : 'Copy code'}
               </button>
             </div>
           </div>
 
-          <div style={{ ...card, padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-              <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>Live Preview</h3>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Exactly what students see when they open your map link.</p>
-              </div>
-              <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--accent)', textDecoration: 'none', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                <Icon name="externalLink" size={13} color="var(--accent)" />
-                Open full map
-              </a>
-            </div>
-
-            {/* Browser chrome mockup */}
-            <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
-              {/* Browser bar */}
-              <div style={{ background: 'var(--bg)', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} />
-                </div>
-                <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '4px 10px', fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {publicUrl}
-                </div>
-              </div>
-              {/* Live iframe */}
-              <iframe
-                src={publicUrl}
-                title="Campus Map Preview"
-                style={{ width: '100%', height: 420, border: 'none', display: 'block' }}
-                loading="lazy"
-              />
-            </div>
-            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '10px 0 0', textAlign: 'center' }}>
-              Live preview — building changes reflect immediately
-            </p>
-          </div>
         </div>
       </div>
     )
@@ -786,6 +750,8 @@ function AdminDashboard() {
           adminSession={adminSession}
           onLogout={handleLogout}
           onUniversityUpdate={(patch) => setUniversity(prev => prev ? { ...prev, ...patch } : prev)}
+          dark={dark}
+          onDarkToggle={toggleDark}
         />
       )}
     </div>

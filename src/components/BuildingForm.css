@@ -460,3 +460,48 @@
     gap: 8px;
   }
 }
+
+/* ── Dark mode overrides ─────────────────────────────── */
+[data-dark="true"] .building-form h2 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group label {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group input,
+[data-dark="true"] .form-group select,
+[data-dark="true"] .form-group textarea {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group input:focus,
+[data-dark="true"] .form-group select:focus,
+[data-dark="true"] .form-group textarea:focus {
+  border-color: var(--accent);
+}
+
+[data-dark="true"] .office-rooms-preview {
+  background: rgba(234, 179, 8, 0.06);
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+[data-dark="true"] .office-rooms-preview h3 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .section-description {
+  color: var(--text-secondary);
+}
+
+[data-dark="true"] .section-description strong {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .office-room-preview-card {
+  background: var(--surface);
+  border-color: rgba(234, 179, 8, 0.25);
+}

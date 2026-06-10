@@ -906,3 +906,166 @@
     justify-content: center;
   }
 }
+
+/* ── Dark mode overrides ─────────────────────────────── */
+[data-dark="true"] .room-management {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-dark="true"] .room-management-header {
+  border-bottom-color: var(--border);
+}
+
+[data-dark="true"] .room-management-header h2,
+[data-dark="true"] .delete-confirm h2 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .delete-confirm p {
+  color: var(--text-secondary);
+}
+
+[data-dark="true"] .room-nav-tabs {
+  border-bottom-color: var(--border);
+}
+
+[data-dark="true"] .room-nav-tab {
+  color: var(--text-secondary);
+}
+
+[data-dark="true"] .room-nav-tab:hover {
+  color: var(--accent);
+  background: rgba(14, 165, 233, 0.06);
+}
+
+[data-dark="true"] .room-nav-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+[data-dark="true"] .list-filters {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .building-filter,
+[data-dark="true"] .search-box {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .search-box input {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .btn-clear-filters {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .rooms-table-container {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .rooms-table thead {
+  background: var(--bg);
+}
+
+[data-dark="true"] .rooms-table th {
+  color: var(--text-secondary);
+  border-bottom-color: var(--border);
+}
+
+[data-dark="true"] .rooms-table td {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .rooms-table tbody tr {
+  border-bottom-color: var(--border);
+}
+
+[data-dark="true"] .rooms-table tbody tr:hover {
+  background: rgba(14, 165, 233, 0.05);
+}
+
+[data-dark="true"] .rooms-table tbody tr.selected {
+  background: rgba(14, 165, 233, 0.1);
+}
+
+[data-dark="true"] .room-bulk-select-bar {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .room-select-all-checkbox {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .room-checkbox-custom {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .room-mobile-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .room-mobile-card-header h4 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .room-mobile-meta {
+  color: var(--text-secondary);
+}
+
+[data-dark="true"] .modal-content {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .office-badge {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fbbf24;
+}
+
+[data-dark="true"] .room-badge {
+  background: rgba(14, 165, 233, 0.12);
+  color: #38bdf8;
+}
+
+[data-dark="true"] .btn-icon {
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+[data-dark="true"] .form-group label {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group input,
+[data-dark="true"] .form-group select {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .btn-cancel {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .import-instructions {
+  background: rgba(14, 165, 233, 0.08);
+  border-left-color: var(--accent);
+}
+
+[data-dark="true"] .import-instructions h3,
+[data-dark="true"] .import-instructions ol li {
+  color: var(--text-primary);
+}

@@ -8,6 +8,7 @@ import BuildingForm from './components/BuildingForm'
 import { Icon } from './icons'
 import { getOfficeRoomsForBuilding, getAllRoomsForBuilding } from './demoRoomsData'
 import RoomTimetable from './components/RoomTimetable'
+import './components/RoomsList.css'
 import { useDarkMode } from './hooks'
 
 const DARK = {
@@ -692,51 +693,95 @@ function DemoMap() {
 }
 
 // ─── Demo Rooms List ───────────────────────────────────────────────────────────
-function DemoRoomsList({ buildingId, buildingName, onClose }) {
+function DemoRoomsList({ buildingId, buildingName }) {
+  const [timetableRoom, setTimetableRoom] = useState(null)
   const rooms = getAllRoomsForBuilding(buildingId)
   const sorted = [...rooms].sort((a, b) => {
     if (a.is_office && !b.is_office) return -1
     if (!a.is_office && b.is_office) return 1
     return a.room_number.localeCompare(b.room_number, undefined, { numeric: true })
   })
+  const scheduleCount = sorted.filter(r => r.timetable).length
 
   return (
-    <div style={{ color: 'var(--text-primary)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, margin: '0 0 2px' }}>Rooms in {buildingName}</h2>
-          <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: 0 }}>{sorted.length} rooms · {sorted.filter(r => r.is_office).length} offices</p>
-        </div>
-        <button onClick={onClose} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 10px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-          <Icon name="x" size={14} />
-        </button>
+    <div className="rooms-list-modal">
+      {/* Header */}
+      <div className="rooms-list-header">
+        {timetableRoom ? (
+          <div className="header-timetable">
+            <button className="btn-back" onClick={() => setTimetableRoom(null)}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>←</span>
+              <span>All Rooms</span>
+            </button>
+            <div className="header-timetable-meta">
+              <span className="header-room-number">{timetableRoom.room_number}</span>
+              <span className="header-room-name">{timetableRoom.room_name}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="header-main">
+            <div className="header-icon-wrap">
+              <Icon name="door" size={15} />
+            </div>
+            <div>
+              <h2 className="header-title">Rooms in {buildingName}</h2>
+              <p className="header-meta">
+                {sorted.length} rooms
+                {sorted.filter(r => r.is_office).length > 0 && ` · ${sorted.filter(r => r.is_office).length} offices`}
+                {scheduleCount > 0 && ` · ${scheduleCount} with schedule`}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {sorted.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px 0' }}>
-          <Icon name="door" size={32} color="var(--text-tertiary)" />
-          <h3 style={{ fontFamily: 'var(--font-display)', marginTop: 12 }}>No Rooms Found</h3>
+      {/* Timetable panel */}
+      {timetableRoom ? (
+        <div className="timetable-panel">
+          {timetableRoom.purpose && <p className="timetable-panel-purpose">{timetableRoom.purpose}</p>}
+          {timetableRoom.hours && <p className="timetable-panel-hours">{timetableRoom.hours}</p>}
+          <RoomTimetable timetable={timetableRoom.timetable} />
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-          {sorted.map(r => (
-            <div key={r.id} style={{
-              background: 'var(--bg)', border: `1px solid ${r.is_office ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 10, padding: '12px 14px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-tertiary)' }}>{r.room_number}</span>
-                {r.is_office && (
-                  <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 99, background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 700 }}>Office</span>
-                )}
+
+      /* Grid view */
+      <div className="rooms-list-content">
+        {sorted.length === 0 ? (
+          <div className="empty-state">
+            <Icon name="door" size={36} color="var(--text-tertiary)" />
+            <h3>No Rooms Found</h3>
+          </div>
+        ) : (
+          <div className="rooms-grid">
+            {sorted.map(r => (
+              <div key={r.id} className={`room-card ${r.is_office ? 'office' : ''}`}>
+                <div className="room-card-header">
+                  <span className="room-number">{r.room_number}</span>
+                  <div className="room-card-actions">
+                    {r.is_office && (
+                      <span className="office-badge">
+                        ★ Office
+                      </span>
+                    )}
+                    {r.timetable && (
+                      <button
+                        className="btn-schedule"
+                        onClick={() => setTimetableRoom(r)}
+                        title="View weekly schedule"
+                      >
+                        <Icon name="calendar" size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="room-name">{r.room_name}</div>
+                {r.purpose && <p className="room-purpose">{r.purpose}</p>}
+                {r.hours && <p className="room-hours"><strong>Hours:</strong> {r.hours}</p>}
               </div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', marginBottom: 3 }}>{r.room_name}</div>
-              {r.purpose && <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 3px' }}>{r.purpose}</p>}
-              {r.hours && <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0 }}>{r.hours}</p>}
-              {r.timetable && <RoomTimetable timetable={r.timetable} />}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+      </div>
       )}
     </div>
   )
