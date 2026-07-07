@@ -1,7 +1,5 @@
 .building-form {
-  padding: 40px 30px;
-  max-height: 85vh;
-  overflow-y: auto;
+  /* Layout handled by SlideOver */
 }
 
 .building-form h2 {
@@ -76,22 +74,24 @@
 .office-rooms-preview {
   margin-top: 30px;
   padding: 20px;
-  background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
-  border: 2px solid #ffc107;
-  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .office-rooms-preview h3 {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 1.2rem;
-  margin: 0 0 10px 0;
-  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
 }
 
 .office-rooms-preview h3 svg {
-  color: #ffc107;
+  color: var(--text-tertiary);
 }
 
 .section-description {
@@ -114,16 +114,15 @@
 }
 
 .office-room-preview-card {
-  background: white;
-  border: 1px solid #ffc107;
-  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 12px;
-  transition: all 0.2s;
+  transition: all var(--duration) var(--ease);
 }
 
 .office-room-preview-card:hover {
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
-  transform: translateY(-2px);
+  border-color: #D0D5DD;
 }
 
 .office-room-preview-card .room-header {
@@ -132,24 +131,25 @@
   align-items: center;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #ffeaa7;
+  border-bottom: 1px solid var(--border);
 }
 
 .office-room-preview-card .room-number {
-  background: #fef3c7;
-  color: #92400e;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .office-room-preview-card .office-badge {
-  background: #ffc107;
-  color: #000;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary-dark);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
@@ -225,10 +225,10 @@
 
 /* ENHANCED Checkbox Group Styles */
 .checkbox-group {
-  background: linear-gradient(135deg, #f0f4ff 0%, #e8efff 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 5%, white) 0%, color-mix(in srgb, var(--primary) 10%, white) 100%);
   padding: 24px;
   border-radius: 12px;
-  border: 3px solid #c7d2fe;
+  border: 3px solid color-mix(in srgb, var(--primary) 25%, white);
   margin: 24px 0;
   transition: all 0.3s ease;
   position: relative;
@@ -242,7 +242,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 80%, black) 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -371,12 +371,11 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: #fff4e6;
-  border: 2px solid #ff9800;
-  border-radius: 8px;
+  background: var(--warning-subtle);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  border-radius: var(--radius-md);
   padding: 12px 16px;
   margin-top: 12px;
-  animation: slideIn 0.3s ease;
 }
 
 @keyframes slideIn {
@@ -391,7 +390,7 @@
 }
 
 .warning-box svg {
-  color: #ff9800;
+  color: var(--warning);
   font-size: 1.2rem;
   flex-shrink: 0;
   margin-top: 2px;
@@ -401,11 +400,11 @@
   flex: 1;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: #78350f;
+  color: color-mix(in srgb, var(--warning) 60%, black);
 }
 
 .warning-box strong {
-  color: #78350f;
+  color: color-mix(in srgb, var(--warning) 60%, black);
   font-weight: 700;
 }
 

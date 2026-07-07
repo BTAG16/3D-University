@@ -1,4 +1,4 @@
-/* Kampus 3D — Design Tokens */
+/* Kampus 3D — Design Tokens (Redesign) */
 
 :root {
   /* Typography */
@@ -70,24 +70,57 @@
   --radius-xl:   16px;
   --radius-full: 9999px;
 
-  /* Shadows */
+  /* Shadows — redesign */
   --shadow-sm: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
   --shadow-md: 0 4px 8px -2px rgba(16,24,40,0.08), 0 2px 4px -2px rgba(16,24,40,0.04);
   --shadow-lg: 0 12px 16px -4px rgba(16,24,40,0.08), 0 4px 6px -2px rgba(16,24,40,0.03);
   --shadow-xl: 0 20px 24px -4px rgba(16,24,40,0.08), 0 8px 8px -4px rgba(16,24,40,0.03);
-  --shadow-focus: 0 0 0 3px rgba(14,165,233,0.2);
+  --shadow-focus: 0 0 0 3px rgba(14,165,233,0.15);
+  --card-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  --card-shadow-hover: 0 12px 32px -8px rgba(16,24,40,0.12);
 
   /* Motion */
   --ease:        cubic-bezier(0.25, 0.1, 0.25, 1);
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring:      cubic-bezier(0.16, 1, 0.3, 1);
   --duration:    200ms;
   --duration-md: 300ms;
   --duration-lg: 700ms;
 
   /* Layout */
-  --container:     1200px;
-  --nav-height:    64px;
-  --sidebar-width: 240px;
+  --container:      1200px;
+  --container-wide: 1320px;
+  --nav-height:     64px;
+  --sidebar-width:  240px;
+
+  /* Editorial type scale — redesign (tighter) */
+  --text-hero:    clamp(40px, 5.4vw, 72px);
+  --text-section: clamp(32px, 4.5vw, 52px);
+  --text-stat:    clamp(32px, 4vw, 48px);
+
+  /* Landing-specific surfaces — redesign */
+  --landing-hero-bg:      #FAFAFA;
+  --landing-surface-card: #FFFFFF;
+  --landing-card-border:  var(--border-light);
+  --landing-card-hover:   rgba(14,165,233,0.08);
+  --landing-page-bg:      #FAFAFA;
+  --landing-page-bg-alt:  #FFFFFF;
+
+  /* Handoff aliases */
+  --hero-bg:  #FAFAFA;
+  --alt-bg:   #FFFFFF;
+
+  /* Hero glow */
+  --hero-glow: radial-gradient(ellipse 55% 45% at 70% 35%, rgba(14,165,233,0.10), transparent 70%);
+
+  /* Nav (scroll-aware, set via JS) */
+  --nav-bg: transparent;
+  --nav-border: transparent;
+
+  /* Device frame colors */
+  --frame: #E7E7EA;
+  --frame-hi: #F4F4F6;
+  --frame-dark: #C9C9CE;
 }
 
 /* ——— Dark mode ——— */
@@ -96,7 +129,7 @@
   --surface:      #111B2E;
   --text-primary: #E2E8F0;
   --text-secondary: #8494A7;
-  --text-tertiary:  #4A5568;
+  --text-tertiary:  #5B6B80;
   --text-inverse:   #0B1120;
   --border:       #1E2D45;
   --border-light: #152238;
@@ -106,6 +139,30 @@
   --white:        #111B2E;
   --accent-subtle: rgba(14,165,233,0.12);
   --accent-muted:  rgba(14,165,233,0.18);
+  --success-subtle: rgba(18,183,106,0.14);
+  --error-subtle:   rgba(240,68,56,0.14);
+  --warning-subtle: rgba(247,144,9,0.14);
+
+  --card-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  --card-shadow-hover: 0 12px 32px -8px rgba(0,0,0,0.5);
+
+  --landing-hero-bg:      #0B1120;
+  --landing-surface-card: var(--surface);
+  --landing-card-border:  var(--border-light);
+  --landing-card-hover:   rgba(14,165,233,0.12);
+  --landing-page-bg:      #0B1120;
+  --landing-page-bg-alt:  #0D1526;
+
+  --hero-glow: radial-gradient(ellipse 55% 45% at 70% 35%, rgba(14,165,233,0.14), transparent 70%);
+
+  /* Handoff aliases — dark overrides */
+  --hero-bg: #0B1120;
+  --alt-bg:  #0D1526;
+  --navy-surface: #0F1A2F;
+
+  --frame: #1C2434;
+  --frame-hi: #273143;
+  --frame-dark: #101724;
 }
 
 [data-dark="true"] body {

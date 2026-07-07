@@ -4,6 +4,29 @@ import { faDoorOpen, faStar, faSpinner, faSearch, faCalendarAlt, faArrowLeft } f
 import RoomTimetable from './RoomTimetable'
 import './RoomsList.css'
 
+const DAY_KEYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+const DAY_INIT = { monday:'M', tuesday:'T', wednesday:'W', thursday:'T', friday:'F', saturday:'S', sunday:'S' }
+
+function TimetablePreview({ schedule }) {
+  const activeDays = DAY_KEYS.filter(d => schedule[d] && Object.keys(schedule[d]).length > 0)
+  if (activeDays.length === 0) return null
+  const allTimes = activeDays.flatMap(d => Object.values(schedule[d]).map(s => s.time).filter(Boolean))
+  const firstTime = allTimes[0] || null
+  const lastTime = allTimes[allTimes.length - 1] || null
+  return (
+    <div className="timetable-preview">
+      <div className="preview-days">
+        {DAY_KEYS.slice(0, 5).map(d => (
+          <span key={d} className={`preview-day ${activeDays.includes(d) ? 'on' : 'off'}`}>{DAY_INIT[d]}</span>
+        ))}
+      </div>
+      {firstTime && (
+        <span className="preview-time">{firstTime}{lastTime && lastTime !== firstTime ? ` – ${lastTime}` : ''}</span>
+      )}
+    </div>
+  )
+}
+
 function RoomsList({ buildingId, buildingName, onClose }) {
   const [rooms, setRooms] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -137,7 +160,12 @@ function RoomsList({ buildingId, buildingName, onClose }) {
 
             <div className="rooms-grid">
               {filteredRooms.map((room) => (
-                <div key={room.id} className={`room-card ${room.is_office ? 'office' : ''}`}>
+                <div
+                  key={room.id}
+                  className={`room-card ${room.is_office ? 'office' : ''} ${room.timetable ? 'has-schedule' : ''}`}
+                  onClick={room.timetable ? () => setTimetableRoom(room) : undefined}
+                  style={room.timetable ? { cursor: 'pointer' } : undefined}
+                >
                   <div className="room-card-header">
                     <span className="room-number">{room.room_number}</span>
                     <div className="room-card-actions">
@@ -147,13 +175,9 @@ function RoomsList({ buildingId, buildingName, onClose }) {
                         </span>
                       )}
                       {room.timetable && (
-                        <button
-                          className="btn-schedule"
-                          onClick={() => setTimetableRoom(room)}
-                          title="View weekly schedule"
-                        >
-                          <FontAwesomeIcon icon={faCalendarAlt} />
-                        </button>
+                        <span className="schedule-badge">
+                          <FontAwesomeIcon icon={faCalendarAlt} /> Schedule
+                        </span>
                       )}
                     </div>
                   </div>
@@ -162,6 +186,7 @@ function RoomsList({ buildingId, buildingName, onClose }) {
                   {room.hours && (
                     <p className="room-hours"><strong>Hours:</strong> {room.hours}</p>
                   )}
+                  {room.timetable?.schedule && <TimetablePreview schedule={room.timetable.schedule} />}
                 </div>
               ))}
             </div>
