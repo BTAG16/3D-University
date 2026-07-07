@@ -1,1 +1,165 @@
-/* PublicMap uses inline styles from the design handoff. */
+/* ── Root container ───────────────────────────────────── */
+.public-map {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg, #0B1120);
+}
+
+/* Embed mode: fill the iframe window instead of the viewport */
+.embed-mode {
+  height: 100%;
+}
+
+/* ── Map canvas wrapper ───────────────────────────────── */
+.map-container {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  min-height: 0; /* needed inside flex to allow shrink */
+  overflow: hidden;
+}
+
+/* ── Embed-specific floating elements ────────────────── */
+.embed-location-btn {
+  position: absolute;
+  bottom: 80px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #0EA5E9;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+}
+
+.embed-branding {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* ── Floating navigation controls ────────────────────── */
+.floating-navigation-controls {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+  width: calc(100% - 32px);
+}
+
+.floating-route-panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+}
+
+.floating-route-panel h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #101828;
+}
+
+.floating-route-panel .route-summary {
+  color: #0EA5E9;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.floating-route-panel ol {
+  margin: 0;
+  padding-left: 18px;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.btn-floating-google-maps,
+.btn-floating-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-floating-google-maps {
+  background: #fff;
+  color: #101828;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-floating-close {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+/* ── Loading / error states ──────────────────────────── */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  background: var(--bg, #0B1120);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(14, 165, 233, 0.2);
+  border-top-color: #0EA5E9;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.public-map-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 24px;
+  text-align: center;
+  background: var(--bg, #0B1120);
+  color: #F1F5F9;
+}

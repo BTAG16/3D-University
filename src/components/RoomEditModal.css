@@ -59,7 +59,7 @@
 }
 
 .room-edit-form {
-  padding: 24px;
+  /* Layout handled by SlideOver */
 }
 
 .form-group {
@@ -90,7 +90,7 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
@@ -168,7 +168,7 @@
 .btn-toggle-timetable {
   padding: 6px 14px;
   background: #f8f9fa;
-  color: #007bff;
+  color: var(--primary);
   border: 1px solid #dee2e6;
   border-radius: 6px;
   font-size: 13px;
@@ -179,7 +179,7 @@
 
 .btn-toggle-timetable:hover {
   background: #e9ecef;
-  border-color: #007bff;
+  border-color: var(--primary);
 }
 
 .timetable-editor {
@@ -212,7 +212,7 @@
 
 .services-input-row button {
   padding: 10px 16px;
-  background: #007bff;
+  background: var(--primary);
   color: white;
   border: none;
   border-radius: 6px;
@@ -224,7 +224,7 @@
 }
 
 .services-input-row button:hover {
-  background: #0056b3;
+  background: color-mix(in srgb, var(--primary) 80%, black);
 }
 
 .services-list {
@@ -328,7 +328,7 @@
 
 .slot-time {
   font-weight: 600;
-  color: #007bff;
+  color: var(--primary);
   font-size: 14px;
   display: block;
   margin-bottom: 6px;
@@ -342,8 +342,8 @@
 
 .service-badge {
   padding: 3px 8px;
-  background: #e7f3ff;
-  color: #0056b3;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: color-mix(in srgb, var(--primary) 80%, black);
   border-radius: 4px;
   font-size: 12px;
 }
@@ -392,20 +392,20 @@
 }
 
 .btn-day:hover {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .btn-day.active {
-  background: #007bff;
+  background: var(--primary);
   color: white;
-  border-color: #007bff;
+  border-color: var(--primary);
 }
 
 /* Slot Editor */
 .slot-editor {
   background: white;
-  border: 2px solid #007bff;
+  border: 2px solid var(--primary);
   border-radius: 8px;
   padding: 16px;
   margin-top: 16px;
@@ -541,12 +541,12 @@
 }
 
 .btn-save {
-  background: #007bff;
+  background: var(--primary);
   color: white;
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #0056b3;
+  background: color-mix(in srgb, var(--primary) 80%, black);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
 }
@@ -665,4 +665,74 @@
   .form-actions {
     margin-top: 20px;
   }
+}
+
+/* ── Dark mode overrides ─────────────────────────────── */
+[data-dark="true"] .room-edit-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+[data-dark="true"] .room-edit-header {
+  background: var(--surface);
+  border-bottom-color: var(--border);
+}
+
+[data-dark="true"] .room-edit-header h2 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .btn-close-modal {
+  color: var(--text-secondary);
+}
+
+[data-dark="true"] .btn-close-modal:hover {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group label {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group input,
+[data-dark="true"] .form-group select,
+[data-dark="true"] .form-group textarea {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .form-group input:focus,
+[data-dark="true"] .form-group select:focus,
+[data-dark="true"] .form-group textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+}
+
+[data-dark="true"] .checkbox-label {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .timetable-section {
+  border-top-color: var(--border);
+}
+
+[data-dark="true"] .section-header-row h4 {
+  color: var(--text-primary);
+}
+
+[data-dark="true"] .btn-toggle-timetable {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--accent);
+}
+
+[data-dark="true"] .timetable-editor {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+[data-dark="true"] .help-text {
+  color: var(--text-secondary);
 }

@@ -36,7 +36,16 @@ export const useDarkMode = () => {
       document.documentElement.removeAttribute('data-dark')
       localStorage.setItem('kampus-dark', 'false')
     }
+    // Notify all other hook instances on the same page
+    window.dispatchEvent(new CustomEvent('kampus-dark-change', { detail: { dark } }))
   }, [dark])
+
+  // Sync when another instance on the page toggles
+  useEffect(() => {
+    const handler = (e) => setDark(e.detail.dark)
+    window.addEventListener('kampus-dark-change', handler)
+    return () => window.removeEventListener('kampus-dark-change', handler)
+  }, [])
 
   const toggle = () => setDark(d => !d)
   return [dark, toggle]

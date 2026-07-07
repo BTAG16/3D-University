@@ -10,7 +10,7 @@ import { dbService } from '../lib/dbService'
 import { useToast } from './Toast'
 import './AdminSettings.css'
 
-function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate }) {
+function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate, dark, onDarkToggle }) {
   const [activeTab, setActiveTab] = useState('profile')
   const [loading, setLoading] = useState(false)
   const toast = useToast()
@@ -42,7 +42,7 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate }) 
   })
 
   const [appearance, setAppearance] = useState({
-    theme: 'light',
+    theme: localStorage.getItem('kampus-dark') === 'true' ? 'dark' : 'light',
     language: 'en',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     dateFormat: 'MM/DD/YYYY',
@@ -69,6 +69,13 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate }) 
     loadActivityLog()
   }, [])
 
+  // Keep appearance.theme in sync if parent dark state changes while modal is open
+  useEffect(() => {
+    if (typeof dark === 'boolean') {
+      setAppearance(prev => ({ ...prev, theme: dark ? 'dark' : 'light' }))
+    }
+  }, [dark])
+
   const loadUserPreferences = () => {
     const savedNotifications = localStorage.getItem('adminNotifications')
     const savedAppearance = localStorage.getItem('adminAppearance')
@@ -94,12 +101,19 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate }) 
   }
 
   const applyTheme = (theme) => {
+    let isDark = false
     if (theme === 'auto') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
-      return
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    } else {
+      isDark = theme === 'dark'
     }
-    document.documentElement.setAttribute('data-theme', theme)
+    if (isDark) {
+      document.documentElement.setAttribute('data-dark', 'true')
+      localStorage.setItem('kampus-dark', 'true')
+    } else {
+      document.documentElement.removeAttribute('data-dark')
+      localStorage.setItem('kampus-dark', 'false')
+    }
   }
 
   const handleAvatarButtonClick = () => {
@@ -432,6 +446,8 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate }) 
                   <div>
                     <input
                       ref={avatarInputRef}
+                      id="avatarUpload"
+                      name="avatarUpload"
                       type="file"
                       accept="image/jpeg,image/png,image/gif,image/webp"
                       onChange={handleAvatarChange}

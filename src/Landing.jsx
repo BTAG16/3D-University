@@ -1,643 +1,534 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
-import { useIsMobile, useDarkMode } from './hooks'
-import { Icon } from './icons'
-import Reveal from './components/Reveal'
+import { useDarkMode } from './hooks'
+import './Landing.css'
 
-/* ─── Campus map screenshot mockup ─────────────────────────── */
-const BLDGS = [
-  { id: 1, name: 'Main Library', cat: 'Library', dist: '2 min', color: '#7C3AED', x: 148, y: 118, w: 72, h: 52 },
-  { id: 2, name: 'Engineering Building', cat: 'Academic', dist: '4 min', color: '#0EA5E9', x: 344, y: 92, w: 88, h: 58, sel: true },
-  { id: 3, name: 'Student Center', cat: 'Student Life', dist: '1 min', color: '#F59E0B', x: 258, y: 248, w: 74, h: 48 },
-  { id: 4, name: 'Science Complex', cat: 'Academic', dist: '6 min', color: '#10B981', x: 100, y: 260, w: 80, h: 54 },
-  { id: 5, name: 'Admin Building', cat: 'Administration', dist: '5 min', color: '#EF4444', x: 458, y: 272, w: 64, h: 52 },
-  { id: 6, name: 'Sports Center', cat: 'Sports', dist: '8 min', color: '#EC4899', x: 506, y: 168, w: 58, h: 68 },
+// ─── SVG helpers ─────────────────────────────────────────────────────────────
+function Svg({ size = 24, children, ...rest }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+      {...rest}>
+      {children}
+    </svg>
+  )
+}
+
+// ─── Logo icon ────────────────────────────────────────────────────────────────
+function LogoIcon({ size = 24 }) {
+  return (
+    <Svg size={size}>
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" />
+    </Svg>
+  )
+}
+
+// ─── Inline check icon ────────────────────────────────────────────────────────
+function CheckIcon({ size = 13 }) {
+  return (
+    <Svg size={size} strokeWidth="2.2">
+      <path d="M20 6 9 17l-5-5" />
+    </Svg>
+  )
+}
+
+// ─── Arrow right icon ─────────────────────────────────────────────────────────
+function ArrowIcon({ size = 16 }) {
+  return (
+    <Svg size={size}>
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </Svg>
+  )
+}
+
+// ─── Feature icons ────────────────────────────────────────────────────────────
+const featureIcons = {
+  globe: () => <Svg size={21} strokeWidth={1.7}><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></Svg>,
+  compass: () => <Svg size={21} strokeWidth={1.7}><polygon points="3 11 22 2 13 21 11 13 3 11"/></Svg>,
+  mobile: () => <Svg size={21} strokeWidth={1.7}><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></Svg>,
+  building: () => <Svg size={21} strokeWidth={1.7}><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01M12 14h.01"/></Svg>,
+  chart: () => <Svg size={21} strokeWidth={1.7}><path d="M3 3v18h18"/><path d="m7 15 4-6 4 3 5-7"/></Svg>,
+  link: () => <Svg size={21} strokeWidth={1.7}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></Svg>,
+}
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const STATS_DEF = [
+  { target: 10,   suffix: '+',  label: 'Early Adopters'      },
+  { target: 50,   suffix: '+',  label: 'Buildings Mapped'    },
+  { target: 1000, suffix: '+',  label: 'Students Empowered', k: true },
+  { target: 99.9, suffix: '%',  label: 'Uptime',             decimal: true },
 ]
 
-function CampusMapScreenshot() {
-  return (
-    <div style={{ width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden', background: '#fff', fontFamily: 'var(--font-body)' }}>
-      {/* Browser chrome */}
-      <div style={{ height: 36, background: '#F5F5F5', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 5 }}>
-          {['#FF5F57', '#FEBC2E', '#28C840'].map(c => <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c, display: 'block' }} />)}
-        </div>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <div style={{ background: '#EBEBEB', borderRadius: 6, height: 22, width: 220, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 5 }}>
-            <span style={{ fontSize: 11, color: '#6B7280' }}>campus.youruni.edu/map</span>
-          </div>
-        </div>
-      </div>
-      <div style={{ display: 'flex', height: 'calc(100% - 36px)' }}>
-        {/* Sidebar */}
-        <div style={{ width: 252, borderRight: '1px solid #E9ECF0', display: 'flex', flexDirection: 'column', background: '#fff', flexShrink: 0 }}>
-          <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid #F3F4F6' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 9 }}>
-              <Icon name="mapPin" size={14} />
-              <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#101828' }}>Budapest Tech University</span>
-            </div>
-            <div style={{ background: '#F9FAFB', borderRadius: 7, height: 30, display: 'flex', alignItems: 'center', padding: '0 9px', gap: 6, border: '1px solid #E9ECF0' }}>
-              <Icon name="search" size={11} />
-              <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>Search buildings, rooms…</span>
-            </div>
-            <div style={{ display: 'flex', gap: 4, marginTop: 7 }}>
-              {['All', 'Academic', 'Library', 'Sports'].map((c, i) => (
-                <span key={c} style={{ fontSize: 9.5, padding: '2.5px 8px', borderRadius: 9999, background: i === 0 ? 'var(--accent)' : '#F3F4F6', color: i === 0 ? '#fff' : '#6B7280', fontWeight: 500 }}>{c}</span>
-              ))}
-            </div>
-          </div>
-          <div style={{ flex: 1, overflowY: 'hidden', padding: '6px 6px' }}>
-            {BLDGS.map(b => (
-              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 7, marginBottom: 1, background: b.sel ? 'var(--accent-subtle)' : 'transparent', borderLeft: `3px solid ${b.sel ? 'var(--accent)' : 'transparent'}` }}>
-                <div style={{ width: 30, height: 30, borderRadius: 7, background: `${b.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon name="building" size={13} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: b.sel ? 700 : 600, color: b.sel ? 'var(--accent)' : '#101828', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
-                  <div style={{ fontSize: 9.5, color: '#9CA3AF', display: 'flex', gap: 5 }}><span>{b.cat}</span><span>~{b.dist}</span></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Map */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#EEF2F6' }}>
-          <svg width="100%" height="100%" viewBox="0 0 640 448" preserveAspectRatio="xMidYMid slice">
-            <rect width="640" height="448" fill="#EEF2F6" />
-            <rect x="228" y="196" width="110" height="76" rx="6" fill="#D4EBC8" opacity="0.85" />
-            <path d="M0 406 Q 100 392 240 400 T 480 396 T 640 400 L 640 448 L 0 448 Z" fill="#C4DCE8" opacity="0.6" />
-            <rect x="0" y="224" width="640" height="14" fill="#FFF" opacity="0.95" />
-            <rect x="304" y="0" width="14" height="448" fill="#FFF" opacity="0.95" />
-            <rect x="474" y="0" width="10" height="448" fill="#FFF" opacity="0.85" />
-            <rect x="126" y="0" width="10" height="448" fill="#FFF" opacity="0.85" />
-            {BLDGS.map(b => <rect key={b.id} x={b.x} y={b.y} width={b.w} height={b.h} rx="3" fill={b.color} opacity={b.sel ? 0.2 : 0.1} />)}
-            {BLDGS.map(b => {
-              const cx = b.x + b.w / 2, cy = b.y - 18
-              return (
-                <g key={b.id}>
-                  {b.sel && <circle cx={cx} cy={cy} r="19" fill={b.color} opacity="0.12" />}
-                  <circle cx={cx} cy={cy} r={b.sel ? 13 : 9.5} fill="#fff" stroke={b.color} strokeWidth={b.sel ? 2.5 : 1.5} />
-                  <circle cx={cx} cy={cy} r={b.sel ? 5 : 3.5} fill={b.color} />
-                </g>
-              )
-            })}
-            {/* Info card for selected building */}
-            <g transform="translate(348, 76)">
-              <rect x="0" y="0" width="206" height="116" rx="10" fill="#FFFFFF" />
-              <text x="48" y="24" fontSize="10.5" fontWeight="700" fill="#101828" fontFamily="system-ui">Engineering Building</text>
-              <text x="48" y="36" fontSize="9" fill="#9CA3AF" fontFamily="system-ui">Academic · CS & Engineering</text>
-              <line x1="12" y1="50" x2="194" y2="50" stroke="#F0F4F8" strokeWidth="1" />
-              <text x="12" y="65" fontSize="9" fill="#667085" fontFamily="system-ui">⏰  Mon–Fri 7am–9pm</text>
-              <text x="12" y="79" fontSize="9" fill="#0EA5E9" fontFamily="system-ui">📍  ~4 min walk   ·   24 rooms</text>
-              <rect x="12" y="88" width="86" height="18" rx="5" fill="#0EA5E9" />
-              <text x="55" y="100" textAnchor="middle" fontSize="9.5" fill="#fff" fontFamily="system-ui" fontWeight="600">Get Directions</text>
-              <rect x="104" y="88" width="72" height="18" rx="5" fill="#F0F9FF" stroke="#BAE6FD" strokeWidth="1" />
-              <text x="140" y="100" textAnchor="middle" fontSize="9.5" fill="#0EA5E9" fontFamily="system-ui" fontWeight="500">View Rooms</text>
-            </g>
-            <g>
-              <rect x="600" y="12" width="28" height="56" rx="7" fill="#fff" stroke="#E5E7EB" strokeWidth="1" />
-              <text x="614" y="35" textAnchor="middle" fontSize="16" fill="#6B7280" fontFamily="system-ui">+</text>
-              <line x1="602" y1="43" x2="626" y2="43" stroke="#E5E7EB" strokeWidth="1" />
-              <text x="614" y="59" textAnchor="middle" fontSize="16" fill="#6B7280" fontFamily="system-ui">−</text>
-            </g>
-          </svg>
-        </div>
-      </div>
-    </div>
-  )
+const FEATURES_DEF = [
+  { key: 'globe',    title: 'Interactive 3D Maps',   color: '#c084fc', desc: 'Photorealistic campus maps with building extrusions, smooth fly-to animations, and real-time positioning.' },
+  { key: 'compass',  title: 'Smart Navigation',      color: '#22d3ee', desc: 'Turn-by-turn walking directions between any two points on campus, with accurate time estimates.' },
+  { key: 'mobile',   title: 'Mobile-First Design',   color: '#f472b6', desc: 'Native-app quality on every device — from 320px phones to ultrawide monitors. No download required.' },
+  { key: 'building', title: 'Building Details',      color: '#facc15', desc: 'Categories, hours, facilities, departments, and photos — every building tells students what they need.' },
+  { key: 'chart',    title: 'Analytics Dashboard',   color: '#4ade80', desc: 'See which buildings students search for most, peak usage times, and how your map is performing.' },
+  { key: 'link',     title: 'Easy Integration',      color: '#60a5fa', desc: 'Embed the map on your website with one iframe snippet, or share the link directly — done in minutes.' },
+]
+
+const STEPS = [
+  { num: '01', title: 'Add your campus',       desc: 'Register, drop a pin, and define your buildings with the visual dashboard.',    delay: 0 },
+  { num: '02', title: 'Customize everything',  desc: 'Add rooms, timetables, categories, and your university branding.',               delay: 120 },
+  { num: '03', title: 'Share with students',   desc: 'One link, zero friction, instant access on any device.',                        delay: 240 },
+]
+
+const TESTIMONIALS = [
+  { quote: 'We deployed Kampus in a week. Students actually use it now instead of calling our office for directions.', name: 'Dr. Anna Varga',   role: 'Head of Student Affairs, Budapest Tech',      initial: 'A', delay: 0   },
+  { quote: 'The admin dashboard is incredibly intuitive. We added 40 buildings in one afternoon.',                     name: 'Mehmet Yılmaz',    role: 'IT Director, Ankara University',               initial: 'M', delay: 110 },
+  { quote: 'Indoor navigation has been a game-changer for new students during orientation week.',                      name: 'Elena Petrova',    role: 'Campus Operations, Sofia State University',    initial: 'E', delay: 220 },
+]
+
+const FAQS = [
+  { q: 'Is Kampus 3D really free?',              a: 'Yes. The full platform is free for your first campus — we want you to experience the value before any conversation about pricing for multi-campus deployments.' },
+  { q: 'How long does it take to set up?',       a: 'Most universities are live within a day. Create an admin account, add your buildings and rooms via the dashboard, and share the link. No technical integration required.' },
+  { q: 'Do students need to download an app?',   a: 'No. Your campus map is a web link — students open it in any browser on any device. No app store, no login, no friction.' },
+  { q: 'Where does the map data come from?',     a: 'You add your own building data through the admin dashboard — names, categories, coordinates, hours, facilities, and room schedules. The base map comes from Mapbox.' },
+  { q: 'Can I customize it to match our brand?', a: 'Yes. Upload your university logo, set your accent color, and write a custom welcome message — all from the Settings tab of your dashboard.' },
+  { q: 'What about data privacy?',               a: 'Student location data stays in the browser — we never transmit or store individual positions. Admin data is encrypted in transit and at rest, and we are GDPR compliant.' },
+  { q: 'Can I embed the map on our website?',    a: 'Absolutely. Your dashboard provides a ready-to-use iframe embed code — copy, paste, done.' },
+  { q: 'What if I need help setting up?',        a: 'We offer hands-on onboarding support. Reach out and we will help you add your campus data and get live quickly.' },
+]
+
+const PILLS = ['3D Building Extrusions', 'Walking Directions', 'Room Timetables', 'Indoor Navigation', 'Live Occupancy', 'Instant Sharing']
+
+// ─── useReveal hook ───────────────────────────────────────────────────────────
+function useReveal() {
+  useEffect(() => {
+    const els = document.querySelectorAll('[data-reveal]')
+    if (!els.length) return
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('rv-in'); io.unobserve(e.target) } })
+    }, { rootMargin: '-60px 0px' })
+    els.forEach(el => io.observe(el))
+    return () => io.disconnect()
+  }, [])
 }
 
-/* ─── Shared small components ─────────────────────────────── */
-function NavLogo() {
-  const navigate = useNavigate()
-  return (
-    <button onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>
-      <div style={{ color: 'var(--accent)', display: 'flex' }}><Icon name="mapPin" size={22} /></div>
-      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Kampus</span>
-    </button>
-  )
+// ─── Stat counter hook ────────────────────────────────────────────────────────
+function useStatCounter(statsRef) {
+  const [progress, setProgress] = useState(0)
+  useEffect(() => {
+    if (!statsRef.current) return
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) {
+        io.disconnect()
+        if (reduced) { setProgress(1); return }
+        const start = performance.now()
+        const dur = 1400
+        const tick = (now) => {
+          const t = Math.min(1, (now - start) / dur)
+          const eased = 1 - Math.pow(1 - t, 3)
+          setProgress(eased)
+          if (t < 1) requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }
+    }, { threshold: 0.3 })
+    io.observe(statsRef.current)
+    return () => io.disconnect()
+  }, [statsRef])
+  return progress
 }
 
-function DarkToggle({ dark, onToggle }) {
-  return (
-    <button onClick={onToggle} title={dark ? 'Switch to light mode' : 'Switch to dark mode'} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: dark ? '#f0c040' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 200ms ease', flexShrink: 0 }}>
-      <Icon name={dark ? 'sun' : 'moon'} size={16} />
-    </button>
-  )
-}
-
-function FAQItem({ question, answer }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div style={{ borderBottom: '1px solid var(--border-light)' }}>
-      <button onClick={() => setOpen(!open)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', gap: 16 }}>
-        <span style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', lineHeight: 1.4 }}>{question}</span>
-        <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: open ? 'var(--accent)' : 'var(--accent-subtle)', color: open ? '#fff' : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 200ms ease', transform: open ? 'rotate(45deg)' : 'none', fontSize: 18, fontWeight: 300, lineHeight: 1 }}>+</span>
-      </button>
-      <div style={{ overflow: 'hidden', maxHeight: open ? 300 : 0, transition: 'max-height 0.35s cubic-bezier(0.16,1,0.3,1)' }}>
-        <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, paddingBottom: 20 }}>{answer}</p>
-      </div>
-    </div>
-  )
-}
-
-/* ─── Main Landing component ──────────────────────────────── */
+// ─── Landing ──────────────────────────────────────────────────────────────────
 export default function Landing() {
   const navigate = useNavigate()
   const { adminSession } = useAdminAuth()
-  const isMobile = useIsMobile()
   const [dark, toggleDark] = useDarkMode()
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [entered, setEntered] = useState(false)
-  const [cookieVisible, setCookieVisible] = useState(true)
+  const [faqOpen, setFaqOpen] = useState(-1)
 
+  const parallaxRef = useRef(null)
+  const showcaseRef = useRef(null)
+  const statsRef = useRef(null)
+  const progress = useStatCounter(statsRef)
+  useReveal()
+
+  // scroll observer
   useEffect(() => {
-    const t = setTimeout(() => setEntered(true), 60)
-    return () => clearTimeout(t)
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const onScroll = () => {
+      setScrolled(window.scrollY > 10)
+      if (!reduced) {
+        if (parallaxRef.current) {
+          const r = parallaxRef.current.getBoundingClientRect()
+          const t = (window.innerHeight - r.top) / (window.innerHeight + r.height)
+          parallaxRef.current.style.transform = `translateY(${((t - 0.5) * -28).toFixed(1)}px)`
+        }
+        if (showcaseRef.current) {
+          const r = showcaseRef.current.getBoundingClientRect()
+          const t = (window.innerHeight - r.top) / (window.innerHeight + r.height)
+          if (t > 0 && t < 1) showcaseRef.current.style.transform = `translateY(${((t - 0.5) * -44).toFixed(1)}px)`
+        }
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  useEffect(() => {
-    const h = () => setScrolled(window.scrollY > 10)
-    window.addEventListener('scroll', h, { passive: true })
-    return () => window.removeEventListener('scroll', h)
-  }, [])
+  const navBg     = scrolled ? (dark ? 'rgba(11,17,32,0.82)'       : 'rgba(255,255,255,0.85)') : 'transparent'
+  const navBorder = scrolled ? (dark ? 'rgba(255,255,255,0.07)'    : 'rgba(16,24,40,0.06)') : 'transparent'
+  const navBlur   = scrolled ? 'blur(16px) saturate(1.6)' : 'none'
 
-  useEffect(() => {
-    document.body.style.overflow = menuOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [menuOpen])
-
-  const scrollTo = (id) => {
-    setMenuOpen(false)
-    const el = document.getElementById(id)
-    if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' })
-  }
-
-  const fade = (delay) => ({
-    opacity: entered ? 1 : 0,
-    transform: entered ? 'translateY(0)' : 'translateY(22px)',
-    transition: `opacity 0.85s cubic-bezier(0.16,1,0.3,1) ${delay}ms, transform 0.85s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
+  // computed stats
+  const stats = STATS_DEF.map(st => {
+    const v = st.target * progress
+    let display
+    if (st.decimal)  display = v.toFixed(1) + st.suffix
+    else if (st.k)   display = (v >= 1000 ? '1K' : String(Math.round(v))) + st.suffix
+    else             display = String(Math.round(v)) + st.suffix
+    return { display, label: st.label }
   })
 
-  const navLinks = [
-    { label: 'Features', action: () => scrollTo('features') },
-    { label: 'How It Works', action: () => scrollTo('how-it-works') },
-    { label: 'Demo', action: () => navigate('/demo') },
-    { label: 'FAQ', action: () => scrollTo('faq') },
-  ]
-
-  const features = [
-    { icon: 'globe', title: '3D Interactive Map' },
-    { icon: 'search', title: 'Smart Search' },
-    { icon: 'compass', title: 'Walking Directions' },
-    { icon: 'layers', title: 'Indoor Navigation' },
-    { icon: 'calendar', title: 'Room Timetables' },
-    { icon: 'link', title: 'One Link, Shareable' },
-  ]
-
-  const steps = [
-    { num: '01', icon: 'userPlus', title: 'Sign up your university', desc: 'Create an admin account in 60 seconds. No credit card, no commitment.' },
-    { num: '02', icon: 'building', title: 'Add buildings & rooms', desc: 'Use the visual dashboard to enter details, coordinates, and schedules.' },
-    { num: '03', icon: 'share', title: 'Share the link', desc: 'Students open it instantly — zero login, zero download, zero friction.' },
-  ]
-
-  const faqs = [
-    { q: 'Is Kampus 3D really free?', a: 'Yes. We offer the full platform free for your first campus. We believe in letting you experience the value before any conversation about pricing for multi-campus deployments.' },
-    { q: 'How long does it take to set up?', a: 'Most universities are live within a day. Create an admin account (60 seconds), add your buildings and rooms via our dashboard (a few hours depending on campus size), and share the link. No technical integration required.' },
-    { q: 'Do students need to download an app?', a: 'No. Your campus map is a web link — students open it in any browser on any device. No app store, no login, no friction. You can also embed it directly on your university website.' },
-    { q: 'Where does the map data come from?', a: 'You add your own building data through the admin dashboard — names, categories, coordinates, operating hours, facilities, and room schedules. The base map (streets, terrain) comes from Mapbox.' },
-    { q: 'Can I add indoor navigation?', a: 'Yes. If your buildings are mapped on Mappedin, you can link each building to its indoor map. Students tap "Indoor Navigation" and get floor-by-floor wayfinding inside the building.' },
-    { q: 'What about data privacy?', a: 'Student location data stays in the browser — we never transmit or store individual positions. Admin data is encrypted in transit and at rest.' },
-    { q: 'Can I embed the map on our university website?', a: 'Absolutely. We provide a ready-to-use iframe embed code in your admin dashboard. Just copy and paste it into your site.' },
-    { q: 'What if I need help setting up?', a: 'We offer hands-on onboarding support. Reach out to our team and we will help you add your campus data and get live quickly.' },
-  ]
-
-  const testimonials = [
-    { name: 'Dr. Anna Varga', title: 'Head of Student Affairs', university: 'Budapest Tech', quote: 'We deployed Kampus in a week. Students actually use it now instead of calling our office for directions.' },
-    { name: 'Mehmet Yılmaz', title: 'IT Director', university: 'Ankara University', quote: 'The admin dashboard is incredibly intuitive. We added 40 buildings in one afternoon.' },
-    { name: 'Elena Petrova', title: 'Campus Operations', university: 'Sofia State University', quote: 'The indoor navigation feature has been a game-changer for our new students during orientation week.' },
-  ]
+  const ctaAction = () => navigate(adminSession ? '/admin/dashboard' : '/admin/login')
+  const demoAction = () => navigate('/demo')
+  const closeMenu = () => setMenuOpen(false)
 
   return (
-    <div style={{ fontFamily: 'var(--font-body)', color: 'var(--text-primary)', background: 'var(--bg)', minHeight: '100vh' }}>
+    <div data-dark={dark ? 'true' : 'false'}
+      style={{ fontFamily: 'var(--font-body)', color: 'var(--text-primary)', background: 'var(--bg)', minHeight: '100vh', transition: 'background 300ms var(--ease)' }}>
 
-      {/* ── Nav ─────────────────────────────────────────────── */}
-      <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, height: 64,
-        background: dark ? (scrolled ? 'rgba(11,17,32,0.92)' : 'rgba(11,17,32,0.85)') : (scrolled ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.98)'),
-        backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: `1px solid ${scrolled ? 'var(--border)' : 'transparent'}`,
-        display: 'flex', alignItems: 'center', padding: '0 24px',
-        transition: 'all var(--duration-md) var(--ease)',
-      }}>
-        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <NavLogo />
-          {!isMobile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-              {navLinks.map(l => (
-                <button key={l.label} onClick={l.action} style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', transition: 'color var(--duration) var(--ease)', fontFamily: 'var(--font-body)' }}
-                  onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                  {l.label}
-                </button>
-              ))}
-            </div>
-          )}
-          {!isMobile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <DarkToggle dark={dark} onToggle={toggleDark} />
-              <button onClick={() => navigate('/admin/login')} style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                Log in
-              </button>
-              <button onClick={() => navigate(adminSession ? '/admin/dashboard' : '/admin/login')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 18px', borderRadius: 9999, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer', transition: 'background var(--duration) var(--ease)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-hover)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}>
-                {adminSession ? 'Dashboard' : 'Get Started Free'}
-              </button>
-            </div>
-          )}
-          {isMobile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <DarkToggle dark={dark} onToggle={toggleDark} />
-              <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 4, display: 'flex' }}>
-                <Icon name={menuOpen ? 'x' : 'menu'} size={24} />
-              </button>
-            </div>
-          )}
+      {/* ═══ NAV ═══ */}
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, height: 64, display: 'flex', alignItems: 'center', padding: '0 clamp(16px,4vw,24px)', transition: 'all 300ms var(--ease)', background: navBg, borderBottom: `1px solid ${navBorder}`, backdropFilter: navBlur, WebkitBackdropFilter: navBlur }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <a href="#top" style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'inherit', textDecoration: 'none' }}>
+            <span style={{ display: 'flex', color: 'var(--accent)' }}><LogoIcon size={24} /></span>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 19, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>Kampus</span>
+          </a>
+          <div className="rl-nav-links">
+            {['features', 'how-it-works', 'testimonials', 'faq'].map(id => (
+              <a key={id} href={`#${id}`} className="rl-nav-link">{id === 'how-it-works' ? 'How It Works' : id === 'faq' ? 'FAQ' : id.charAt(0).toUpperCase() + id.slice(1)}</a>
+            ))}
+          </div>
+          <div className="rl-nav-actions">
+            <button onClick={toggleDark} title="Toggle theme" className="rl-theme-btn">
+              {dark
+                ? <Svg size={15}><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></Svg>
+                : <Svg size={15}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></Svg>
+              }
+            </button>
+            <button className="rl-nav-login" onClick={ctaAction}>Log in</button>
+            <button className="rl-cta-pill" onClick={ctaAction}>Get Started Free</button>
+            <button className="rl-burger" onClick={() => setMenuOpen(v => !v)}>
+              {menuOpen
+                ? <Svg size={22}><path d="M18 6 6 18M6 6l12 12"/></Svg>
+                : <Svg size={22}><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></Svg>
+              }
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Mobile drawer */}
-      {isMobile && (
-        <div style={{
-          position: 'fixed', top: 64, left: 0, right: 0, bottom: 0, zIndex: 99,
-          background: 'var(--surface)', padding: 24,
-          transform: menuOpen ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform var(--duration-md) var(--ease)',
-          display: 'flex', flexDirection: 'column', gap: 8,
-        }}>
-          {navLinks.map(l => (
-            <button key={l.label} onClick={l.action} style={{ fontSize: 18, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', textDecoration: 'none', padding: '12px 0', borderBottom: '1px solid var(--border-light)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-              {l.label}
-            </button>
+      {/* ═══ MOBILE DRAWER ═══ */}
+      {menuOpen && (
+        <div className="rl-drawer" style={{ position: 'fixed', top: 64, left: 0, right: 0, bottom: 0, zIndex: 99, background: 'var(--bg)', flexDirection: 'column', padding: 24, gap: 4 }}>
+          {[['#features','Features'],['#how-it-works','How It Works'],['#testimonials','Testimonials'],['#faq','FAQ']].map(([href, label]) => (
+            <a key={href} href={href} onClick={closeMenu} className="hero-seq rl-drawer-link">{label}</a>
           ))}
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <button onClick={() => { setMenuOpen(false); navigate('/admin/login') }} style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0', textAlign: 'left', fontFamily: 'var(--font-body)' }}>Log in</button>
-            <button onClick={() => { setMenuOpen(false); navigate(adminSession ? '/admin/dashboard' : '/admin/login') }} style={{ width: '100%', padding: '14px 28px', borderRadius: 9999, background: 'var(--accent)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer' }}>
-              {adminSession ? 'Dashboard' : 'Get Started Free'}
-            </button>
+          <div className="hero-seq" style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12, animationDelay: '0.26s' }}>
+            <button onClick={() => { closeMenu(); ctaAction() }} style={{ width: '100%', padding: 15, borderRadius: 9999, background: 'var(--accent)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-display)', cursor: 'pointer' }}>Get Started Free</button>
+            <button onClick={() => { closeMenu(); ctaAction() }} style={{ width: '100%', padding: 14, borderRadius: 9999, border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 15, fontWeight: 500, cursor: 'pointer', background: 'none' }}>Log in</button>
           </div>
         </div>
       )}
 
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <section style={{ paddingTop: isMobile ? 'calc(64px + 48px)' : 'calc(64px + 80px)', paddingBottom: isMobile ? 40 : 20, background: 'var(--bg)', overflow: 'hidden', position: 'relative' }}>
-        {/* Background elements */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(14,165,233,0.06) 0%, transparent 60%)' }} />
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.15, pointerEvents: 'none' }}>
-          <pattern id="heroDots" width="28" height="28" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.8" fill="currentColor" opacity="0.4" />
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#heroDots)" style={{ color: 'var(--text-tertiary)' }} />
-        </svg>
+      {/* ═══ HERO ═══ */}
+      <section id="top" style={{ position: 'relative', overflow: 'hidden', background: 'var(--hero-bg)', padding: '140px 0 96px', transition: 'background 300ms var(--ease)' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'var(--hero-glow)', pointerEvents: 'none' }} />
+        <div className="rl-container" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="">
+            {/* copy */}
+            <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
+              <div className="rl-hero-badge-row hero-seq" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, animationDelay: '0.05s' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--accent-subtle)', color: 'var(--accent-hover)', border: '1px solid var(--accent-muted)', fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--font-display)', padding: '6px 16px 6px 12px', borderRadius: 9999, letterSpacing: '0.02em' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-dot 2.2s var(--ease) infinite' }} />
+                  Built for Universities
+                </span>
+              </div>
+              <h1 className="hero-seq" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(44px,6vw,80px)', lineHeight: 1.04, letterSpacing: '-0.035em', margin: '0 0 24px', color: 'var(--text-primary)', textWrap: 'balance', animationDelay: '0.17s' }}>
+                Your campus,<br />
+                <span style={{ background: 'linear-gradient(100deg, #0EA5E9 20%, #38BDF8 60%, #7DD3FC)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>mapped beautifully.</span>
+              </h1>
+              <p className="hero-seq" style={{ fontSize: 'clamp(16px,2vw,18.5px)', color: 'var(--text-secondary)', lineHeight: 1.65, maxWidth: 480, margin: '0 auto 36px', textWrap: 'pretty', animationDelay: '0.29s' }}>
+                Give every student an interactive 3D map of your campus — buildings, rooms, and timetables in one shareable link. No app, no login, no friction.
+              </p>
+              <div className="rl-hero-ctas hero-seq" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 28, animationDelay: '0.41s' }}>
+                <button onClick={ctaAction} className="rl-btn-primary-pill">Get started free</button>
+                <button onClick={demoAction} className="rl-btn-outline-pill">
+                  See live demo <ArrowIcon size={16} />
+                </button>
+              </div>
+              <div className="rl-hero-trust hero-seq" style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-tertiary)', flexWrap: 'wrap', justifyContent: 'center', animationDelay: '0.53s' }}>
+                {['No credit card', '5 minute setup', 'Free for your first campus'].map(t => (
+                  <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: 'var(--success)', display: 'flex' }}><CheckIcon /></span>{t}
+                  </span>
+                ))}
+              </div>
+            </div>
 
-        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          {/* Badge */}
-          <div style={{ ...fade(60), display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid var(--accent-muted)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', padding: '5px 16px 5px 10px', borderRadius: 9999, letterSpacing: '0.03em' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }}></span>
-              Built for Universities
-            </span>
+            {/* visual */}
+            <div className="hero-seq" style={{ position: 'relative', animationDelay: '0.35s', margin: '64px auto 0' }} ref={parallaxRef}>
+              <div style={{ position: 'relative', maxWidth: 900, margin: '0 auto' }}>
+                {/* browser frame */}
+                <div style={{ borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 40px 80px -24px rgba(13,27,42,0.28), 0 16px 40px -16px rgba(13,27,42,0.16)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid var(--border-light)', background: 'var(--surface)' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FC5F57' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
+                    <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 320, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      kampus3d.com/map?uni=your-university
+                    </span>
+                  </div>
+                  <img className="img-light" src="/product-light.png" alt="Kampus 3D campus map" style={{ width: '100%', height: 'auto' }} />
+                  <img className="img-dark"  src="/product-dark.png"  alt="Kampus 3D campus map" style={{ width: '100%', height: 'auto' }} />
+                </div>
+                {/* floating phone */}
+                <div style={{ position: 'absolute', bottom: '-8%', left: '-6%', width: '24%', minWidth: 96, borderRadius: 18, padding: 5, background: 'linear-gradient(150deg, var(--frame-hi), var(--frame))', boxShadow: '0 32px 64px -16px rgba(13,27,42,0.35), inset 0 1px 0 rgba(255,255,255,0.25)' }}>
+                  <div style={{ borderRadius: 14, overflow: 'hidden', position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: 5, left: '50%', transform: 'translateX(-50%)', width: 34, height: 10, borderRadius: 12, background: '#000', zIndex: 2 }} />
+                    <img className="img-light" src="/mobile-light.jpg" alt="Kampus mobile view" style={{ width: '100%', height: 'auto' }} />
+                    <img className="img-dark"  src="/mobile-dark.jpg"  alt="Kampus mobile view" style={{ width: '100%', height: 'auto' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
 
-          {/* Heading */}
-          <h1 style={{ ...fade(160), fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: isMobile ? 46 : 84, lineHeight: 1.0, letterSpacing: '-0.04em', color: 'var(--text-primary)', margin: '0 auto 24px', maxWidth: isMobile ? '100%' : 820 }}>
-            Your campus,<br />
-            <span style={{ color: 'var(--accent)' }}>mapped beautifully.</span>
-          </h1>
-
-          {/* Subtitle */}
-          <p style={{ ...fade(280), fontSize: isMobile ? 17 : 20, color: 'var(--text-secondary)', lineHeight: 1.65, maxWidth: 560, margin: '0 auto 40px' }}>
-            Give students an interactive 3D map of your campus — buildings, rooms, timetables, and walking directions, all in one shareable link.
-          </p>
-
-          {/* CTAs */}
-          <div style={{ ...fade(380), display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center', flexDirection: isMobile ? 'column' : 'row', marginBottom: 28, width: isMobile ? '100%' : 'auto' }}>
-            <button onClick={() => navigate(adminSession ? '/admin/dashboard' : '/admin/login')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 9999, background: 'var(--accent)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer', transition: 'background var(--duration) var(--ease)', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-hover)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}>
-              Get started free <Icon name="arrowRight" size={18} />
-            </button>
-            <button onClick={() => navigate('/demo')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-display)', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
-              See live demo <Icon name="arrowRight" size={18} />
-            </button>
+      {/* ═══ STATS STRIP ═══ */}
+      <section style={{ background: 'var(--navy)', position: 'relative', overflow: 'hidden' }} ref={statsRef}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 120% at 50% -20%, rgba(14,165,233,0.10), transparent 60%)', pointerEvents: 'none' }} />
+        <div className="rl-container" style={{ position: 'relative' }}>
+          <div className="rl-stats-grid" style={{ padding: 'clamp(44px,6vw,64px) 0' }}>
+            {stats.map((st, i) => (
+              <div key={i} className="rl-stat-cell" style={{ textAlign: 'center', padding: '0 16px' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4vw,48px)', color: '#fff', lineHeight: 1.1, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{st.display}</div>
+                <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.45)', marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 }}>{st.label}</div>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          {/* Trust */}
-          <div style={{ ...fade(480), display: 'flex', gap: isMobile ? 20 : 36, fontSize: 13, color: 'var(--text-tertiary)', justifyContent: 'center', flexWrap: 'wrap', marginBottom: 72 }}>
-            {['No credit card', '5 minute setup', 'Free for your first campus'].map(t => (
-              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ color: 'var(--success)' }}><Icon name="check" size={13} /></span> {t}
+      {/* ═══ WHY KAMPUS ═══ */}
+      <section className="rl-section-pad" style={{ padding: 'clamp(88px,10vw,128px) 0', background: 'var(--bg)', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-grid-2">
+            <div data-reveal>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Why Kampus</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 20px', color: 'var(--text-primary)', textWrap: 'balance' }}>The campus experience students deserve</h2>
+            </div>
+            <div data-reveal style={{ transitionDelay: '120ms' }}>
+              <p style={{ fontSize: 17, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 20px', textWrap: 'pretty' }}>Every semester, thousands of students waste hours lost on unfamiliar campuses. Paper maps are outdated, Google Maps doesn't know your buildings, and native apps are expensive — nobody downloads them.</p>
+              <p style={{ fontSize: 17, lineHeight: 1.75, color: 'var(--text-secondary)', margin: 0, textWrap: 'pretty' }}>Kampus gives your university a beautiful, interactive 3D map that works instantly in any browser. One link that transforms how students navigate your campus.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ PRODUCT SHOWCASE ═══ */}
+      <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--navy)', padding: 'clamp(88px,10vw,128px) 0' }}>
+        <div style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%)', width: 900, height: 560, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(14,165,233,0.10) 0%, transparent 68%)', pointerEvents: 'none' }} />
+        <div className="rl-container" style={{ position: 'relative', zIndex: 1 }}>
+          <div data-reveal style={{ textAlign: 'center', marginBottom: 'clamp(40px,5vw,56px)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: '#38BDF8', marginBottom: 16 }}>Product</div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: '#fff', textWrap: 'balance' }}>Everything your campus needs</h2>
+            <p style={{ fontSize: 17, lineHeight: 1.7, color: 'rgba(255,255,255,0.5)', maxWidth: 480, margin: '0 auto', textWrap: 'pretty' }}>From 3D maps to room timetables — one platform, managed from one dashboard.</p>
+          </div>
+          <div data-reveal style={{ maxWidth: 820, margin: '0 auto', transitionDelay: '100ms' }} ref={showcaseRef}>
+            <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 60px 120px -30px rgba(0,0,0,0.7), 0 0 80px -20px rgba(14,165,233,0.18)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'var(--navy-surface)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                {['rgba(255,255,255,0.16)','rgba(255,255,255,0.16)','rgba(255,255,255,0.16)'].map((bg, i) => (
+                  <span key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: bg }} />
+                ))}
+              </div>
+              <img className="img-light" src="/product-light.png" alt="Kampus 3D map product" style={{ width: '100%', height: 'auto' }} />
+              <img className="img-dark"  src="/product-dark.png"  alt="Kampus 3D map product" style={{ width: '100%', height: 'auto' }} />
+            </div>
+          </div>
+          <div data-reveal style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 'clamp(36px,5vw,48px)', transitionDelay: '200ms' }}>
+            {PILLS.map(pill => (
+              <span key={pill} className="rl-pill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                {pill}
               </span>
             ))}
           </div>
         </div>
+      </section>
 
-        {/* Big screenshot */}
-        <div style={{ ...fade(260), position: 'relative', zIndex: 1, maxWidth: 1100, margin: '0 auto', padding: isMobile ? '0 16px' : '0 40px', marginTop: isMobile ? 32 : 8 }}>
-          <div style={{ position: 'absolute', top: '5%', left: '10%', width: '80%', height: '90%', background: 'radial-gradient(ellipse, rgba(14,165,233,0.1) 0%, transparent 60%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
-          <div style={{ position: 'relative', zIndex: 1, width: '100%', height: isMobile ? 220 : 520, transform: isMobile ? 'none' : 'perspective(2000px) rotateX(10deg) rotateY(10deg)', transformOrigin: '50% 50%', borderRadius: 14, overflow: 'hidden', boxShadow: '0 40px 100px -20px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.06)' }}>
-            <CampusMapScreenshot />
+      {/* ═══ FEATURES ═══ */}
+      <section id="features" className="rl-section-pad" style={{ padding: 'clamp(88px,10vw,128px) 0', background: 'var(--alt-bg)', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div data-reveal style={{ textAlign: 'center', marginBottom: 'clamp(44px,6vw,64px)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Features</div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>The complete campus platform</h2>
+            <p style={{ fontSize: 17, lineHeight: 1.7, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto', textWrap: 'pretty' }}>Everything students need to navigate campus, built into one link.</p>
           </div>
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: isMobile ? 50 : 100, background: 'linear-gradient(to bottom, transparent, var(--bg))', pointerEvents: 'none', zIndex: 2 }} />
+          <div className="rl-grid-3">
+            {FEATURES_DEF.map((f, i) => {
+              const IconComp = featureIcons[f.key]
+              const delay = (i % 3) * 90
+              const borderHover = f.color + '66'
+              return (
+                <div
+                  key={f.key}
+                  data-reveal
+                  className="rl-feature-card"
+                  style={{ padding: '32px 28px', borderRadius: 16, border: '1px solid var(--border-light)', background: 'var(--surface)', boxShadow: 'var(--card-shadow)', transition: 'all 250ms var(--ease)', position: 'relative', overflow: 'hidden', transitionDelay: `${delay}ms` }}
+                  onMouseOver={e => { e.currentTarget.style.borderColor = borderHover }}
+                  onMouseOut={e => { e.currentTarget.style.borderColor = '' }}
+                >
+                  <div style={{ width: 46, height: 46, borderRadius: 12, marginBottom: 20, background: f.color + '1F', color: f.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconComp />
+                  </div>
+                  <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17, color: 'var(--text-primary)', margin: '0 0 8px' }}>{f.title}</h3>
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.65, margin: 0, textWrap: 'pretty' }}>{f.desc}</p>
+                </div>
+              )
+            })}
+
+          </div>
         </div>
       </section>
 
-      {/* ── Social proof bar ─────────────────────────────────── */}
-      <section style={{ padding: '52px 0', background: 'var(--surface)', borderTop: '1px solid var(--border-light)' }}>
-        <Reveal>
-          <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px' }}>
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-tertiary)', textAlign: 'center', marginBottom: 28, letterSpacing: '0.02em' }}>Trusted by universities in 3 countries</p>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 24 : 56, flexWrap: 'wrap' }}>
-              {['Budapest Tech', 'Ankara Uni', 'Sofia State', 'Debrecen Uni'].map(name => (
-                <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: 0.35, filter: 'grayscale(100%)' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="shield" size={16} />
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{name}</span>
-                </div>
-              ))}
-            </div>
+      {/* ═══ HOW IT WORKS ═══ */}
+      <section id="how-it-works" className="rl-section-pad" style={{ padding: 'clamp(88px,10vw,128px) 0', background: 'var(--bg)', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div data-reveal style={{ textAlign: 'center', marginBottom: 'clamp(48px,7vw,80px)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>How It Works</div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)' }}>Live in three steps</h2>
+            <p style={{ fontSize: 17, lineHeight: 1.7, color: 'var(--text-secondary)', maxWidth: 440, margin: '0 auto' }}>From sign-up to a live campus map in an afternoon.</p>
           </div>
-        </Reveal>
-      </section>
-
-      {/* ── Features overview ────────────────────────────────── */}
-      <section id="features" style={{ padding: isMobile ? '64px 0' : '100px 0', background: 'var(--bg)' }}>
-        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px' }}>
-          <Reveal>
-            <div style={{ textAlign: 'center', marginBottom: isMobile ? 40 : 56 }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: isMobile ? 30 : 44, letterSpacing: '-0.025em', color: 'var(--text-primary)', lineHeight: 1.12 }}>The complete campus platform</h2>
-              <p style={{ fontSize: 18, color: 'var(--text-secondary)', marginTop: 14, maxWidth: 480, margin: '14px auto 0', lineHeight: 1.6 }}>Everything students need to navigate campus, built into one link.</p>
-            </div>
-          </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)', gap: isMobile ? 12 : 16 }}>
-            {features.map((f, i) => (
-              <Reveal key={f.title} delay={i * 80}>
-                <div style={{ textAlign: 'center', padding: isMobile ? '20px 12px' : '28px 16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border-light)', transition: 'all 250ms ease' }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, margin: '0 auto 12px', background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name={f.icon} size={20} />
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>{f.title}</div>
-                </div>
-              </Reveal>
+          <div className="rl-grid-3" style={{ gap: 'clamp(36px,5vw,56px)', position: 'relative' }}>
+            <div className="rl-hide-mobile" style={{ position: 'absolute', top: 36, left: '18%', right: '18%', height: 1, background: 'linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent)' }} />
+            {STEPS.map((step, i) => (
+              <div key={i} data-reveal style={{ textAlign: 'center', position: 'relative', zIndex: 1, transitionDelay: `${step.delay}ms` }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(52px,6vw,72px)', lineHeight: 1, letterSpacing: '-0.04em', WebkitTextFillColor: 'transparent', WebkitTextStroke: '1.5px var(--accent)', opacity: 0.45, marginBottom: 20 }}>{step.num}</div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 19, color: 'var(--text-primary)', margin: '0 0 10px' }}>{step.title}</h3>
+                <p style={{ fontSize: 14.5, color: 'var(--text-secondary)', lineHeight: 1.65, maxWidth: 280, margin: '0 auto', textWrap: 'pretty' }}>{step.desc}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Feature deep dives ───────────────────────────────── */}
-      {[
-        {
-          id: 'feature-map', eyebrow: 'Core Experience',
-          title: 'A 3D interactive campus map students actually use',
-          desc: 'Powered by Mapbox, your campus comes alive with 3D building extrusions, smooth fly-to animations, and real-time location. Students search, explore, and get directions — no app download required.',
-          bullets: ['Mapbox GL 3D rendering with building height data', 'Custom markers with category icons and clustering', 'Works on any device — desktop, tablet, or phone', 'Dark mode toggle for the map view'],
-          bg: 'var(--surface)', reversed: false,
-        },
-        {
-          id: 'feature-dashboard', eyebrow: 'Admin Experience',
-          title: 'A dashboard that makes campus data management effortless',
-          desc: 'Add buildings, rooms, timetables, and facilities from a clean admin interface. No technical skills needed — if you can fill a form, you can run your campus map.',
-          bullets: ['Add buildings with coordinates, categories, and operating hours', 'Manage rooms with office hours, capacity, and weekly timetables', 'Copy your public link or embed code in one click', 'Track visitor analytics and map engagement'],
-          bg: 'var(--bg)', reversed: true,
-        },
-      ].map((sec) => (
-        <section key={sec.id} id={sec.id} style={{ padding: isMobile ? '64px 0' : '100px 0', background: sec.bg }}>
-          <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', flexDirection: isMobile ? 'column' : (sec.reversed ? 'row-reverse' : 'row'), gap: isMobile ? 40 : 80 }}>
-            <Reveal direction={sec.reversed ? 'right' : 'left'} style={{ flex: '0 1 48%' }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 20, height: 1, background: 'var(--accent)', display: 'inline-block' }}></span>
-                  {sec.eyebrow}
-                </div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: isMobile ? 26 : 34, letterSpacing: '-0.025em', color: 'var(--text-primary)', lineHeight: 1.15, marginBottom: 16 }}>{sec.title}</h3>
-                <p style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 24 }}>{sec.desc}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {sec.bullets.map((b, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                        <Icon name="check" size={12} />
-                      </div>
-                      <span style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{b}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Reveal>
-            <Reveal delay={200} direction={sec.reversed ? 'left' : 'right'} style={{ flex: '0 1 52%', display: 'flex', justifyContent: 'center', width: '100%' }}>
-              <div style={{ width: '100%', maxWidth: 520, borderRadius: 12, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)', background: 'var(--surface)', height: isMobile ? 220 : 320 }}>
-                <div style={{ height: 32, background: 'var(--border-light)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 12px', gap: 6 }}>
-                  {['#FF5F57', '#FEBC2E', '#28C840'].map(c => <span key={c} style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />)}
-                </div>
-                <div style={{ flex: 1, display: 'flex', height: 'calc(100% - 32px)' }}>
-                  <div style={{ width: isMobile ? 52 : 64, borderRight: '1px solid var(--border)', padding: '10px 6px', background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    {[0, 1, 2, 3, 4].map(i => <div key={i} style={{ width: 28, height: 28, borderRadius: 6, background: i === 0 ? 'var(--accent-subtle)' : 'var(--border-light)' }} />)}
-                  </div>
-                  <div style={{ flex: 1, padding: isMobile ? 10 : 16, overflow: 'hidden', background: 'var(--surface)' }}>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                      {[{ n: '5', l: 'Buildings', c: 'var(--accent)' }, { n: '24', l: 'Rooms', c: '#7c3aed' }, { n: '●', l: 'Live', c: '#12B76A' }].map(s => (
-                        <div key={s.l} style={{ flex: 1, background: 'var(--bg)', borderRadius: 8, padding: isMobile ? '8px 6px' : '10px 12px' }}>
-                          <div style={{ fontSize: isMobile ? 14 : 18, fontWeight: 800, fontFamily: 'var(--font-display)', color: s.c }}>{s.n}</div>
-                          <div style={{ fontSize: 8, color: 'var(--text-tertiary)', marginTop: 2 }}>{s.l}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {['Main Library', 'Engineering', 'Student Center', 'Science Complex'].map((b, i) => (
-                      <div key={b} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 4px', borderBottom: '1px solid var(--border-light)', fontSize: 9 }}>
-                        <span style={{ flex: 2, fontWeight: 600, color: 'var(--text-primary)' }}>{b}</span>
-                        <span style={{ flex: 1, fontSize: 8, padding: '1px 6px', borderRadius: 9999, background: 'var(--border-light)', color: 'var(--text-secondary)' }}>{['Library', 'Academic', 'Student', 'Academic'][i]}</span>
-                        <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{[12, 24, 8, 18][i]}</span>
-                      </div>
-                    ))}
+      {/* ═══ TESTIMONIALS ═══ */}
+      <section id="testimonials" className="rl-section-pad" style={{ padding: 'clamp(88px,10vw,128px) 0', background: 'var(--alt-bg)', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div data-reveal style={{ textAlign: 'center', marginBottom: 'clamp(40px,5vw,56px)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Testimonials</div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: 0, color: 'var(--text-primary)' }}>Loved by campus teams</h2>
+          </div>
+          <div className="rl-grid-3">
+            {TESTIMONIALS.map((t, i) => (
+              <div key={i} data-reveal className="rl-testimonial-card" style={{ padding: '34px 30px', borderRadius: 16, border: '1px solid var(--border-light)', background: 'var(--surface)', boxShadow: 'var(--card-shadow)', transition: 'all 250ms var(--ease)', display: 'flex', flexDirection: 'column', transitionDelay: `${t.delay}ms` }}>
+                <div style={{ fontSize: 44, lineHeight: 0.6, color: 'var(--accent)', opacity: 0.28, fontFamily: 'Georgia, serif', marginBottom: 20 }}>"</div>
+                <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, margin: '0 0 28px', flex: 1, textWrap: 'pretty' }}>{t.quote}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, color: 'var(--accent)', flexShrink: 0 }}>{t.initial}</div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>{t.name}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>{t.role}</div>
                   </div>
                 </div>
               </div>
-            </Reveal>
-          </div>
-        </section>
-      ))}
-
-      {/* ── How it works ─────────────────────────────────────── */}
-      <section id="how-it-works" style={{ padding: isMobile ? '64px 0' : '100px 0', background: 'var(--bg)' }}>
-        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px' }}>
-          <Reveal>
-            <div style={{ textAlign: 'center', marginBottom: isMobile ? 48 : 72 }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: isMobile ? 30 : 44, letterSpacing: '-0.025em', color: 'var(--text-primary)', lineHeight: 1.12 }}>Live in three steps</h2>
-              <p style={{ fontSize: 18, color: 'var(--text-secondary)', marginTop: 14 }}>From sign-up to live campus map in under five minutes.</p>
-            </div>
-          </Reveal>
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 36 : 0, position: 'relative' }}>
-            {!isMobile && <div style={{ position: 'absolute', top: 36, left: '20%', right: '20%', height: 2, background: 'var(--border)', zIndex: 0 }}></div>}
-            {steps.map((s, i) => (
-              <Reveal key={s.num} delay={i * 150} style={{ flex: 1, textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                <div style={{ width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px', background: 'var(--surface)', border: '2px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(14,165,233,0.12)' }}>
-                  <span style={{ fontSize: 24, fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--accent)' }}>{s.num}</span>
-                </div>
-                <div style={{ width: 48, height: 48, borderRadius: 12, margin: '0 auto 14px', background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={s.icon} size={22} />
-                </div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 18, color: 'var(--text-primary)', marginBottom: 8 }}>{s.title}</h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 260, margin: '0 auto' }}>{s.desc}</p>
-              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Demo section (dark) ──────────────────────────────── */}
-      <section id="demo" style={{ padding: isMobile ? '72px 0' : '112px 0', background: 'var(--navy)', position: 'relative', overflow: 'hidden' }}>
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.05 }}>
-          <pattern id="topo" width="200" height="200" patternUnits="userSpaceOnUse">
-            <circle cx="100" cy="100" r="80" fill="none" stroke="#fff" strokeWidth="0.5" />
-            <circle cx="100" cy="100" r="50" fill="none" stroke="#fff" strokeWidth="0.5" />
-            <circle cx="100" cy="100" r="20" fill="none" stroke="#fff" strokeWidth="0.5" />
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#topo)" />
-        </svg>
-        <Reveal>
-          <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--accent)', marginBottom: 16 }}>Live Demo</div>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: isMobile ? 30 : 48, letterSpacing: '-0.025em', color: '#fff', lineHeight: 1.1, marginBottom: 16 }}>See it before you build it</h2>
-            <p style={{ fontSize: 18, color: '#8899ac', marginBottom: 40, maxWidth: 420, margin: '0 auto 40px', lineHeight: 1.6 }}>Explore a demo campus with real buildings, rooms, and timetables already loaded.</p>
-            <button onClick={() => navigate('/demo')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 9999, background: '#fff', color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer', transition: 'background var(--duration) var(--ease)' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-              onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
-              Try the Demo <Icon name="arrowRight" size={18} />
-            </button>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* ── FAQ ──────────────────────────────────────────────── */}
-      <section id="faq" style={{ padding: isMobile ? '64px 0' : '100px 0', background: 'var(--surface)' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 24px' }}>
-          <Reveal>
-            <div style={{ textAlign: 'center', marginBottom: isMobile ? 40 : 56 }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: isMobile ? 30 : 44, letterSpacing: '-0.025em', color: 'var(--text-primary)', lineHeight: 1.12 }}>Frequently asked questions</h2>
-              <p style={{ fontSize: 18, color: 'var(--text-secondary)', marginTop: 14 }}>Everything you need to know.</p>
+      {/* ═══ FAQ ═══ */}
+      <section id="faq" className="rl-section-pad" style={{ padding: 'clamp(88px,10vw,128px) 0', background: 'var(--bg)', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-faq-grid">
+            <div className="rl-faq-sticky" data-reveal>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>FAQ</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 18px', color: 'var(--text-primary)' }}>Questions?<br />Answers.</h2>
+              <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--text-secondary)', maxWidth: 340, margin: 0, textWrap: 'pretty' }}>Everything you need to know about Kampus 3D. Can't find it here? <a href="#faq" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }}>Reach out to us</a>.</p>
             </div>
-          </Reveal>
-          <div style={{ maxWidth: 680, margin: '0 auto' }}>
-            {faqs.map((f, i) => (
-              <Reveal key={i} delay={i * 60}>
-                <FAQItem question={f.q} answer={f.a} />
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Testimonials ─────────────────────────────────────── */}
-      <section style={{ padding: isMobile ? '64px 0' : '88px 0', background: 'var(--bg)' }}>
-        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px' }}>
-          <Reveal>
-            <div style={{ textAlign: 'center', marginBottom: isMobile ? 32 : 48 }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: isMobile ? 28 : 36, letterSpacing: '-0.02em', color: 'var(--text-primary)', lineHeight: 1.15 }}>Loved by campus teams</h2>
-            </div>
-          </Reveal>
-          <div style={{ display: 'flex', gap: 20, flexDirection: isMobile ? 'column' : 'row' }}>
-            {testimonials.map((t, i) => (
-              <Reveal key={t.name} delay={i * 120} style={{ flex: 1 }}>
-                <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 28, border: '1px solid var(--border-light)' }}>
-                  <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 20, fontStyle: 'italic' }}>"{t.quote}"</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--accent)' }}>{t.name[0]}</div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t.title}, {t.university}</div>
+            <div data-reveal style={{ transitionDelay: '100ms' }}>
+              {FAQS.map((faq, i) => {
+                const open = faqOpen === i
+                return (
+                  <div key={i} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                    <button onClick={() => setFaqOpen(open ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 0', textAlign: 'left', gap: 16, minHeight: 44, background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <span style={{ fontSize: 16.5, fontWeight: 600, fontFamily: 'var(--font-display)', lineHeight: 1.4, color: open ? 'var(--accent)' : 'var(--text-primary)', transition: 'color 200ms var(--ease)' }}>{faq.q}</span>
+                      <span style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: open ? 'var(--accent)' : 'var(--accent-subtle)', color: open ? '#fff' : 'var(--accent)', transform: open ? 'rotate(45deg)' : 'none', transition: 'all 300ms var(--spring)' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      </span>
+                    </button>
+                    <div style={{ overflow: 'hidden', maxHeight: open ? 260 : 0, opacity: open ? 1 : 0, transition: 'max-height 320ms var(--spring), opacity 320ms var(--ease)' }}>
+                      <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, padding: '0 40px 24px 0', margin: 0, textWrap: 'pretty' }}>{faq.a}</p>
                     </div>
                   </div>
-                </div>
-              </Reveal>
-            ))}
+                )
+              })}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── CTA Banner ───────────────────────────────────────── */}
-      <section style={{ padding: isMobile ? '72px 0' : '96px 0', background: 'var(--accent)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '-50%', left: '50%', transform: 'translateX(-50%)', width: '120%', height: '200%', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.08) 0%, transparent 60%)', pointerEvents: 'none' }}></div>
-        <Reveal>
-          <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 1 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: isMobile ? 30 : 44, letterSpacing: '-0.025em', color: '#fff', lineHeight: 1.12, marginBottom: 16 }}>Ready to put your campus on the map?</h2>
-            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.7)', marginBottom: 32, maxWidth: 440, margin: '0 auto 32px' }}>Free setup, free hosting, free support. Your students deserve a better map.</p>
-            <button onClick={() => navigate(adminSession ? '/admin/dashboard' : '/admin/login')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 9999, background: '#fff', color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer', transition: 'background var(--duration) var(--ease)' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-              onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
-              Get started free <Icon name="arrowRight" size={18} />
+      {/* ═══ FINAL CTA ═══ */}
+      <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--navy)', padding: 'clamp(88px,10vw,136px) 0', textAlign: 'center' }}>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', height: '100%', background: 'radial-gradient(ellipse 55% 55% at 50% 50%, rgba(14,165,233,0.13) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div className="rl-container" data-reveal style={{ position: 'relative', zIndex: 1 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(34px,5vw,56px)', letterSpacing: '-0.03em', lineHeight: 1.08, color: '#fff', maxWidth: 640, margin: '0 auto 20px', textWrap: 'balance' }}>Ready to put your campus on the map?</h2>
+          <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.5)', maxWidth: 420, margin: '0 auto 40px', lineHeight: 1.7 }}>Free setup, free hosting, free support. Your students deserve a better map.</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <button onClick={ctaAction} className="rl-btn-white-pill">Get started free</button>
+            <button onClick={demoAction} className="rl-btn-ghost-pill">
+              See live demo <ArrowIcon size={16} />
             </button>
           </div>
-        </Reveal>
+        </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────── */}
-      <footer style={{ padding: isMobile ? '48px 0 24px' : '64px 0 24px', background: 'var(--surface)', borderTop: '1px solid var(--border-light)' }}>
-        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', gap: isMobile ? 32 : 48, marginBottom: 48 }}>
+      {/* ═══ FOOTER ═══ */}
+      <footer style={{ background: 'var(--alt-bg)', padding: 'clamp(48px,7vw,72px) 0 28px', borderTop: '1px solid var(--border-light)', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-footer-grid" style={{ marginBottom: 'clamp(40px,6vw,56px)' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <div style={{ color: 'var(--accent)' }}><Icon name="mapPin" size={20} /></div>
-                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--text-primary)' }}>Kampus</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span style={{ color: 'var(--accent)', display: 'flex' }}><LogoIcon size={20} /></span>
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 18, color: 'var(--text-primary)' }}>Kampus</span>
               </div>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 260 }}>Interactive 3D campus maps for universities. Built with care in Budapest.</p>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 260, margin: 0 }}>Interactive 3D campus maps for universities. Built with care in Budapest.</p>
             </div>
             {[
-              { title: 'Product', links: [{ label: 'Features', action: () => scrollTo('features') }, { label: 'Demo', action: () => navigate('/demo') }, { label: 'FAQ', action: () => scrollTo('faq') }] },
-              { title: 'Company', links: [{ label: 'About', action: () => { } }, { label: 'Blog', action: () => { } }, { label: 'Contact', action: () => window.location.href = 'mailto:contact@kampus3d.com' }] },
-              { title: 'Legal', links: [{ label: 'Privacy Policy', action: () => navigate('/privacy') }, { label: 'Terms of Service', action: () => navigate('/terms') }] },
+              { title: 'Product',  links: [['#features','Features'],['#how-it-works','How It Works'],['/demo','Live Demo']] },
+              { title: 'Company', links: [['#top','About'],['#top','Blog'],['#top','Contact']] },
+              { title: 'Legal',   links: [['/privacy','Privacy Policy'],['/terms','Terms of Service'],['#top','Cookies']] },
             ].map(col => (
-              <div key={col.title}>
-                <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{col.title}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {col.links.map(l => (
-                    <button key={l.label} onClick={l.action} style={{ fontSize: 14, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'var(--font-body)', transition: 'color var(--duration) var(--ease)' }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>{l.label}</button>
-                  ))}
-                </div>
+              <div key={col.title} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-primary)', marginBottom: 6 }}>{col.title}</div>
+                {col.links.map(([href, label]) => (
+                  <a key={label} href={href} className="rl-footer-link"
+                    onClick={href.startsWith('/') ? (e) => { e.preventDefault(); navigate(href) } : undefined}
+                  >{label}</a>
+                ))}
               </div>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isMobile ? 'column' : 'row', gap: 12 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>© {new Date().getFullYear()} Kampus 3D. All rights reserved.</span>
+          <div style={{ paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', borderTop: '1px solid var(--border-light)' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>© 2026 Kampus 3D. All rights reserved.</span>
             <div style={{ display: 'flex', gap: 20 }}>
-              <button onClick={() => navigate('/privacy')} style={{ fontSize: 13, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Privacy</button>
-              <button onClick={() => navigate('/terms')} style={{ fontSize: 13, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Terms</button>
+              <a href="/privacy" onClick={e => { e.preventDefault(); navigate('/privacy') }} className="rl-footer-link" style={{ fontSize: 13 }}>Privacy</a>
+              <a href="/terms" onClick={e => { e.preventDefault(); navigate('/terms') }} className="rl-footer-link" style={{ fontSize: 13 }}>Terms</a>
             </div>
           </div>
         </div>
       </footer>
 
-      {/* ── Cookie banner ────────────────────────────────────── */}
-      {cookieVisible && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90, background: 'var(--surface)', borderTop: '1px solid var(--border)', padding: '14px 24px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16, flexDirection: isMobile ? 'column' : 'row' }}>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-            We use cookies to improve your experience.{' '}
-            <button onClick={() => navigate('/privacy')} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, textDecoration: 'underline', padding: 0 }}>Read our Privacy Policy</button>.
-          </p>
-          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-            <button onClick={() => setCookieVisible(false)} style={{ display: 'inline-flex', alignItems: 'center', padding: '8px 16px', borderRadius: 9999, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer' }}>Accept all</button>
-            <button onClick={() => setCookieVisible(false)} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Reject non-essential</button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

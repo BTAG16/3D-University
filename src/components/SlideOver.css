@@ -1,0 +1,41 @@
+@keyframes overlay-in { from { opacity: 0;} to { opacity: 1;} }
+@keyframes slideover-in { from { transform: translateX(60px); opacity: 0;} to { transform: none; opacity: 1;} }
+@keyframes sheet-in { from { transform: translateY(48px); opacity: 0;} to { transform: none; opacity: 1;} }
+
+.dr-modal-wrap {
+  position: fixed; 
+  inset: 0; 
+  z-index: 100; 
+  background: rgba(8, 14, 26, 0.5); 
+  backdrop-filter: blur(6px); 
+  -webkit-backdrop-filter: blur(6px); 
+  display: flex; 
+  justify-content: flex-end; 
+  animation: overlay-in 200ms ease both;
+}
+
+.dr-slideover {
+  width: 100%; 
+  max-width: 480px; 
+  height: 100%; 
+  background: var(--surface); 
+  box-shadow: -24px 0 64px rgba(0, 0, 0, 0.25); 
+  display: flex; 
+  flex-direction: column; 
+  animation: slideover-in 320ms var(--spring) both;
+}
+
+@media (max-width: 767px) {
+  .dr-modal-wrap { 
+    align-items: flex-end !important; 
+    padding: 0 !important; 
+  }
+  .dr-slideover { 
+    max-width: 100% !important; 
+    border-radius: 20px 20px 0 0 !important; 
+    align-self: flex-end; 
+    height: auto !important; 
+    max-height: 92vh; 
+    animation: sheet-in 320ms var(--spring) both !important; 
+  }
+}
