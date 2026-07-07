@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import MapComponent from './components/Map/MapComponent'
 import BuildingCard from './components/BuildingCard'
 import SearchBox from './components/SearchBox'
-import Modal from './components/Modal'
+import SlideOver from './components/SlideOver'
 import BuildingForm from './components/BuildingForm'
+import { useToast } from './components/Toast'
 import { Icon } from './icons'
 import { getOfficeRoomsForBuilding, getAllRoomsForBuilding } from './demoRoomsData'
 import RoomTimetable from './components/RoomTimetable'
@@ -45,7 +46,6 @@ const initialDemoBuildings = [
     departments: ['Administration', 'Student Affairs'],
     hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
     isAdminBuilding: true,
-    keyOffices: [{ id: '1', name: "Registrar's Office", purpose: 'Course registration and transcripts', hours: 'Mon-Fri: 9:00 AM - 4:00 PM', roomNumber: 'Room 101' }],
   },
   {
     id: 'demo-library',
@@ -57,7 +57,6 @@ const initialDemoBuildings = [
     departments: ['Library Services', 'Academic Resources'],
     hours: 'Mon-Thu: 7:00 AM - 11:00 PM, Fri: 7:00 AM - 8:00 PM',
     isAdminBuilding: false,
-    keyOffices: [{ id: '1', name: 'Reference Desk', purpose: 'Research assistance and library help', hours: 'Mon-Fri: 9:00 AM - 5:00 PM', roomNumber: 'First Floor' }],
   },
   {
     id: 'demo-dormitory',
@@ -69,12 +68,12 @@ const initialDemoBuildings = [
     departments: ['Housing', 'Residential Life'],
     hours: '24/7 Access for Residents',
     isAdminBuilding: false,
-    keyOffices: [{ id: '1', name: 'Resident Advisor Office', purpose: 'Dormitory support and assistance', hours: 'Available 24/7', roomNumber: 'First Floor Lobby' }],
   },
 ]
 
 function DemoMap() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [dark, toggleDark] = useDarkMode()
   const D = dark ? DARK : LIGHT
 
@@ -82,9 +81,6 @@ function DemoMap() {
     const saved = sessionStorage.getItem('demoBuildings')
     return saved ? JSON.parse(saved) : initialDemoBuildings
   })
-  const [userAddedBuilding, setUserAddedBuilding] = useState(() =>
-    sessionStorage.getItem('demoUserAddedBuilding') === 'true'
-  )
   const [selectedBuilding, setSelectedBuilding] = useState(null)
   const [userLocation, setUserLocation] = useState(null)
   const [sheetState, setSheetState] = useState('peek')
@@ -92,25 +88,51 @@ function DemoMap() {
   const [filteredBuildings, setFilteredBuildings] = useState(buildings)
   const [isMobile, setIsMobile] = useState(false)
   const [showDirections, setShowDirections] = useState(false)
-  const [showBuildingForm, setShowBuildingForm] = useState(false)
-  const [editingBuilding, setEditingBuilding] = useState(null)
-  const [showDemoBanner, setShowDemoBanner] = useState(true)
   const [showRoomsList, setShowRoomsList] = useState(false)
   const [officeRooms, setOfficeRooms] = useState([])
   const [routeData, setRouteData] = useState(null)
   const [fpvTour, setFpvTour] = useState(null)
+  const [showDemoBanner, setShowDemoBanner] = useState(true)
+  const [showNavGate, setShowNavGate] = useState(false)
+  const [showBuildingForm, setShowBuildingForm] = useState(false)
+  const [editingBuilding, setEditingBuilding] = useState(null)
+  const [userAddedBuilding, setUserAddedBuilding] = useState(() =>
+    sessionStorage.getItem('demoUserAddedBuilding') === 'true'
+  )
+
   const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
+  const sheetRef = useRef(null)
+  const sheetStateRef = useRef(sheetState)
+  const touchDrag = useRef({ active: false, startY: 0, startTx: 0, moved: false })
 
   useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth <= 768
-      setIsMobile(mobile)
-    }
+    const check = () => setIsMobile(window.innerWidth <= 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  useEffect(() => { sheetStateRef.current = sheetState }, [sheetState])
+
+  // Non-passive touchmove to allow preventDefault during drag
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!touchDrag.current.active) return
+      e.preventDefault()
+      const dy = e.touches[0].clientY - touchDrag.current.startY
+      if (Math.abs(dy) > 5) touchDrag.current.moved = true
+      const sheet = sheetRef.current
+      if (!sheet) return
+      const maxTx = sheet.offsetHeight - 68
+      const newTx = Math.max(0, Math.min(maxTx, touchDrag.current.startTx + dy))
+      sheet.style.transform = `translateY(${newTx}px)`
+    }
+    document.addEventListener('touchmove', onMove, { passive: false })
+    return () => document.removeEventListener('touchmove', onMove)
+  }, [])
+
+  useEffect(() => { sessionStorage.setItem('demoBuildings', JSON.stringify(buildings)) }, [buildings])
 
   useEffect(() => {
     if (!searchQuery) { setFilteredBuildings(buildings); return }
@@ -121,8 +143,6 @@ function DemoMap() {
       b.facilities?.some(f => f.toLowerCase().includes(searchQuery.toLowerCase()))
     ))
   }, [searchQuery, buildings])
-
-  useEffect(() => { sessionStorage.setItem('demoBuildings', JSON.stringify(buildings)) }, [buildings])
 
   useEffect(() => {
     if (!showDirections) tourStartedRef.current = false
@@ -140,10 +160,11 @@ function DemoMap() {
   }, [showDirections, routeData])
 
   const handleGetLocation = () => {
-    if (!('geolocation' in navigator)) { alert('Geolocation not supported.'); return }
+    if (!('geolocation' in navigator)) { toast.error('Geolocation not supported.'); return }
+    toast.info('Getting your location...')
     navigator.geolocation.getCurrentPosition(
-      pos => setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      () => alert('Unable to get location. Enable location services.')
+      pos => { setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); toast.success('Location found!') },
+      () => toast.error('Unable to get location. Enable location services.')
     )
   }
 
@@ -158,12 +179,7 @@ function DemoMap() {
   }
 
   const handleShowDirections = () => {
-    if (!userLocation) { alert('Enable location first.'); handleGetLocation(); return }
-    mapRef.current?.stopFpvTour()
-    tourStartedRef.current = false
-    setFpvTour(null)
-    setShowDirections(true)
-    setRouteData(null)
+    setShowNavGate(true)
   }
 
   const handleOpenInGoogleMaps = () => {
@@ -196,40 +212,38 @@ function DemoMap() {
   }
 
   const handleAddBuilding = () => {
-    if (userAddedBuilding) { alert('Demo mode allows only 1 test building.'); return }
+    if (userAddedBuilding) { toast.warning('Demo allows only 1 test building.'); return }
     setEditingBuilding(null)
     setShowBuildingForm(true)
-    setShowDemoBanner(false)
   }
 
   const handleEditBuilding = (building) => {
-    if (building.id.startsWith('demo-')) { alert('Demo buildings cannot be edited.'); return }
+    if (building.id.startsWith('demo-')) { toast.info('Demo buildings cannot be edited.'); return }
     setEditingBuilding(building)
     setShowBuildingForm(true)
-    setShowDemoBanner(false)
   }
 
   const handleSaveBuilding = (data) => {
     if (editingBuilding) {
       setBuildings(prev => prev.map(b => b.id === editingBuilding.id ? { ...data, id: editingBuilding.id } : b))
-      setShowBuildingForm(false)
       setEditingBuilding(null)
     } else {
-      if (userAddedBuilding) { alert('Demo mode allows only 1 test building!'); return }
+      if (userAddedBuilding) { toast.warning('Demo allows only 1 test building!'); return }
       setBuildings(prev => [...prev, { ...data, id: `user-${Date.now()}` }])
       setUserAddedBuilding(true)
       sessionStorage.setItem('demoUserAddedBuilding', 'true')
-      setShowBuildingForm(false)
+      toast.success('Building added!')
     }
+    setShowBuildingForm(false)
   }
 
   const handleDeleteBuilding = (id) => {
-    if (id.startsWith('demo-')) { alert('Demo buildings cannot be deleted!'); return }
-    if (!window.confirm('Delete this building?')) return
+    if (id.startsWith('demo-')) { toast.info('Demo buildings cannot be deleted.'); return }
     setBuildings(prev => prev.filter(b => b.id !== id))
     setUserAddedBuilding(false)
     sessionStorage.setItem('demoUserAddedBuilding', 'false')
     if (selectedBuilding?.id === id) setSelectedBuilding(null)
+    toast.success('Building removed.')
   }
 
   const calcDist = (lat1, lon1, lat2, lon2) => {
@@ -254,7 +268,7 @@ function DemoMap() {
         ← All buildings
       </button>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="building" size={22} color={D.accent} />
@@ -300,12 +314,11 @@ function DemoMap() {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-          <button onClick={handleShowDirections} disabled={!userLocation} style={{
+          <button onClick={handleShowDirections} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-            fontFamily: 'var(--font-display)', cursor: userLocation ? 'pointer' : 'not-allowed',
-            background: userLocation ? D.accent : D.border2, color: '#fff', border: 'none',
-            opacity: userLocation ? 1 : 0.6, transition: 'opacity 0.15s',
+            fontFamily: 'var(--font-display)', cursor: 'pointer',
+            background: D.accent, color: '#fff', border: 'none',
           }}>
             <Icon name="navigation" size={15} color="#fff" /> Get Directions
           </button>
@@ -350,74 +363,92 @@ function DemoMap() {
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: D.bg, color: D.text, overflow: 'hidden' }}>
 
-      {/* Demo banner */}
+      {/* ── Demo banner ── */}
       {showDemoBanner && (
         <div style={{
-          flexShrink: 0, background: 'linear-gradient(90deg, #0c4a6e, #075985)',
-          borderBottom: `1px solid ${D.border2}`,
+          flexShrink: 0,
+          background: dark ? 'rgba(14,165,233,0.13)' : 'rgba(14,165,233,0.09)',
+          borderBottom: `1px solid ${dark ? 'rgba(14,165,233,0.28)' : 'rgba(14,165,233,0.22)'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '9px 18px', gap: 12,
+          padding: '9px 14px', gap: 10,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-            <Icon name="zap" size={15} color={D.accent} />
-            <span style={{ fontSize: 13, color: D.text }}>
-              <strong>Demo Mode</strong> — 3 pre-loaded buildings. Add 1 test building to try the full experience.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 }}>
+            <span style={{ width: 24, height: 24, borderRadius: 7, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name="zap" size={13} color="#fff" />
+            </span>
+            <span style={{ fontSize: 12.5, color: D.text, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <strong style={{ color: D.accent }}>Demo Mode</strong>
+              {' · '}
+              <span style={{ color: D.textDim }}>
+                {isMobile
+                  ? 'Navigation needs a free account'
+                  : '3 buildings pre-loaded · add 1 test building · navigation requires a free account'}
+              </span>
             </span>
           </div>
-          <button onClick={() => setShowDemoBanner(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.textDim, padding: 4, flexShrink: 0 }}>
-            <Icon name="x" size={15} color={D.textDim} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {!isMobile && (
+              <button onClick={() => navigate('/admin/login')} style={{ fontSize: 12, fontWeight: 600, color: D.accent, background: `${D.accent}18`, border: `1px solid ${D.accent}40`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                Get started free →
+              </button>
+            )}
+            <button onClick={() => setShowDemoBanner(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.textMut, padding: '4px', display: 'flex', minWidth: 28, minHeight: 28, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="x" size={14} color={D.textMut} />
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Header */}
+      {/* ── Header ── */}
       <header style={{
         flexShrink: 0, background: D.surface, borderBottom: `1px solid ${D.border}`,
         padding: '0 14px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20, gap: 8,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <button onClick={() => navigate('/')} style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 8, padding: '7px', cursor: 'pointer', color: D.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <button onClick={() => navigate('/')} title="Back to home" style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 8, padding: '0', cursor: 'pointer', color: D.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, minWidth: 36, minHeight: 36 }}>
             <Icon name="arrowRight" size={14} color={D.textDim} style={{ transform: 'rotate(180deg)' }} />
           </button>
           <div style={{ width: 34, height: 34, borderRadius: 9, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="compass" size={16} color="#fff" />
           </div>
-          <div style={{ minWidth: 0 }}>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: D.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Campus Explorer</div>
             {!isMobile && <div style={{ fontSize: 11, color: D.textMut, marginTop: 1 }}>Demo · Interactive Tour</div>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-          <button onClick={handleGetLocation} title="My Location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '8px' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={handleGetLocation} title="My Location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
             <Icon name="navigation" size={14} color={D.textDim} />
             {!isMobile && 'My Location'}
           </button>
-          <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer' }}>
+          <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer', minWidth: 36, minHeight: 36 }}>
             <Icon name={dark ? 'sun' : 'moon'} size={14} color={D.textDim} />
           </button>
-          <button onClick={handleAddBuilding} title="Add building" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '8px' : '7px 12px', borderRadius: 8, border: `1px solid ${D.accent}`, background: 'rgba(14,165,233,0.12)', color: D.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <Icon name="plus" size={14} color={D.accent} />
+          <button onClick={handleAddBuilding} title={userAddedBuilding ? 'Already added 1 test building' : 'Add building'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: userAddedBuilding ? 'not-allowed' : 'pointer', opacity: userAddedBuilding ? 0.45 : 1, whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
+            <Icon name="plus" size={14} color={D.textDim} />
             {!isMobile && (userAddedBuilding ? 'Added (1/1)' : 'Add Building')}
+          </button>
+          <button onClick={() => navigate('/admin/login')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.accent}`, background: `${D.accent}18`, color: D.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
+            <Icon name="zap" size={14} color={D.accent} />
+            {!isMobile && 'Get Started'}
           </button>
         </div>
       </header>
 
-      {/* Body */}
+      {/* ── Body ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
         {/* Sidebar — desktop only */}
         {!isMobile && (
           <aside style={{
-            width: sidebarW,
-            flexShrink: 0,
-            background: D.surface,
-            borderRight: `1px solid ${D.border}`,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
+            width: sidebarW, flexShrink: 0,
+            background: D.surface, borderRight: `1px solid ${D.border}`,
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
           }}>
             {selectedBuilding && !showDirections ? (
-              <BuildingDetailPanel />
+              showRoomsList
+                ? <DemoRoomsList buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} onBack={() => setShowRoomsList(false)} />
+                : <BuildingDetailPanel />
             ) : (
               <>
                 <div style={{ padding: '12px 12px 8px', borderBottom: `1px solid ${D.border}` }}>
@@ -428,9 +459,9 @@ function DemoMap() {
                     Buildings ({filteredBuildings.length})
                   </span>
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                   {filteredBuildings.length === 0 ? (
-                    <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 24 }}>No buildings found</p>
+                    <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 24 }}>No results found</p>
                   ) : filteredBuildings.map(b => {
                     const isDemo = b.id.startsWith('demo-')
                     return (
@@ -444,7 +475,7 @@ function DemoMap() {
                         />
                         <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4, alignItems: 'center' }}>
                           {isDemo ? (
-                            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 99, background: 'rgba(14,165,233,0.15)', color: D.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Demo</span>
+                            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 99, background: `${D.accent}20`, color: D.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Demo</span>
                           ) : (
                             <>
                               <button onClick={e => { e.stopPropagation(); handleEditBuilding(b) }} style={{ background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 5, padding: '4px', cursor: 'pointer', color: D.textDim, display: 'flex' }}>
@@ -506,7 +537,6 @@ function DemoMap() {
                 </div>
               </div>
 
-              {/* Transit nudge */}
               {routeData?.duration > 12 && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '7px 10px', marginBottom: 10, fontSize: 12 }}>
                   <span style={{ color: '#d97706' }}>Long walk (~{routeData.duration} min)</span>
@@ -574,25 +604,16 @@ function DemoMap() {
                     <div style={{ fontSize: 15, fontWeight: 700, color: D.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedBuilding.name}</div>
                     <div style={{ fontSize: 12, color: D.textDim, display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                       <span>{selectedBuilding.category}</span>
-                      {routeData && <><span>·</span><span style={{ color: D.accent, fontWeight: 600 }}>~{routeData.duration} min walk</span></>}
                     </div>
                   </div>
                   <button onClick={() => setSheetState('detail')} style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 7, padding: '5px 10px', cursor: 'pointer', color: D.textDim, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
                     Details
                   </button>
                 </div>
-
-                {routeData?.duration > 12 && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12 }}>
-                    <span style={{ color: '#d97706' }}>Long walk (~{routeData.duration} min)</span>
-                    <button onClick={handleOpenTransit} style={{ color: '#d97706', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12, padding: 0, whiteSpace: 'nowrap' }}>Transit / taxi →</button>
-                  </div>
-                )}
-
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={handleShowDirections} disabled={!userLocation} style={{ flex: 1, padding: '12px', borderRadius: 10, background: userLocation ? D.accent : D.border2, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: userLocation ? 'pointer' : 'not-allowed', opacity: userLocation ? 1 : 0.6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                  <button onClick={handleShowDirections} style={{ flex: 1, padding: '12px', borderRadius: 10, background: D.accent, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                     <Icon name="navigation" size={15} color="#fff" />
-                    {userLocation ? 'Navigate' : 'Enable Location'}
+                    Navigate
                   </button>
                   <button onClick={handleOpenInGoogleMaps} style={{ width: 46, height: 46, borderRadius: 10, background: 'transparent', border: `1px solid ${D.border2}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Icon name="mapPin" size={16} color={D.textDim} />
@@ -602,7 +623,7 @@ function DemoMap() {
             )
 
             return (
-              <div style={{
+              <div ref={sheetRef} style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
                 height: '85dvh',
                 background: D.surface,
@@ -618,18 +639,69 @@ function DemoMap() {
               }}>
                 {/* Drag handle */}
                 <div
-                  onClick={() => {
-                    if (sheetState === 'peek') setSheetState('list')
-                    else if (sheetState === 'list') setSheetState('peek')
-                    else if (sheetState === 'card') setSheetState('detail')
-                    else setSheetState('card')
+                  onTouchStart={(e) => {
+                    const sheet = sheetRef.current
+                    if (!sheet) return
+                    const h = sheet.offsetHeight
+                    const state = sheetStateRef.current
+                    const txMap = {
+                      peek:   h - 68,
+                      list:   h - Math.round(window.innerHeight * 0.48),
+                      card:   h - 224,
+                      detail: 0,
+                    }
+                    touchDrag.current = {
+                      active: true,
+                      startY: e.touches[0].clientY,
+                      startTx: txMap[state] ?? (h - 68),
+                      moved: false,
+                    }
+                    sheet.style.transition = 'none'
                   }}
-                  style={{ padding: '10px 0 6px', display: 'flex', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                  onTouchEnd={(e) => {
+                    if (!touchDrag.current.active) return
+                    touchDrag.current.active = false
+                    const sheet = sheetRef.current
+
+                    if (!touchDrag.current.moved) {
+                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
+                      const cur = sheetStateRef.current
+                      if (cur === 'peek') setSheetState('list')
+                      else if (cur === 'list') setSheetState('peek')
+                      else if (cur === 'card') setSheetState('detail')
+                      else setSheetState('card')
+                      return
+                    }
+
+                    const finalDy = e.changedTouches[0].clientY - touchDrag.current.startY
+                    const finalTx = touchDrag.current.startTx + finalDy
+                    const h = sheet ? sheet.offsetHeight : window.innerHeight * 0.85
+                    const cur = sheetStateRef.current
+                    const candidates = [
+                      { state: 'peek', tx: h - 68 },
+                      { state: 'list', tx: h - Math.round(window.innerHeight * 0.48) },
+                    ]
+                    if (cur === 'card' || cur === 'detail') {
+                      candidates.push({ state: 'card', tx: h - 224 })
+                      candidates.push({ state: 'detail', tx: 0 })
+                    }
+                    const best = candidates.reduce((a, b) =>
+                      Math.abs(b.tx - finalTx) < Math.abs(a.tx - finalTx) ? b : a
+                    )
+                    if (sheet) {
+                      sheet.style.transition = 'transform 0.32s cubic-bezier(0.16,1,0.3,1)'
+                      sheet.style.transform = `translateY(${best.tx}px)`
+                    }
+                    setSheetState(best.state)
+                    setTimeout(() => {
+                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
+                    }, 340)
+                  }}
+                  style={{ padding: '16px 0 12px', width: '100%', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}
                 >
                   <div style={{ width: 36, height: 4, borderRadius: 2, background: D.border2 }} />
                 </div>
 
-                {/* Search bar */}
                 <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>
                   <SearchBox
                     value={searchQuery}
@@ -638,14 +710,13 @@ function DemoMap() {
                   />
                 </div>
 
-                {/* Content */}
                 {(sheetState === 'peek' || sheetState === 'list') && (
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block' }}>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 8px' }}>
                       Buildings ({filteredBuildings.length})
                     </div>
                     {filteredBuildings.length === 0 ? (
-                      <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 16 }}>No buildings found</p>
+                      <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 16 }}>No results found</p>
                     ) : filteredBuildings.map(b => (
                       <BuildingCard
                         key={b.id}
@@ -660,40 +731,101 @@ function DemoMap() {
                 )}
 
                 {sheetState === 'card' && selectedBuilding && <MobileQuickCard />}
-                {sheetState === 'detail' && selectedBuilding && <BuildingDetailPanel />}
+                {sheetState === 'detail' && selectedBuilding && (
+                  showRoomsList
+                    ? <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <DemoRoomsList buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} onBack={() => setShowRoomsList(false)} />
+                      </div>
+                    : <BuildingDetailPanel />
+                )}
               </div>
             )
           })()}
         </div>
       </div>
 
-      {/* Rooms list modal */}
-      {selectedBuilding && showRoomsList && (
-        <Modal onClose={() => setShowRoomsList(false)}>
-          <DemoRoomsList
-            buildingId={selectedBuilding.id}
-            buildingName={selectedBuilding.name}
-            onClose={() => setShowRoomsList(false)}
-          />
-        </Modal>
+      {/* ── Navigation auth gate ── */}
+      {showNavGate && (
+        <div
+          onClick={() => setShowNavGate(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: D.surface, borderRadius: 20, padding: '36px 28px 28px', maxWidth: 360, width: '100%', boxShadow: '0 32px 80px rgba(0,0,0,0.45)', textAlign: 'center', border: `1px solid ${D.border2}` }}
+          >
+            <div style={{ width: 60, height: 60, borderRadius: 18, background: `${D.accent}18`, border: `1px solid ${D.accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 22px' }}>
+              <Icon name="navigation" size={28} color={D.accent} />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: D.text, margin: '0 0 10px', letterSpacing: '-0.02em' }}>
+              Live Navigation
+            </h2>
+            <p style={{ fontSize: 14, color: D.textDim, lineHeight: 1.65, margin: '0 0 28px', textWrap: 'pretty' }}>
+              Turn-by-turn walking directions are a feature of real campus maps. Create a free account to set up your university and unlock navigation for your students.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={() => navigate('/admin/login')}
+                style={{ width: '100%', padding: '14px', borderRadius: 10, background: D.accent, color: '#fff', border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+              >
+                Get Started Free
+              </button>
+              <button
+                onClick={() => setShowNavGate(false)}
+                style={{ width: '100%', padding: '13px', borderRadius: 10, background: 'transparent', color: D.textDim, border: `1px solid ${D.border}`, fontSize: 14, cursor: 'pointer' }}
+              >
+                Continue Exploring
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Building form modal */}
+      {/* ── Add / Edit building slide-over ── */}
       {showBuildingForm && (
-        <Modal onClose={() => { setShowBuildingForm(false); setEditingBuilding(null); setShowDemoBanner(true) }}>
+        <SlideOver
+          title={editingBuilding ? 'Edit building' : 'Add building'}
+          subtitle={editingBuilding ? undefined : 'Demo allows 1 test building'}
+          onClose={() => { setShowBuildingForm(false); setEditingBuilding(null) }}
+        >
           <BuildingForm
             building={editingBuilding}
             onSave={handleSaveBuilding}
-            onCancel={() => { setShowBuildingForm(false); setEditingBuilding(null); setShowDemoBanner(true) }}
+            onCancel={() => { setShowBuildingForm(false); setEditingBuilding(null) }}
           />
-        </Modal>
+        </SlideOver>
+      )}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+}
+
+// ─── Demo Rooms List ──────────────────────────────────────────────────────────
+const DEMO_DAY_KEYS = ['monday','tuesday','wednesday','thursday','friday']
+const DEMO_DAY_INIT = { monday:'M', tuesday:'T', wednesday:'W', thursday:'T', friday:'F' }
+
+function DemoTimetablePreview({ schedule }) {
+  const activeDays = DEMO_DAY_KEYS.filter(d => schedule[d] && Object.keys(schedule[d]).length > 0)
+  if (activeDays.length === 0) return null
+  const allTimes = activeDays.flatMap(d => Object.values(schedule[d]).map(s => s.time).filter(Boolean))
+  const firstTime = allTimes[0] || null
+  const lastTime = allTimes[allTimes.length - 1] || null
+  return (
+    <div className="timetable-preview">
+      <div className="preview-days">
+        {DEMO_DAY_KEYS.map(d => (
+          <span key={d} className={`preview-day ${activeDays.includes(d) ? 'on' : 'off'}`}>{DEMO_DAY_INIT[d]}</span>
+        ))}
+      </div>
+      {firstTime && (
+        <span className="preview-time">{firstTime}{lastTime && lastTime !== firstTime ? ` – ${lastTime}` : ''}</span>
       )}
     </div>
   )
 }
 
-// ─── Demo Rooms List ───────────────────────────────────────────────────────────
-function DemoRoomsList({ buildingId, buildingName }) {
+function DemoRoomsList({ buildingId, buildingName, onBack }) {
   const [timetableRoom, setTimetableRoom] = useState(null)
   const rooms = getAllRoomsForBuilding(buildingId)
   const sorted = [...rooms].sort((a, b) => {
@@ -705,7 +837,6 @@ function DemoRoomsList({ buildingId, buildingName }) {
 
   return (
     <div className="rooms-list-modal">
-      {/* Header */}
       <div className="rooms-list-header">
         {timetableRoom ? (
           <div className="header-timetable">
@@ -719,23 +850,27 @@ function DemoRoomsList({ buildingId, buildingName }) {
             </div>
           </div>
         ) : (
-          <div className="header-main">
-            <div className="header-icon-wrap">
-              <Icon name="door" size={15} />
+          <>
+            <div className="header-main">
+              <div className="header-icon-wrap">
+                <Icon name="door" size={15} />
+              </div>
+              <div>
+                <h2 className="header-title">Rooms in {buildingName}</h2>
+                <p className="header-meta">
+                  {sorted.length} rooms
+                  {sorted.filter(r => r.is_office).length > 0 && ` · ${sorted.filter(r => r.is_office).length} offices`}
+                  {scheduleCount > 0 && ` · ${scheduleCount} with schedule`}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="header-title">Rooms in {buildingName}</h2>
-              <p className="header-meta">
-                {sorted.length} rooms
-                {sorted.filter(r => r.is_office).length > 0 && ` · ${sorted.filter(r => r.is_office).length} offices`}
-                {scheduleCount > 0 && ` · ${scheduleCount} with schedule`}
-              </p>
-            </div>
-          </div>
+            {onBack && (
+              <button className="rooms-list-close" onClick={onBack} title="Back to building">✕</button>
+            )}
+          </>
         )}
       </div>
 
-      {/* Timetable panel */}
       {timetableRoom ? (
         <div className="timetable-panel">
           {timetableRoom.purpose && <p className="timetable-panel-purpose">{timetableRoom.purpose}</p>}
@@ -743,45 +878,41 @@ function DemoRoomsList({ buildingId, buildingName }) {
           <RoomTimetable timetable={timetableRoom.timetable} />
         </div>
       ) : (
-
-      /* Grid view */
-      <div className="rooms-list-content">
-        {sorted.length === 0 ? (
-          <div className="empty-state">
-            <Icon name="door" size={36} color="var(--text-tertiary)" />
-            <h3>No Rooms Found</h3>
-          </div>
-        ) : (
-          <div className="rooms-grid">
-            {sorted.map(r => (
-              <div key={r.id} className={`room-card ${r.is_office ? 'office' : ''}`}>
-                <div className="room-card-header">
-                  <span className="room-number">{r.room_number}</span>
-                  <div className="room-card-actions">
-                    {r.is_office && (
-                      <span className="office-badge">
-                        ★ Office
-                      </span>
-                    )}
-                    {r.timetable && (
-                      <button
-                        className="btn-schedule"
-                        onClick={() => setTimetableRoom(r)}
-                        title="View weekly schedule"
-                      >
-                        <Icon name="calendar" size={12} />
-                      </button>
-                    )}
+        <div className="rooms-list-content">
+          {sorted.length === 0 ? (
+            <div className="empty-state">
+              <Icon name="door" size={36} color="var(--text-tertiary)" />
+              <h3>No Rooms Found</h3>
+            </div>
+          ) : (
+            <div className="rooms-grid">
+              {sorted.map(r => (
+                <div
+                  key={r.id}
+                  className={`room-card ${r.is_office ? 'office' : ''} ${r.timetable ? 'has-schedule' : ''}`}
+                  onClick={r.timetable ? () => setTimetableRoom(r) : undefined}
+                  style={r.timetable ? { cursor: 'pointer' } : undefined}
+                >
+                  <div className="room-card-header">
+                    <span className="room-number">{r.room_number}</span>
+                    <div className="room-card-actions">
+                      {r.is_office && <span className="office-badge">★ Office</span>}
+                      {r.timetable && (
+                        <span className="schedule-badge">
+                          <Icon name="calendar" size={10} /> Schedule
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <div className="room-name">{r.room_name}</div>
+                  {r.purpose && <p className="room-purpose">{r.purpose}</p>}
+                  {r.hours && <p className="room-hours"><strong>Hours:</strong> {r.hours}</p>}
+                  {r.timetable?.schedule && <DemoTimetablePreview schedule={r.timetable.schedule} />}
                 </div>
-                <div className="room-name">{r.room_name}</div>
-                {r.purpose && <p className="room-purpose">{r.purpose}</p>}
-                {r.hours && <p className="room-hours"><strong>Hours:</strong> {r.hours}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

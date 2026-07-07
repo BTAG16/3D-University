@@ -7,10 +7,10 @@ function BuildingCard({ building, distance, onClick, selected, dark = false }) {
     transition: 'border-color 0.15s, background 0.15s',
     marginBottom: 6,
     border: `1px solid ${dark
-      ? (selected ? 'rgba(14,165,233,0.6)' : 'rgba(255,255,255,0.08)')
+      ? (selected ? 'color-mix(in srgb, var(--accent) 60%, transparent)' : 'rgba(255,255,255,0.08)')
       : (selected ? 'var(--accent)' : 'var(--border)')}`,
     background: dark
-      ? (selected ? 'rgba(14,165,233,0.1)' : 'rgba(255,255,255,0.04)')
+      ? (selected ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'rgba(255,255,255,0.04)')
       : (selected ? 'var(--accent-subtle)' : 'var(--surface)'),
   }
 
