@@ -151,7 +151,7 @@ function BuildingForm({ building, onSave, onCancel }) {
 
   return (
     <div className="building-form">
-      <h2>{building ? 'Edit Building' : 'Add New Building'}</h2>
+
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="name">
@@ -268,38 +268,34 @@ function BuildingForm({ building, onSave, onCancel }) {
         </div>
 
         {/* ADMINISTRATIVE BUILDING CHECKBOX - HIGHLIGHTED */}
-        <div className={`form-group checkbox-group ${formData.isAdminBuilding ? 'active' : ''}`}>
-          <label className="checkbox-label">
-            <div className="custom-checkbox">
-              <input
-                type="checkbox"
-                name="isAdminBuilding"
-                checked={formData.isAdminBuilding}
-                onChange={handleChange}
-              />
-              <span className="checkmark">
-                {formData.isAdminBuilding && <FontAwesomeIcon icon={faStar} />}
-              </span>
+        <label className={`dr-toggle-card ${formData.isAdminBuilding ? 'is-active' : ''}`} style={{ marginBottom: 20 }}>
+          <div className="dr-toggle-info">
+            <div className="dr-toggle-title">
+              <FontAwesomeIcon icon={faStar} />
+              Main Administrative Building
             </div>
-            <span className="checkbox-text">
-              <FontAwesomeIcon icon={faStar} className="star-icon" />
-              Mark as Main Administrative Building
-            </span>
-          </label>
-          <div className="help-text">
-            <p>
-              <strong>What this means:</strong> This building will appear on the Super Admin's global university map as your institution's primary administrative center.
+            <p className="dr-toggle-desc">
+              This building will appear on the Super Admin's global university map as your institution's primary administrative center.
             </p>
+          </div>
+          <div className="dr-switch">
+            <input
+              type="checkbox"
+              name="isAdminBuilding"
+              checked={formData.isAdminBuilding}
+              onChange={handleChange}
+            />
+            <span className="dr-switch-slider"></span>
+          </div>
+        </label>
             {formData.isAdminBuilding && (
-              <div className="warning-box">
+              <div className="warning-box" style={{ marginTop: '-12px', marginBottom: '20px' }}>
                 <FontAwesomeIcon icon={faExclamationTriangle} />
                 <span>
-                  <strong>Note:</strong> Saving this will automatically unmark any other building currently set as administrative. Only one building per university can be marked as the main administrative building.
+                  <strong>Note:</strong> Saving this will automatically unmark any other building currently set as administrative.
                 </span>
               </div>
             )}
-          </div>
-        </div>
 
         {/* Office Rooms from Rooms System - Info Only */}
         {building && officeRooms.length > 0 && (

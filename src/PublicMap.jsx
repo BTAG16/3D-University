@@ -38,9 +38,16 @@ function PublicMap() {
   const [searchParams] = useSearchParams()
   const toast = useToast()
   const [dark, toggleDark] = useDarkMode()
-  const D = dark ? DARK : LIGHT
   const [university, setUniversity] = useState(null)
   const [error, setError] = useState(null)
+
+  const savedSettings = university ? JSON.parse(localStorage.getItem(`universitySettings_${university.id}`) || '{}') : {}
+  const dynamicAccent = savedSettings.accentColor || (dark ? DARK.accent : LIGHT.accent)
+  
+  const D = {
+    ...(dark ? DARK : LIGHT),
+    accent: dynamicAccent
+  }
   const [loading, setLoading] = useState(true)
   const [buildings, setBuildings] = useState([])
   const [selectedBuilding, setSelectedBuilding] = useState(null)
@@ -85,7 +92,7 @@ function PublicMap() {
       if (Math.abs(dy) > 5) touchDrag.current.moved = true
       const sheet = sheetRef.current
       if (!sheet) return
-      const maxTx = 0.85 * window.innerHeight - 68
+      const maxTx = sheet.offsetHeight - 68
       const newTx = Math.max(0, Math.min(maxTx, touchDrag.current.startTx + dy))
       sheet.style.transform = `translateY(${newTx}px)`
     }
@@ -300,7 +307,7 @@ function PublicMap() {
       </button>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         {/* Header: icon + name + category badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -414,7 +421,7 @@ function PublicMap() {
   )
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: D.bg, color: D.text, overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: D.bg, color: D.text, overflow: 'hidden', '--accent': D.accent, '--accent-subtle': `color-mix(in srgb, ${D.accent} 15%, transparent)` }}>
 
       {/* Header */}
       <header style={{
@@ -434,14 +441,14 @@ function PublicMap() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-          <button onClick={handleGetLocation} title="My Location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '8px' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={handleGetLocation} title="My Location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
             <Icon name="navigation" size={14} color={D.textDim} />
             {!isMobile && 'My Location'}
           </button>
-          <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer' }}>
+          <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer', minWidth: 36, minHeight: 36 }}>
             <Icon name={dark ? 'sun' : 'moon'} size={14} color={D.textDim} />
           </button>
-          <button onClick={handleShare} title="Share" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '8px' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={handleShare} title="Share" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
             <Icon name="share" size={14} color={D.textDim} />
             {!isMobile && 'Share'}
           </button>
@@ -463,7 +470,9 @@ function PublicMap() {
             overflow: 'hidden',
           }}>
             {selectedBuilding && !showDirections ? (
-              <BuildingDetailPanel />
+              showRoomsList
+                ? <RoomsList buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} onClose={() => setShowRoomsList(false)} />
+                : <BuildingDetailPanel />
             ) : (
               <>
                 <div style={{ padding: '12px 12px 8px', borderBottom: `1px solid ${D.border}` }}>
@@ -474,7 +483,7 @@ function PublicMap() {
                     Buildings ({filteredBuildings.length})
                   </span>
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                   {filteredBuildings.length === 0 ? (
                     <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 24 }}>No results found</p>
                   ) : filteredBuildings.map(b => (
@@ -658,22 +667,23 @@ function PublicMap() {
                 {/* Drag handle — draggable up/down, tap cycles state */}
                 <div
                   onTouchStart={(e) => {
-                    const h = window.innerHeight
+                    const sheet = sheetRef.current
+                    if (!sheet) return
+                    const h = sheet.offsetHeight
                     const state = sheetStateRef.current
                     const txMap = {
-                      peek:   0.85 * h - 68,
-                      list:   0.85 * h - 0.48 * h,
-                      card:   0.85 * h - 224,
+                      peek:   h - 68,
+                      list:   h - Math.round(window.innerHeight * 0.48),
+                      card:   h - 224,
                       detail: 0,
                     }
                     touchDrag.current = {
                       active: true,
                       startY: e.touches[0].clientY,
-                      startTx: txMap[state] ?? (0.85 * h - 68),
+                      startTx: txMap[state] ?? (h - 68),
                       moved: false,
                     }
-                    const sheet = sheetRef.current
-                    if (sheet) sheet.style.transition = 'none'
+                    sheet.style.transition = 'none'
                   }}
                   onTouchEnd={(e) => {
                     if (!touchDrag.current.active) return
@@ -694,14 +704,14 @@ function PublicMap() {
                     // Snap to nearest state
                     const finalDy = e.changedTouches[0].clientY - touchDrag.current.startY
                     const finalTx = touchDrag.current.startTx + finalDy
-                    const h = window.innerHeight
+                    const h = sheet ? sheet.offsetHeight : window.innerHeight * 0.85
                     const cur = sheetStateRef.current
                     const candidates = [
-                      { state: 'peek', tx: 0.85 * h - 68 },
-                      { state: 'list', tx: 0.85 * h - 0.48 * h },
+                      { state: 'peek', tx: h - 68 },
+                      { state: 'list', tx: h - Math.round(window.innerHeight * 0.48) },
                     ]
                     if (cur === 'card' || cur === 'detail') {
-                      candidates.push({ state: 'card', tx: 0.85 * h - 224 })
+                      candidates.push({ state: 'card', tx: h - 224 })
                       candidates.push({ state: 'detail', tx: 0 })
                     }
                     const best = candidates.reduce((a, b) =>
@@ -717,7 +727,7 @@ function PublicMap() {
                       if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
                     }, 340)
                   }}
-                  style={{ padding: '10px 0 6px', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}
+                  style={{ padding: '16px 0 12px', width: '100%', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}
                 >
                   <div style={{ width: 36, height: 4, borderRadius: 2, background: D.border2 }} />
                 </div>
@@ -733,7 +743,7 @@ function PublicMap() {
 
                 {/* Content */}
                 {(sheetState === 'peek' || sheetState === 'list') && (
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block' }}>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 8px' }}>
                       Buildings ({filteredBuildings.length})
                     </div>
@@ -753,7 +763,13 @@ function PublicMap() {
                 )}
 
                 {sheetState === 'card' && selectedBuilding && <MobileQuickCard />}
-                {sheetState === 'detail' && selectedBuilding && <BuildingDetailPanel />}
+                {sheetState === 'detail' && selectedBuilding && (
+                  showRoomsList
+                    ? <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <RoomsList buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} onClose={() => setShowRoomsList(false)} />
+                      </div>
+                    : <BuildingDetailPanel />
+                )}
               </div>
             )
           })()}
@@ -767,22 +783,12 @@ function PublicMap() {
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, margin: '0 0 12px' }}>Share This Map</h2>
             <div style={{ display: 'flex', gap: 8 }}>
               <input type="text" value={window.location.href} readOnly style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 12, fontFamily: 'monospace', outline: 'none' }} />
-              <button onClick={copyLink} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Copy</button>
+              <button onClick={copyLink} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: D.accent, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Copy</button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Rooms list modal */}
-      {selectedBuilding && showRoomsList && (
-        <Modal onClose={() => setShowRoomsList(false)}>
-          <RoomsList
-            buildingId={selectedBuilding.id}
-            buildingName={selectedBuilding.name}
-            onClose={() => setShowRoomsList(false)}
-          />
-        </Modal>
-      )}
 
       {/* Indoor nav modal */}
       {showIndoorNav && (

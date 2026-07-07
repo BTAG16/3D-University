@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSave, faTimes, faStar, faClock, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons'
 import RoomTimetable from './RoomTimetable'
+import SlideOver from './SlideOver'
 import './RoomEditModal.css'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -203,15 +204,11 @@ function RoomEditModal({ room, buildings, onSave, onCancel }) {
   }
 
   return (
-    <div className="room-edit-modal-overlay" onClick={onCancel}>
-      <div className="room-edit-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="room-edit-header">
-          <h2>Edit Room</h2>
-          <button className="btn-close-modal" onClick={onCancel}>
-            <FontAwesomeIcon icon={faTimes} />
-          </button>
-        </div>
-
+    <SlideOver 
+      title={room ? "Edit Room" : "Add Room"} 
+      subtitle={room ? `${buildings.find(b => b.id === formData.building_id)?.name || ''}` : ""}
+      onClose={onCancel}
+    >
         <form onSubmit={handleSubmit} className="room-edit-form">
           <div className="form-group">
             <label>Building *</label>
@@ -279,18 +276,26 @@ function RoomEditModal({ room, buildings, onSave, onCancel }) {
             )}
           </div>
 
-          <div className="form-group checkbox-group">
-            <label className="checkbox-label">
+          <label className={`dr-toggle-card ${formData.is_office ? 'is-active' : ''}`} style={{ marginBottom: 20 }}>
+            <div className="dr-toggle-info">
+              <div className="dr-toggle-title">
+                <FontAwesomeIcon icon={faStar} />
+                Mark as Office / Special Room
+              </div>
+              <p className="dr-toggle-desc">
+                Enable this to add opening hours, services, and a detailed weekly schedule for this room.
+              </p>
+            </div>
+            <div className="dr-switch">
               <input
                 type="checkbox"
                 name="is_office"
                 checked={formData.is_office}
                 onChange={handleChange}
               />
-              <FontAwesomeIcon icon={faStar} className="office-icon" />
-              <span>Mark as Office/Special Room</span>
-            </label>
-          </div>
+              <span className="dr-switch-slider"></span>
+            </div>
+          </label>
 
           {formData.is_office && (
             <>
@@ -549,8 +554,7 @@ function RoomEditModal({ room, buildings, onSave, onCancel }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </SlideOver>
   )
 }
 
