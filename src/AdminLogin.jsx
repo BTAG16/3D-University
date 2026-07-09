@@ -253,9 +253,15 @@ function AdminLogin() {
 
           {renderForm()}
 
-          {/* Back to home */}
+          {/* Register + Back to home */}
           {!showForgotPassword && !resetSent && (
-            <div style={{ textAlign:'center', marginTop:24 }}>
+            <div style={{ textAlign:'center', marginTop:24, display:'flex', flexDirection:'column', gap:12 }}>
+              <p style={{ fontSize:14, color:'var(--text-secondary)', margin:0 }}>
+                Don't have an account?{' '}
+                <button onClick={() => navigate('/admin/register')} style={{ fontSize:14, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-body)', padding:0, fontWeight:600 }}>
+                  Register your university
+                </button>
+              </p>
               <button onClick={() => navigate('/')} style={{ fontSize:14, color:'var(--text-tertiary)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-body)' }}>
                 ← Back to home
               </button>

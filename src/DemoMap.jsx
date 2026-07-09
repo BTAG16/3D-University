@@ -35,11 +35,13 @@ const LIGHT = {
   accent:  '#0EA5E9',
 }
 
+const DEMO_LOCATION = { latitude: 51.5220, longitude: -0.1325 }
+
 const initialDemoBuildings = [
   {
     id: 'demo-admin',
     name: 'Administration Building',
-    coordinates: [19.054707436918342, 47.495248233157284],
+    coordinates: [-0.1340, 51.5246],
     category: 'Administration',
     description: 'Main administrative offices including Registrar, Financial Aid, and Student Services',
     facilities: ['WiFi', 'Student Services', 'Registrar Office', 'Financial Aid'],
@@ -50,7 +52,7 @@ const initialDemoBuildings = [
   {
     id: 'demo-library',
     name: 'University Library',
-    coordinates: [19.05693798689157, 47.49267737360714],
+    coordinates: [-0.1310, 51.5238],
     category: 'Library',
     description: 'Central library with study spaces, computer labs, and extensive book collection',
     facilities: ['WiFi', 'Computer Lab', 'Study Rooms', 'Cafe', 'Printing Services'],
@@ -61,7 +63,7 @@ const initialDemoBuildings = [
   {
     id: 'demo-dormitory',
     name: 'Student Dormitory',
-    coordinates: [19.053028697400013, 47.473191215229704],
+    coordinates: [-0.1360, 51.5260],
     category: 'Residence',
     description: 'On-campus housing with modern amenities and common areas',
     facilities: ['WiFi', 'Laundry', 'Common Room', 'Study Lounge', '24/7 Security'],
@@ -94,6 +96,7 @@ function DemoMap() {
   const [fpvTour, setFpvTour] = useState(null)
   const [showDemoBanner, setShowDemoBanner] = useState(true)
   const [showNavGate, setShowNavGate] = useState(false)
+  const [showDemoCards, setShowDemoCards] = useState(false)
   const [showBuildingForm, setShowBuildingForm] = useState(false)
   const [editingBuilding, setEditingBuilding] = useState(null)
   const [userAddedBuilding, setUserAddedBuilding] = useState(() =>
@@ -160,13 +163,43 @@ function DemoMap() {
   }, [showDirections, routeData])
 
   const handleGetLocation = () => {
-    if (!('geolocation' in navigator)) { toast.error('Geolocation not supported.'); return }
-    toast.info('Getting your location...')
-    navigator.geolocation.getCurrentPosition(
-      pos => { setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); toast.success('Location found!') },
-      () => toast.error('Unable to get location. Enable location services.')
-    )
+    setUserLocation(DEMO_LOCATION)
+    setShowDemoCards(true)
+    toast.info('Simulated campus location set — explore distances below')
   }
+
+  // Draw dashed route lines from demo location to each building
+  useEffect(() => {
+    if (!userLocation) return
+    let removed = false
+    const PREFIX = 'demo-line'
+    const addLines = () => {
+      if (removed) return
+      const map = mapRef.current?.getMap?.()
+      if (!map) return
+      if (!map.isStyleLoaded()) { map.once('idle', addLines); return }
+      buildings.forEach(b => {
+        const sid = `${PREFIX}-${b.id}`, lid = `${PREFIX}-${b.id}-line`
+        try { map.removeLayer(lid) } catch (_) {}
+        try { map.removeSource(sid) } catch (_) {}
+        try {
+          map.addSource(sid, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [[userLocation.longitude, userLocation.latitude], b.coordinates] } } })
+          map.addLayer({ id: lid, type: 'line', source: sid, paint: { 'line-color': '#0EA5E9', 'line-width': 2.5, 'line-dasharray': [3, 4], 'line-opacity': 0.7 } })
+        } catch (_) {}
+      })
+    }
+    const t = setTimeout(addLines, 300)
+    return () => {
+      removed = true
+      clearTimeout(t)
+      const map = mapRef.current?.getMap?.()
+      if (!map) return
+      buildings.forEach(b => {
+        try { map.removeLayer(`${PREFIX}-${b.id}-line`) } catch (_) {}
+        try { map.removeSource(`${PREFIX}-${b.id}`) } catch (_) {}
+      })
+    }
+  }, [userLocation])
 
   const handleBuildingClick = (building) => {
     setSelectedBuilding(building)
@@ -244,6 +277,13 @@ function DemoMap() {
     sessionStorage.setItem('demoUserAddedBuilding', 'false')
     if (selectedBuilding?.id === id) setSelectedBuilding(null)
     toast.success('Building removed.')
+  }
+
+  const walkMins = (lat2, lon2) => {
+    const R = 6371e3, f1 = DEMO_LOCATION.latitude * Math.PI / 180, f2 = lat2 * Math.PI / 180
+    const df = (lat2 - DEMO_LOCATION.latitude) * Math.PI / 180, dl = (lon2 - DEMO_LOCATION.longitude) * Math.PI / 180
+    const a = Math.sin(df/2)**2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl/2)**2
+    return Math.max(1, Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) / 80))
   }
 
   const calcDist = (lat1, lon1, lat2, lon2) => {
@@ -509,6 +549,55 @@ function DemoMap() {
             darkMode={dark}
             onRouteDataChange={setRouteData}
           />
+
+          {/* Demo location cards */}
+          {userLocation && showDemoCards && !selectedBuilding && !showDirections && (
+            <div style={{
+              position: 'absolute', bottom: isMobile ? 88 : 16,
+              left: 12, right: 12, zIndex: 9,
+              display: 'flex', gap: 10, overflowX: 'auto',
+              paddingBottom: 2,
+              WebkitOverflowScrolling: 'touch',
+            }}>
+              {buildings.map(b => (
+                <div key={b.id} onClick={() => handleBuildingClick(b)} style={{
+                  background: dark ? 'rgba(17,17,20,0.92)' : 'rgba(255,255,255,0.95)',
+                  backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                  borderRadius: 14, padding: '13px 15px',
+                  border: `1px solid ${D.border2}`, minWidth: 210, flexShrink: 0,
+                  cursor: 'pointer', boxShadow: '0 6px 24px rgba(0,0,0,0.18)',
+                  transition: 'transform 150ms ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon name="building" size={14} color={D.accent} />
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: D.text, lineHeight: 1.2 }}>{b.name}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: D.accent }}>
+                      {calcDist(DEMO_LOCATION.latitude, DEMO_LOCATION.longitude, b.coordinates[1], b.coordinates[0])}
+                    </span>
+                    <span style={{ fontSize: 12, color: D.textDim }}>~{walkMins(b.coordinates[1], b.coordinates[0])} min walk</span>
+                  </div>
+                  {b.hours && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: D.textMut, marginBottom: 7 }}>
+                      <Icon name="calendar" size={11} color={D.textMut} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.hours.split(',')[0]}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {b.facilities?.slice(0, 3).map(f => (
+                      <span key={f} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: dark ? 'rgba(255,255,255,0.08)' : '#f1f5f9', color: D.textDim, fontWeight: 500 }}>{f}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => setShowDemoCards(false)} style={{ alignSelf: 'flex-start', background: dark ? 'rgba(17,17,20,0.85)' : 'rgba(255,255,255,0.9)', border: `1px solid ${D.border2}`, borderRadius: 10, padding: '8px', cursor: 'pointer', display: 'flex', color: D.textMut, flexShrink: 0, backdropFilter: 'blur(12px)' }}>
+                <Icon name="x" size={14} color={D.textMut} />
+              </button>
+            </div>
+          )}
 
           {/* FPV Tour HUD */}
           {showDirections && selectedBuilding && (

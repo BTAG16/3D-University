@@ -210,7 +210,7 @@ function PublicMap() {
   }
 
   const handleOpenIndoorNav = () => {
-    setIndoorNavUrl(selectedBuilding?.mappedin_url || 'https://app.mappedin.com/map/69332462a1aaeb000b3132d2?embedded=true')
+    setIndoorNavUrl(selectedBuilding?.mappedin_url || '')
     setShowIndoorNav(true)
   }
 
