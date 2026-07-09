@@ -63,6 +63,16 @@
   flex-shrink: 0;
 }
 
+.marker-dot-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  margin-top: -1px;
+}
+
 .marker-dot {
   width: 8px;
   height: 8px;
@@ -71,7 +81,23 @@
   border: 2px solid var(--surface, #fff);
   box-shadow: 0 0 0 1.5px var(--accent, #0EA5E9);
   flex-shrink: 0;
-  margin-top: -1px;
+  position: relative;
+  z-index: 1;
+}
+
+.event-pulse {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.4);
+  animation: eventPulse 1.8s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes eventPulse {
+  0%   { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
 }
 
 /* Admin building markers */
