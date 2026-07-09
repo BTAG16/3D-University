@@ -71,8 +71,9 @@ Follow these guides in order:
 
 1. [Supabase setup](docs/setup-supabase.md) — database, auth, and edge functions
 2. [Mapbox setup](docs/setup-mapbox.md) — map tiles and access token
-3. [Resend setup](docs/setup-resend.md) — email for super admin auth
-4. [Deploy to Vercel](docs/deploy-vercel.md) — hosting and environment variables
+3. [Resend setup](docs/setup-resend.md) — transactional email for super admin login codes
+4. [Deploy to Vercel](docs/deploy-vercel.md) — hosting, environment variables, and production branch
+5. [First-Time Setup](docs/first-time-setup.md) — create your admin account, add buildings, go live
 
 ### 3. Run locally
 
@@ -81,10 +82,6 @@ yarn dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
-
-### 4. First university
-
-See [First-Time Setup](docs/first-time-setup.md) for a step-by-step guide to creating your admin account, adding buildings, and sharing the map with students.
 
 ---
 
@@ -95,10 +92,22 @@ See [First-Time Setup](docs/first-time-setup.md) for a step-by-step guide to cre
 | `VITE_SUPABASE_URL` | Yes | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
 | `VITE_MAPBOX_ACCESS_TOKEN` | Yes | Mapbox public token |
-| `VITE_SUPER_ADMIN_EMAIL` | Yes | Email for super admin login codes |
-| `VITE_CONTACT_EMAIL` | Yes | Email shown in Privacy Policy and Terms |
+| `VITE_SUPER_ADMIN_EMAIL` | Yes | Email address that receives super admin login codes |
+| `VITE_CONTACT_EMAIL` | Yes | Contact email shown in Privacy Policy and Terms |
 
-See `.env.example` for the full list.
+See [`.env.example`](.env.example) for the full list with descriptions.
+
+---
+
+## Documentation
+
+| Guide | Description |
+|---|---|
+| [Supabase Setup](docs/setup-supabase.md) | Create the database, configure auth, deploy edge functions |
+| [Mapbox Setup](docs/setup-mapbox.md) | Get a Mapbox token and configure map access |
+| [Resend Setup](docs/setup-resend.md) | Set up transactional email for super admin OTP codes |
+| [Deploy to Vercel](docs/deploy-vercel.md) | Deploy the frontend, set env vars, configure production branch |
+| [First-Time Setup](docs/first-time-setup.md) | Create your first university, add buildings, share with students |
 
 ---
 
