@@ -1,72 +1,88 @@
-# Campus Explorer - University 3D Mapping Platform
+# Campus Explorer — University 3D Mapping Platform
 
-A complete B2B2C SaaS platform for interactive university campus mapping with 3D visualization powered by Mapbox.
+An open-source interactive 3D campus map platform for universities. Students can explore buildings, find rooms, and view timetables. Admins get a dashboard to manage spaces and content.
 
-![Campus Explorer](https://img.shields.io/badge/React-19.2.0-blue)
-![Vite](https://img.shields.io/badge/Vite-5.0.0-646CFF)
-![Mapbox](https://img.shields.io/badge/Mapbox-3.16.0-000000)
-![Supabase](https://img.shields.io/badge/Supabase-2.86.0-3ECF8E)
-![Framer Motion](https://img.shields.io/badge/Framer_Motion-11.0.0-FF0055)
+**[Live Demo](https://3dcampus.vercel.app)** | **[Issues](https://github.com/BTAG16/3D-University/issues)**
 
-## 🤝 Contributing
+![React](https://img.shields.io/badge/React-19-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Mapbox](https://img.shields.io/badge/Mapbox-3.16-000000)
+![Supabase](https://img.shields.io/badge/Supabase-2.86-3ECF8E)
 
-Contributions are welcome! Please:
+---
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Features
 
-**Note:** Ensure your PR includes GDPR compliance considerations if adding new data collection features.
+- Interactive 3D campus map powered by Mapbox
+- Building and room search
+- Live timetable cards per room
+- Admin dashboard — manage buildings, rooms, and schedules
+- Embeddable map widget for any university website
+- Multi-tenant architecture (one platform, multiple universities)
+- Dark mode
 
-## 📄 License
+## Tech Stack
 
-This project is licensed under the MIT License.
+- **Frontend** — React 19, Vite, Framer Motion
+- **Map** — Mapbox GL JS v3
+- **Backend** — Supabase (Postgres + Auth + Edge Functions)
+- **Email** — Resend
+- **Deploy** — Vercel
 
-## ⚠️ Disclaimer
+## Getting Started
 
-This software is provided "as is" without warranty. Users are responsible for:
-- Ensuring GDPR compliance before production use
-- Securing API keys and environment variables
-- Implementing required privacy and data protection measures
-- Obtaining necessary legal review for their jurisdiction
+### Prerequisites
 
-## 🙏 Acknowledgments
+- Node.js 18+
+- A [Supabase](https://supabase.com) project
+- A [Mapbox](https://mapbox.com) account
+- A [Resend](https://resend.com) account (for email)
 
-- [Mapbox](https://www.mapbox.com/) for mapping platform
+### Setup
+
+```bash
+git clone https://github.com/BTAG16/3D-University.git
+cd 3D-University
+yarn install
+cp .env.example .env
+```
+
+Fill in your `.env` with keys from each service, then:
+
+```bash
+yarn dev
+```
+
+Open [http://localhost:5173](http://localhost:5173).
+
+### Supabase Setup
+
+Run the migrations in `supabase/migrations/` against your project:
+
+```bash
+npx supabase db push
+```
+
+Or apply them manually via the Supabase SQL editor.
+
+## Contributing
+
+Contributions are welcome.
+
+1. Fork the repo
+2. Create a branch (`git checkout -b feature/your-feature`)
+3. Commit your changes
+4. Open a Pull Request
+
+If adding data collection features, include GDPR compliance considerations in your PR description.
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
+
+## Acknowledgments
+
+- [Mapbox](https://www.mapbox.com/) for the mapping platform
 - [Supabase](https://supabase.com/) for backend infrastructure
-- [Vite](https://vitejs.dev/) for blazing fast build tool
-- [React](https://react.dev/) for UI framework
-- [Framer Motion](https://www.framer.com/motion/) for animations
-
-## 📞 Support
-
-For issues or questions:
-- 📖 Check documentation files (GDPR_COMPLIANCE_REPORT.md, QUICK_START_GDPR.md)
-- 🐛 Review browser console for errors
-- 📊 Check Supabase logs for backend issues
-- 🔐 Verify environment variables are set correctly
-- 💬 Open an issue on GitHub
-- 📧 Contact support
-
----
-
-**Built with ❤️ for universities and students worldwide**
-
-## 🚀 What's New in v2.0
-
-- ✨ Modern, animated landing page
-- 🎨 Consistent color theme throughout
-- 🖱️ Magnetic button interactions
-- 🏗️ Interactive 3D campus preview
-- 📱 Enhanced mobile responsiveness
-- 🌈 Glass morphism UI effects
-- 📋 GDPR compliance documentation
-- 🔒 Security best practices guide
-
----
-
-**⚠️ Remember:** Complete GDPR compliance requirements before deploying to production!
-
-🌐 [Live Demo](#) | 📚 [Docs](./GDPR_COMPLIANCE_REPORT.md) | 💬 [Issues](https://github.com/yourusername/university-3d/issues)
+- [Vite](https://vitejs.dev/) for the build tool
+- [React](https://react.dev/) and [Framer Motion](https://www.framer.com/motion/) for the UI
