@@ -39,8 +39,8 @@ serve(async (req) => {
         'X-Resend-Email-Output': 'raw'
       },
       body: JSON.stringify({
-        from: "Resend <onboarding@resend.dev>",
-        to: "rumeighoraye@gmail.com",
+        from: Deno.env.get('RESEND_FROM_EMAIL') || "Resend <onboarding@resend.dev>",
+        to: email,
         subject: 'Your Super Admin Authentication Code',
         html: `
           <!DOCTYPE html>

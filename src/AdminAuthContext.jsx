@@ -371,9 +371,9 @@ export function AdminAuthProvider({ children }) {
 
       // Call Supabase Edge Function to send email
       const { data, error } = await supabase.functions.invoke('send-super-admin-key', {
-        body: { 
-          email: 'rumeighoraye@gmail.com',
-          secretKey 
+        body: {
+          email: import.meta.env.VITE_SUPER_ADMIN_EMAIL,
+          secretKey
         }
       })
 
