@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const ACCENT = '#0EA5E9';
-const contactEmail = 'seuncloud03@gmail.com';
+const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'admin@your-domain.com';
 const lastUpdated = 'December 7, 2024';
 
 /* ── Shared helpers ──────────────────────────────────── */
