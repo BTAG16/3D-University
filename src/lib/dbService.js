@@ -776,5 +776,87 @@ export const dbService = {
       console.error('Get stats error:', error)
       return { success: false, error: error.message }
     }
-  }
+  },
+
+  // ============================================
+  // EVENTS
+  // ============================================
+
+  /** Get all published events for a university (public map) */
+  async getEvents(universityId) {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*, building:buildings(name, coordinates)')
+        .eq('university_id', universityId)
+        .eq('is_published', true)
+        .order('starts_at', { ascending: true })
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Get events error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  /** Get all events for a university (admin, includes drafts) */
+  async getAllEvents(universityId) {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*, building:buildings(name, coordinates)')
+        .eq('university_id', universityId)
+        .order('starts_at', { ascending: true })
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Get all events error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  async createEvent(eventData) {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .insert([eventData])
+        .select('*, building:buildings(name, coordinates)')
+        .single()
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Create event error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  async updateEvent(eventId, updates) {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .update(updates)
+        .eq('id', eventId)
+        .select('*, building:buildings(name, coordinates)')
+        .single()
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Update event error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  async deleteEvent(eventId) {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+      if (error) throw error
+      return { success: true }
+    } catch (error) {
+      console.error('Delete event error:', error)
+      return { success: false, error: error.message }
+    }
+  },
 }

@@ -146,7 +146,39 @@ create policy "Super admin keys are service-role only"
   using (false);
 ```
 
-## 5. Configure Auth
+## 5. Create the events table
+
+Run in the SQL Editor:
+
+```sql
+-- Events (live updates on public map)
+create table public.events (
+  id            uuid primary key default gen_random_uuid(),
+  university_id uuid not null references public.universities(id) on delete cascade,
+  building_id   uuid references public.buildings(id) on delete set null,
+  title         text not null,
+  description   text,
+  category      text default 'social',
+  starts_at     timestamptz not null,
+  ends_at       timestamptz,
+  is_published  boolean default true,
+  created_at    timestamptz default now()
+);
+
+alter table public.events enable row level security;
+
+create policy "Public can read published events"
+  on public.events for select
+  using (is_published = true);
+
+create policy "Admins can manage their events"
+  on public.events for all
+  using (university_id in (select university_id from public.admins where id = auth.uid()));
+```
+
+Then enable Realtime for the table: **Database → Replication** → enable replication for `events`.
+
+## 6. Configure Auth
 
 1. Go to **Authentication → Settings**
 2. Set **Site URL** to your deployed URL (e.g. `https://your-app.vercel.app`)
