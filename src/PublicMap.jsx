@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { dbService } from './lib/dbService'
+import { supabase } from './lib/supabase'
 import MapComponent from './components/Map/MapComponent'
 import BuildingCard from './components/BuildingCard'
 import SearchBox from './components/SearchBox'
@@ -10,6 +11,16 @@ import IndoorNavModal from './components/IndoorNavModal'
 import { useToast } from './components/Toast'
 import { Icon } from './icons'
 import { useDarkMode } from './hooks'
+
+const EVENT_CATS = {
+  lecture:     { label: 'Lecture',     bg: 'rgba(14,165,233,0.15)',  color: '#0EA5E9' },
+  social:      { label: 'Social',      bg: 'rgba(34,197,94,0.15)',   color: '#16A34A' },
+  alert:       { label: 'Alert',       bg: 'rgba(239,68,68,0.15)',   color: '#EF4444' },
+  maintenance: { label: 'Maintenance', bg: 'rgba(245,158,11,0.15)',  color: '#D97706' },
+  'open-day':  { label: 'Open Day',    bg: 'rgba(168,85,247,0.15)', color: '#9333EA' },
+}
+const isActive  = (e) => { const now = new Date(); return new Date(e.starts_at) <= now && (!e.ends_at || new Date(e.ends_at) >= now) }
+const isUpcoming = (e) => new Date(e.starts_at) > new Date()
 
 const DARK = {
   bg:      '#0A0A0C',
@@ -64,6 +75,8 @@ function PublicMap() {
   const [indoorNavUrl, setIndoorNavUrl] = useState('')
   const [routeData, setRouteData] = useState(null)
   const [fpvTour, setFpvTour] = useState(null)
+  const [events, setEvents] = useState([])
+  const [showEventsDrawer, setShowEventsDrawer] = useState(false)
   const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
   const sheetRef = useRef(null)
@@ -169,6 +182,30 @@ function PublicMap() {
     }
     search()
   }, [searchQuery, buildings, university])
+
+  // Load events + subscribe to realtime updates
+  useEffect(() => {
+    if (!university) return
+    const uniId = university.id
+    dbService.getEvents(uniId).then(r => { if (r.success) setEvents(r.data || []) })
+    const channel = supabase
+      .channel(`events:${uniId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `university_id=eq.${uniId}` }, payload => {
+        if (payload.eventType === 'INSERT') {
+          if (payload.new.is_published) setEvents(prev => [...prev, payload.new].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)))
+        } else if (payload.eventType === 'UPDATE') {
+          setEvents(prev => {
+            const without = prev.filter(e => e.id !== payload.new.id)
+            if (payload.new.is_published) return [...without, payload.new].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
+            return without
+          })
+        } else if (payload.eventType === 'DELETE') {
+          setEvents(prev => prev.filter(e => e.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [university])
 
   // Reset tour flag when directions panel closes
   useEffect(() => {
@@ -416,6 +453,39 @@ function PublicMap() {
             </div>
           ) : null
         })()}
+        {/* Events for this building */}
+        {(() => {
+          const bEvts = events.filter(e => e.building_id === selectedBuilding.id)
+          if (!bEvts.length) return null
+          return (
+            <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: 16, marginTop: 8 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 600, color: D.text, margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="calendar" size={13} color={D.textMut} /> Events ({bEvts.length})
+              </h4>
+              {bEvts.map(e => {
+                const cat = EVENT_CATS[e.category] || EVENT_CATS.social
+                const active = isActive(e)
+                return (
+                  <div key={e.id} style={{ padding: '10px 0', borderBottom: `1px solid ${D.border}`, display: 'flex', gap: 10 }}>
+                    <div style={{ width: 3, borderRadius: 3, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 16 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: D.text }}>{e.title}</span>
+                        {active && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 9999, background: 'rgba(34,197,94,0.15)', color: '#16A34A', fontWeight: 700 }}>Now</span>}
+                        <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: D.textMut }}>
+                        {new Date(e.starts_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                        {e.ends_at ? ` – ${new Date(e.ends_at).toLocaleTimeString('en-GB', { timeStyle: 'short' })}` : ''}
+                      </div>
+                      {e.description && <p style={{ fontSize: 11.5, color: D.textDim, margin: '4px 0 0', lineHeight: 1.4 }}>{e.description}</p>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
       </div>
     </>
   )
@@ -448,6 +518,16 @@ function PublicMap() {
           <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer', minWidth: 36, minHeight: 36 }}>
             <Icon name={dark ? 'sun' : 'moon'} size={14} color={D.textDim} />
           </button>
+          {events.length > 0 && (() => {
+            const activeCount = events.filter(isActive).length
+            return (
+              <button onClick={() => setShowEventsDrawer(v => !v)} title="Campus Events" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${activeCount > 0 ? D.accent : D.border2}`, background: activeCount > 0 ? `${D.accent}15` : 'transparent', color: activeCount > 0 ? D.accent : D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto', position: 'relative', transition: 'all 200ms ease' }}>
+                <Icon name="calendar" size={14} color={activeCount > 0 ? D.accent : D.textDim} />
+                {!isMobile && 'Events'}
+                {activeCount > 0 && <span style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: '50%', background: D.accent, color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${D.surface}` }}>{activeCount}</span>}
+              </button>
+            )
+          })()}
           <button onClick={handleShare} title="Share" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
             <Icon name="share" size={14} color={D.textDim} />
             {!isMobile && 'Share'}
@@ -515,6 +595,63 @@ function PublicMap() {
             darkMode={dark}
             onRouteDataChange={setRouteData}
           />
+
+          {/* Events drawer */}
+          {showEventsDrawer && (
+            <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: isMobile ? '100%' : 320, background: D.surface, borderLeft: `1px solid ${D.border}`, display: 'flex', flexDirection: 'column', zIndex: 15, boxShadow: dark ? '-4px 0 24px rgba(0,0,0,0.5)' : '-4px 0 24px rgba(0,0,0,0.1)' }}>
+              <div style={{ padding: '14px 16px', borderBottom: `1px solid ${D.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: D.text }}>Campus Events</div>
+                  <div style={{ fontSize: 12, color: D.textDim, marginTop: 2 }}>
+                    {events.filter(isActive).length} active · {events.filter(isUpcoming).length} upcoming
+                  </div>
+                </div>
+                <button onClick={() => setShowEventsDrawer(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: D.textDim }}>
+                  <Icon name="x" size={16} color={D.textDim} />
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px 16px', WebkitOverflowScrolling: 'touch' }}>
+                {events.length === 0 ? (
+                  <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 32 }}>No events scheduled</p>
+                ) : (['active', 'upcoming', 'past']).map(section => {
+                  const sEvts = events.filter(e =>
+                    section === 'active' ? isActive(e) :
+                    section === 'upcoming' ? isUpcoming(e) :
+                    !isActive(e) && !isUpcoming(e)
+                  )
+                  if (!sEvts.length) return null
+                  return (
+                    <div key={section} style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: D.textMut, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 6px' }}>
+                        {section === 'active' ? 'Happening now' : section === 'upcoming' ? 'Coming up' : 'Ended'}
+                      </div>
+                      {sEvts.map(e => {
+                        const cat = EVENT_CATS[e.category] || EVENT_CATS.social
+                        const bld = buildings.find(b => b.id === e.building_id)
+                        return (
+                          <div key={e.id} onClick={() => { if (bld) { handleBuildingClick(bld); setShowEventsDrawer(false) } }} style={{ background: dark ? 'rgba(255,255,255,0.04)' : D.surface2, borderRadius: 10, padding: '11px 12px', marginBottom: 7, border: `1px solid ${D.border}`, cursor: bld ? 'pointer' : 'default', display: 'flex', gap: 10, transition: 'opacity 150ms ease' }}>
+                            <div style={{ width: 3, borderRadius: 3, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 14 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: D.text }}>{e.title}</span>
+                                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
+                              </div>
+                              {bld && <div style={{ fontSize: 11, color: D.textDim, marginBottom: 2 }}>{bld.name}</div>}
+                              {e.description && <p style={{ fontSize: 11.5, color: D.textDim, margin: '0 0 3px', lineHeight: 1.4 }}>{e.description}</p>}
+                              <div style={{ fontSize: 11, color: D.textMut }}>
+                                {new Date(e.starts_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                                {e.ends_at ? ` – ${new Date(e.ends_at).toLocaleTimeString('en-GB', { timeStyle: 'short' })}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* FPV Tour HUD */}
           {showDirections && selectedBuilding && (

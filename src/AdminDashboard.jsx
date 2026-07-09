@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
+import { dbService } from './lib/dbService'
 import { useToast } from './components/Toast'
 import { useDarkMode } from './hooks'
 import { Icon } from './icons'
@@ -17,9 +18,18 @@ const NAV = [
   { id: 'overview',  label: 'Overview',    icon: 'layers' },
   { id: 'buildings', label: 'Buildings',   icon: 'building' },
   { id: 'rooms',     label: 'Rooms',       icon: 'door' },
+  { id: 'events',    label: 'Events',      icon: 'calendar' },
   { id: 'link',      label: 'Public Link', icon: 'link' },
   { id: 'settings',  label: 'Settings',    icon: 'settings' },
 ]
+
+const EVENT_CAT = {
+  lecture:     { label: 'Lecture',     bg: 'rgba(14,165,233,0.12)',  color: '#0EA5E9' },
+  social:      { label: 'Social',      bg: 'rgba(34,197,94,0.12)',   color: '#16A34A' },
+  alert:       { label: 'Alert',       bg: 'rgba(239,68,68,0.12)',   color: '#EF4444' },
+  maintenance: { label: 'Maintenance', bg: 'rgba(245,158,11,0.12)',  color: '#D97706' },
+  'open-day':  { label: 'Open Day',    bg: 'rgba(168,85,247,0.12)', color: '#9333EA' },
+}
 
 // Category badge colours — matching handoff catColors exactly
 const CAT_COLORS = {
@@ -34,6 +44,91 @@ const CAT_COLORS = {
   'Residence':          ['rgba(74,222,128,0.16)',  '#15803D'],
 }
 const catBadge = (cat) => CAT_COLORS[cat] || ['var(--accent-subtle)', 'var(--accent)']
+
+const evtLabelSt = { display: 'block', fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }
+const evtInputSt = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box', minHeight: 44, fontFamily: 'inherit' }
+
+function EventForm({ buildings, event, onSave, onCancel }) {
+  const [title, setTitle] = useState(event?.title || '')
+  const [description, setDescription] = useState(event?.description || '')
+  const [buildingId, setBuildingId] = useState(event?.building_id || '')
+  const [category, setCategory] = useState(event?.category || 'social')
+  const [startsAt, setStartsAt] = useState(event?.starts_at ? event.starts_at.slice(0, 16) : '')
+  const [endsAt, setEndsAt] = useState(event?.ends_at ? event.ends_at.slice(0, 16) : '')
+  const [isPublished, setIsPublished] = useState(event?.is_published ?? true)
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!title.trim() || !startsAt) return
+    setSaving(true)
+    await onSave({
+      title: title.trim(),
+      description: description.trim() || null,
+      building_id: buildingId || null,
+      category,
+      starts_at: new Date(startsAt).toISOString(),
+      ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+      is_published: isPublished,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '4px 0' }}>
+      <div>
+        <label style={evtLabelSt}>Title *</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="e.g. Freshers Fair" style={evtInputSt} />
+      </div>
+      <div>
+        <label style={evtLabelSt}>Building</label>
+        <select value={buildingId} onChange={e => setBuildingId(e.target.value)} style={evtInputSt}>
+          <option value="">None (campus-wide)</option>
+          {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label style={evtLabelSt}>Category</label>
+        <select value={category} onChange={e => setCategory(e.target.value)} style={evtInputSt}>
+          <option value="lecture">Lecture</option>
+          <option value="social">Social</option>
+          <option value="alert">Alert</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="open-day">Open Day</option>
+        </select>
+      </div>
+      <div>
+        <label style={evtLabelSt}>Description</label>
+        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Brief description for students…" style={{ ...evtInputSt, resize: 'vertical', lineHeight: 1.5, minHeight: 'auto' }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div>
+          <label style={evtLabelSt}>Starts at *</label>
+          <input type="datetime-local" value={startsAt} onChange={e => setStartsAt(e.target.value)} required style={evtInputSt} />
+        </div>
+        <div>
+          <label style={evtLabelSt}>Ends at (optional)</label>
+          <input type="datetime-local" value={endsAt} onChange={e => setEndsAt(e.target.value)} style={evtInputSt} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid var(--border-light)' }}>
+        <div>
+          <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-primary)' }}>Publish immediately</div>
+          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>Visible to students on the public map</div>
+        </div>
+        <button type="button" onClick={() => setIsPublished(p => !p)} role="switch" style={{ width: 44, height: 26, borderRadius: 9999, background: isPublished ? 'var(--accent)' : 'var(--border)', position: 'relative', transition: 'background 200ms var(--ease)', flexShrink: 0, cursor: 'pointer', border: 'none' }}>
+          <span style={{ position: 'absolute', top: 3, left: isPublished ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 200ms var(--spring)' }} />
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="button" onClick={onCancel} style={{ flex: 1, height: 44, borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Cancel</button>
+        <button type="submit" disabled={saving} style={{ flex: 2, height: 44, borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {saving ? <><Icon name="loader" size={15} color="#fff" /> Saving…</> : event ? 'Save changes' : 'Create event'}
+        </button>
+      </div>
+    </form>
+  )
+}
 
 function Sidebar({ university, activeTab, setActiveTab, onLogout, dark, onDarkToggle, collapsed, onCollapse }) {
 
@@ -141,6 +236,10 @@ function AdminDashboard() {
   
   const [buildingSearch, setBuildingSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [events, setEvents] = useState([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+  const [showEventForm, setShowEventForm] = useState(false)
+  const [editingEvent, setEditingEvent] = useState(null)
 
   const { adminSession, logout, getUniversity, addBuilding, updateBuilding, deleteBuilding, deleteUniversity } = useAdminAuth()
   const navigate = useNavigate()
@@ -173,6 +272,44 @@ function AdminDashboard() {
     if (!adminSession) { navigate('/admin/login'); return }
     loadUniversity()
   }, [adminSession, navigate])
+
+  const loadEvents = async () => {
+    if (!university) return
+    setEventsLoading(true)
+    try {
+      const r = await dbService.getAllEvents(university.id)
+      if (r.success) setEvents(r.data || [])
+    } catch { /* ignore */ } finally { setEventsLoading(false) }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'events' && university) loadEvents()
+  }, [activeTab, university])
+
+  const handleSaveEvent = async (data) => {
+    if (editingEvent) {
+      const r = await dbService.updateEvent(editingEvent.id, data)
+      if (r.success) { await loadEvents(); setShowEventForm(false); setEditingEvent(null); toast.success('Event updated!') }
+      else toast.error(`Failed: ${r.error}`)
+    } else {
+      const r = await dbService.createEvent({ ...data, university_id: university.id })
+      if (r.success) { await loadEvents(); setShowEventForm(false); toast.success('Event created!') }
+      else toast.error(`Failed: ${r.error}`)
+    }
+  }
+
+  const handleDeleteEvent = async (id) => {
+    if (!window.confirm('Delete this event? Students will no longer see it on the map.')) return
+    const r = await dbService.deleteEvent(id)
+    if (r.success) { setEvents(prev => prev.filter(e => e.id !== id)); toast.success('Event deleted') }
+    else toast.error(`Failed: ${r.error}`)
+  }
+
+  const handleTogglePublish = async (event) => {
+    const r = await dbService.updateEvent(event.id, { is_published: !event.is_published })
+    if (r.success) setEvents(prev => prev.map(e => e.id === event.id ? { ...e, is_published: !e.is_published } : e))
+    else toast.error(`Failed: ${r.error}`)
+  }
 
   const loadUniversity = async () => {
     const uni = await getUniversity()
@@ -651,10 +788,94 @@ function AdminDashboard() {
     )
   }
 
+  // ─── Events Tab ────────────────────────────────────────────────────────────
+  const EventsTab = () => {
+    const now = new Date()
+    const getStatus = (ev) => {
+      const start = new Date(ev.starts_at), end = ev.ends_at ? new Date(ev.ends_at) : null
+      if (!ev.is_published) return { label: 'Draft',    bg: 'rgba(148,163,184,0.12)', color: '#64748B' }
+      if (start > now)      return { label: 'Upcoming', bg: 'rgba(14,165,233,0.12)',  color: '#0EA5E9' }
+      if (!end || end >= now) return { label: 'Active', bg: 'rgba(34,197,94,0.12)',   color: '#16A34A' }
+      return                         { label: 'Ended',  bg: 'rgba(148,163,184,0.12)', color: '#64748B' }
+    }
+    const fmtDate = (s) => new Date(s).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+
+    return (
+      <div className="tab-panel">
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 4px' }}>
+              Events <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', marginLeft: 6 }}>{events.length}</span>
+            </h1>
+            <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)', margin: 0 }}>Live updates shown on the student public map.</p>
+          </div>
+          <button onClick={() => { setEditingEvent(null); setShowEventForm(true) }} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer', minHeight: 40 }}>
+            <Icon name="plus" size={15} color="#fff" /> Add Event
+          </button>
+        </div>
+
+        {eventsLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, color: 'var(--text-tertiary)', gap: 10 }}>
+            <Icon name="loader" size={18} /> Loading…
+          </div>
+        ) : events.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '56px 24px', background: 'var(--surface)', borderRadius: 14, border: '1px dashed var(--border)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Icon name="calendar" size={22} />
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 600, margin: '0 0 6px' }}>No events yet</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '0 0 20px' }}>Create an event to push it live to students on the map.</p>
+            <button onClick={() => { setEditingEvent(null); setShowEventForm(true) }} style={{ padding: '9px 20px', borderRadius: 9, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-display)' }}>
+              Add Event
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {events.map(ev => {
+              const status = getStatus(ev)
+              const cat = EVENT_CAT[ev.category] || EVENT_CAT.social
+              const building = university.buildings.find(b => b.id === ev.building_id)
+              return (
+                <div key={ev.id} style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', padding: '16px 18px', boxShadow: 'var(--card-shadow)', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <div style={{ width: 4, borderRadius: 4, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 20 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14.5, color: 'var(--text-primary)' }}>{ev.title}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: status.bg, color: status.color, fontWeight: 600 }}>{status.label}</span>
+                    </div>
+                    {building && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="building" size={12} /> {building.name}</div>}
+                    {ev.description && <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '0 0 6px', lineHeight: 1.5 }}>{ev.description}</p>}
+                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name="calendar" size={12} />
+                      {fmtDate(ev.starts_at)}{ev.ends_at ? ` → ${fmtDate(ev.ends_at)}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button onClick={() => handleTogglePublish(ev)} title={ev.is_published ? 'Unpublish' : 'Publish'} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ev.is_published ? 'var(--success)' : 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <Icon name="zap" size={14} />
+                    </button>
+                    <button onClick={() => { setEditingEvent(ev); setShowEventForm(true) }} title="Edit" style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <Icon name="edit" size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteEvent(ev.id)} title="Delete" style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const tabMap = {
     overview: <OverviewTab />,
     buildings: <BuildingsTab />,
     rooms: <RoomsTab />,
+    events: <EventsTab />,
     link: <LinkTab />,
     settings: <DetailsTab />,
   }
@@ -676,6 +897,17 @@ function AdminDashboard() {
       {showModal && (
         <SlideOver title={editingBuilding ? "Edit building" : "Add building"} onClose={() => { setShowModal(false); setEditingBuilding(null) }}>
           <BuildingForm building={editingBuilding} onSave={handleSaveBuilding} onCancel={() => { setShowModal(false); setEditingBuilding(null) }} />
+        </SlideOver>
+      )}
+
+      {showEventForm && (
+        <SlideOver title={editingEvent ? 'Edit event' : 'Add event'} onClose={() => { setShowEventForm(false); setEditingEvent(null) }}>
+          <EventForm
+            buildings={university.buildings}
+            event={editingEvent}
+            onSave={handleSaveEvent}
+            onCancel={() => { setShowEventForm(false); setEditingEvent(null) }}
+          />
         </SlideOver>
       )}
 
