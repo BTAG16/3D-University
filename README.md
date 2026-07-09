@@ -1,6 +1,6 @@
 # Campus Explorer — University 3D Mapping Platform
 
-An open-source interactive 3D campus map platform for universities. Students can explore buildings, find rooms, and view timetables. Admins get a dashboard to manage spaces and content.
+An open-source interactive 3D campus map platform for universities. Students can explore buildings, find rooms, view timetables, and navigate indoors — no app required.
 
 **[Live Demo](https://3dcampus.vercel.app)** | **[Issues](https://github.com/BTAG16/3D-University/issues)**
 
@@ -9,25 +9,48 @@ An open-source interactive 3D campus map platform for universities. Students can
 ![Mapbox](https://img.shields.io/badge/Mapbox-3.16-000000)
 ![Supabase](https://img.shields.io/badge/Supabase-2.86-3ECF8E)
 
+![3D Campus Map](public/screenshots/3d-building-detail.jpg)
+
 ---
 
 ## Features
 
-- Interactive 3D campus map powered by Mapbox
-- Building and room search
-- Live timetable cards per room
-- Admin dashboard — manage buildings, rooms, and schedules
-- Embeddable map widget for any university website
-- Multi-tenant architecture (one platform, multiple universities)
+### For Students
+- Interactive 3D campus map with all buildings labelled
+- Click any building to see rooms, offices, and schedules
+- Turn-by-turn directions to any building
+- Indoor floor plan navigation (powered by Mappedin)
 - Dark mode
+
+![Building Detail & Rooms](public/screenshots/rooms-timetable.jpg)
+
+![Indoor Navigation](public/screenshots/indoor-navigation.jpg)
+
+### For Admins
+- Dashboard to manage buildings, rooms, and schedules
+- One-click public link, QR code, and embeddable iframe
+- Custom branding (accent colour, welcome message, logo)
+- Usage analytics and cookie consent controls
+- Multi-tenant — one platform, multiple universities
+
+![Admin Dashboard](public/screenshots/admin-dashboard.jpg)
+
+![Share & Embed](public/screenshots/share-embed.jpg)
+
+---
 
 ## Tech Stack
 
-- **Frontend** — React 19, Vite, Framer Motion
-- **Map** — Mapbox GL JS v3
-- **Backend** — Supabase (Postgres + Auth + Edge Functions)
-- **Email** — Resend
-- **Deploy** — Vercel
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, Vite, Framer Motion |
+| Map | Mapbox GL JS v3 |
+| Indoor navigation | Mappedin |
+| Backend | Supabase (Postgres + Auth + Edge Functions) |
+| Email | Resend |
+| Deploy | Vercel |
+
+---
 
 ## Getting Started
 
@@ -65,6 +88,8 @@ npx supabase db push
 
 Or apply them manually via the Supabase SQL editor.
 
+---
+
 ## Contributing
 
 Contributions are welcome.
@@ -76,13 +101,18 @@ Contributions are welcome.
 
 If adding data collection features, include GDPR compliance considerations in your PR description.
 
+---
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
 
+---
+
 ## Acknowledgments
 
 - [Mapbox](https://www.mapbox.com/) for the mapping platform
+- [Mappedin](https://www.mappedin.com/) for indoor navigation
 - [Supabase](https://supabase.com/) for backend infrastructure
-- [Vite](https://vitejs.dev/) for the build tool
-- [React](https://react.dev/) and [Framer Motion](https://www.framer.com/motion/) for the UI
+- [Vite](https://vitejs.dev/) and [React](https://react.dev/) for the frontend
+- [Framer Motion](https://www.framer.com/motion/) for animations
