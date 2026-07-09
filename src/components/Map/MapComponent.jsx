@@ -20,7 +20,8 @@ const MapComponent = forwardRef(({
   showDirections = false,
   destinationCoords = null,
   darkMode = false,
-  onRouteDataChange = null
+  onRouteDataChange = null,
+  activeBuildingIds = new Set()
 }, ref) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
@@ -299,7 +300,9 @@ const MapComponent = forwardRef(({
       el.innerHTML = `
         <div class="marker-chip">${building.name}</div>
         <div class="marker-stem"></div>
-        <div class="marker-dot"></div>
+        <div class="marker-dot-wrap">
+          <div class="marker-dot"></div>
+        </div>
       `
 
       el.addEventListener('click', () => {
@@ -320,6 +323,23 @@ const MapComponent = forwardRef(({
   }, [buildings, onBuildingClick])
 
 
+
+  // Add / remove event pulse rings without recreating markers
+  useEffect(() => {
+    markersRef.current.forEach(({ building, element }) => {
+      const wrap = element.querySelector('.marker-dot-wrap')
+      if (!wrap) return
+      const existing = wrap.querySelector('.event-pulse')
+      const shouldHave = activeBuildingIds.has(building.id)
+      if (shouldHave && !existing) {
+        const pulse = document.createElement('div')
+        pulse.className = 'event-pulse'
+        wrap.prepend(pulse)
+      } else if (!shouldHave && existing) {
+        existing.remove()
+      }
+    })
+  }, [activeBuildingIds])
 
   // Highlight selected building
   useEffect(() => {

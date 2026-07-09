@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { dbService } from './lib/dbService'
 import { supabase } from './lib/supabase'
@@ -77,6 +77,10 @@ function PublicMap() {
   const [fpvTour, setFpvTour] = useState(null)
   const [events, setEvents] = useState([])
   const [showEventsDrawer, setShowEventsDrawer] = useState(false)
+  const activeBuildingIds = useMemo(
+    () => new Set(events.filter(isActive).map(e => e.building_id).filter(Boolean)),
+    [events]
+  )
   const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
   const sheetRef = useRef(null)
@@ -594,6 +598,7 @@ function PublicMap() {
             destinationCoords={selectedBuilding?.coordinates}
             darkMode={dark}
             onRouteDataChange={setRouteData}
+            activeBuildingIds={activeBuildingIds}
           />
 
           {/* Events drawer */}
