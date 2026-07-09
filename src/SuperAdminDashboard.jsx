@@ -279,7 +279,7 @@ function SuperAdminDashboard() {
           </div>
           <button 
             className="btn-contact"
-            onClick={() => window.location.href = 'mailto:seuncloud03@gmail.com'}
+            onClick={() => window.location.href = `mailto:${import.meta.env.VITE_CONTACT_EMAIL || 'admin@your-domain.com'}`}
           >
             <FontAwesomeIcon icon={faEnvelope} />
             <span className="btn-text">Contact</span>

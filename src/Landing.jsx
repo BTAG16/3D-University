@@ -78,9 +78,9 @@ const STEPS = [
 ]
 
 const TESTIMONIALS = [
-  { quote: 'We deployed Kampus in a week. Students actually use it now instead of calling our office for directions.', name: 'Dr. Anna Varga',   role: 'Head of Student Affairs, Budapest Tech',      initial: 'A', delay: 0   },
-  { quote: 'The admin dashboard is incredibly intuitive. We added 40 buildings in one afternoon.',                     name: 'Mehmet Yılmaz',    role: 'IT Director, Ankara University',               initial: 'M', delay: 110 },
-  { quote: 'Indoor navigation has been a game-changer for new students during orientation week.',                      name: 'Elena Petrova',    role: 'Campus Operations, Sofia State University',    initial: 'E', delay: 220 },
+  { quote: 'We deployed Kampus in a week. Students actually use it now instead of calling our office for directions.', name: 'Dr. A. Varga',   role: 'Head of Student Affairs',   initial: 'A', delay: 0   },
+  { quote: 'The admin dashboard is incredibly intuitive. We added 40 buildings in one afternoon.',                     name: 'M. Yılmaz',      role: 'IT Director',               initial: 'M', delay: 110 },
+  { quote: 'Indoor navigation has been a game-changer for new students during orientation week.',                      name: 'E. Petrova',     role: 'Campus Operations',         initial: 'E', delay: 220 },
 ]
 
 const FAQS = [
@@ -284,7 +284,7 @@ export default function Landing() {
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
                     <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 320, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      kampus3d.com/map?uni=your-university
+                      your-domain.com/map?uni=your-university
                     </span>
                   </div>
                   <img className="img-light" src="/product-light.png" alt="Kampus 3D campus map" style={{ width: '100%', height: 'auto' }} />
@@ -502,7 +502,7 @@ export default function Landing() {
                 <span style={{ color: 'var(--accent)', display: 'flex' }}><LogoIcon size={20} /></span>
                 <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 18, color: 'var(--text-primary)' }}>Kampus</span>
               </div>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 260, margin: 0 }}>Interactive 3D campus maps for universities. Built with care in Budapest.</p>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 260, margin: 0 }}>Interactive 3D campus maps for universities. Open source and free.</p>
             </div>
             {[
               { title: 'Product',  links: [['#features','Features'],['#how-it-works','How It Works'],['/demo','Live Demo']] },

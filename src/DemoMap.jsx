@@ -39,7 +39,7 @@ const initialDemoBuildings = [
   {
     id: 'demo-admin',
     name: 'Administration Building',
-    coordinates: [19.054707436918342, 47.495248233157284],
+    coordinates: [-0.1340, 51.5246],
     category: 'Administration',
     description: 'Main administrative offices including Registrar, Financial Aid, and Student Services',
     facilities: ['WiFi', 'Student Services', 'Registrar Office', 'Financial Aid'],
@@ -50,7 +50,7 @@ const initialDemoBuildings = [
   {
     id: 'demo-library',
     name: 'University Library',
-    coordinates: [19.05693798689157, 47.49267737360714],
+    coordinates: [-0.1310, 51.5238],
     category: 'Library',
     description: 'Central library with study spaces, computer labs, and extensive book collection',
     facilities: ['WiFi', 'Computer Lab', 'Study Rooms', 'Cafe', 'Printing Services'],
@@ -61,7 +61,7 @@ const initialDemoBuildings = [
   {
     id: 'demo-dormitory',
     name: 'Student Dormitory',
-    coordinates: [19.053028697400013, 47.473191215229704],
+    coordinates: [-0.1360, 51.5260],
     category: 'Residence',
     description: 'On-campus housing with modern amenities and common areas',
     facilities: ['WiFi', 'Laundry', 'Common Room', 'Study Lounge', '24/7 Security'],

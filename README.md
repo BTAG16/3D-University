@@ -9,6 +9,8 @@ An open-source interactive 3D campus map platform for universities. Students can
 ![Mapbox](https://img.shields.io/badge/Mapbox-3.16-000000)
 ![Supabase](https://img.shields.io/badge/Supabase-2.86-3ECF8E)
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/BTAG16/3D-University)
+
 ![3D Campus Map](public/screenshots/3d-building-detail.jpg)
 
 ---
@@ -45,23 +47,16 @@ An open-source interactive 3D campus map platform for universities. Students can
 |---|---|
 | Frontend | React 19, Vite, Framer Motion |
 | Map | Mapbox GL JS v3 |
-| Indoor navigation | Mappedin |
+| Indoor navigation | Mappedin (optional) |
 | Backend | Supabase (Postgres + Auth + Edge Functions) |
 | Email | Resend |
 | Deploy | Vercel |
 
 ---
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- A [Supabase](https://supabase.com) project
-- A [Mapbox](https://mapbox.com) account
-- A [Resend](https://resend.com) account (for email)
-
-### Setup
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/BTAG16/3D-University.git
@@ -70,7 +65,16 @@ yarn install
 cp .env.example .env
 ```
 
-Fill in your `.env` with keys from each service, then:
+### 2. Set up services
+
+Follow these guides in order:
+
+1. [Supabase setup](docs/setup-supabase.md) — database, auth, and edge functions
+2. [Mapbox setup](docs/setup-mapbox.md) — map tiles and access token
+3. [Resend setup](docs/setup-resend.md) — email for super admin auth
+4. [Deploy to Vercel](docs/deploy-vercel.md) — hosting and environment variables
+
+### 3. Run locally
 
 ```bash
 yarn dev
@@ -78,15 +82,23 @@ yarn dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
-### Supabase Setup
+### 4. First university
 
-Run the migrations in `supabase/migrations/` against your project:
+See [First-Time Setup](docs/first-time-setup.md) for a step-by-step guide to creating your admin account, adding buildings, and sharing the map with students.
 
-```bash
-npx supabase db push
-```
+---
 
-Or apply them manually via the Supabase SQL editor.
+## Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Yes | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
+| `VITE_MAPBOX_ACCESS_TOKEN` | Yes | Mapbox public token |
+| `VITE_SUPER_ADMIN_EMAIL` | Yes | Email for super admin login codes |
+| `VITE_CONTACT_EMAIL` | Yes | Email shown in Privacy Policy and Terms |
+
+See `.env.example` for the full list.
 
 ---
 
@@ -116,3 +128,4 @@ MIT — see [LICENSE](./LICENSE).
 - [Supabase](https://supabase.com/) for backend infrastructure
 - [Vite](https://vitejs.dev/) and [React](https://react.dev/) for the frontend
 - [Framer Motion](https://www.framer.com/motion/) for animations
+- [Resend](https://resend.com/) for transactional email

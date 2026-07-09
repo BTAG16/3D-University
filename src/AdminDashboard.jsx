@@ -530,11 +530,11 @@ function AdminDashboard() {
     }
 
     const [name, setName] = useState(saved.name || university?.name || '')
-    const [timezone, setTimezone] = useState(saved.timezone || 'Europe/Budapest (CET)')
-    const [mapCenterLat, setMapCenterLat] = useState(saved.mapCenterLat || '47.48122')
-    const [mapCenterLng, setMapCenterLng] = useState(saved.mapCenterLng || '19.05631')
+    const [timezone, setTimezone] = useState(saved.timezone || 'UTC')
+    const [mapCenterLat, setMapCenterLat] = useState(saved.mapCenterLat || '')
+    const [mapCenterLng, setMapCenterLng] = useState(saved.mapCenterLng || '')
     const [accentColor, setAccentColor] = useState(saved.accentColor || '#0EA5E9')
-    const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || 'Welcome to Danube Tech! Find any building, room, or office on campus.')
+    const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || 'Welcome! Find any building, room, or office on campus.')
     const [analytics, setAnalytics] = useState(saved.analytics !== false)
     const [cookies, setCookies] = useState(saved.cookies !== false)
 
