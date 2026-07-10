@@ -1,5 +1,6 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { Icon } from '../icons'
+import SimCursor from './SimCursor'
 
 // Renders at this virtual size then CSS-scaled to fit the container
 const SIM_W = 860
@@ -40,6 +41,12 @@ const DEMO_BUILDINGS = [
   { name: 'Engineering Block',       category: 'Engineering',    rooms: 31, desc: 'Science and engineering labs, lecture theatres, and faculty offices.', coords: '51.5215, -0.1305' },
 ]
 
+const NEW_BUILDING = {
+  name: 'Science Block', category: 'Academic', rooms: 0,
+  desc: 'New science building with modern labs and research facilities.',
+  coords: '51.5242, -0.1298', isNew: true,
+}
+
 const DEMO_ROOMS = [
   { number: 'A101', name: 'Main Reading Room',  type: 'Library Hall', isOffice: false, hasSchedule: false },
   { number: 'A102', name: 'Computer Lab A',     type: 'Computer Lab', isOffice: false, hasSchedule: true  },
@@ -49,12 +56,20 @@ const DEMO_ROOMS = [
   { number: 'B103', name: 'Seminar Room A',     type: 'Seminar Room', isOffice: false, hasSchedule: true  },
 ]
 
+const NEW_ROOM = { number: 'C301', name: 'Physics Lab', type: 'Laboratory', isOffice: false, hasSchedule: false, isNew: true }
+
 const DEMO_EVENTS = [
   { title: 'Freshers Fair 2026',          category: 'open-day',    building: 'Student Union',      startsAt: '10 Sep 2026, 09:00', endsAt: '10 Sep 2026, 17:00', isPublished: true,  status: 'upcoming', desc: 'Annual welcome event for all new students across campus.' },
   { title: 'CS Lecture: ML Fundamentals', category: 'lecture',     building: 'Engineering Block',  startsAt: '10 Jul 2026, 14:00', endsAt: '10 Jul 2026, 16:00', isPublished: true,  status: 'active',   desc: null },
   { title: 'Library Maintenance',         category: 'maintenance', building: 'University Library', startsAt: '12 Jul 2026, 08:00', endsAt: '12 Jul 2026, 18:00', isPublished: true,  status: 'upcoming', desc: 'Library closed for scheduled maintenance.' },
   { title: 'Student Welcome Party',       category: 'social',      building: null,                 startsAt: '05 Jul 2026, 19:00', endsAt: '05 Jul 2026, 22:00', isPublished: false, status: 'ended',    desc: null },
 ]
+
+const NEW_EVENT = {
+  title: 'Career Fair 2026', category: 'social', building: 'Student Union',
+  startsAt: '15 Jul 2026, 10:00', endsAt: '15 Jul 2026, 17:00',
+  isPublished: false, status: 'upcoming', desc: null, isNew: true,
+}
 
 // ─── Shared sidebar ───────────────────────────────────────────────────────────
 
@@ -105,9 +120,9 @@ function SimSidebar({ active }) {
   )
 }
 
-// ─── Responsive scaler ────────────────────────────────────────────────────────
+// ─── Responsive scaler with overlay slot ─────────────────────────────────────
 
-function ScaledPreview({ children }) {
+function ScaledPreview({ children, renderOverlay }) {
   const ref = useRef(null)
   const [scale, setScale] = useState(0.6)
 
@@ -132,190 +147,368 @@ function ScaledPreview({ children }) {
       }}>
         {children}
       </div>
+      {/* Cursor lives outside the CSS-scaled div so its x/y coords map 1:1 after scale */}
+      {renderOverlay?.(scale)}
+      <style>{`
+        @keyframes ads-fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @keyframes ads-blink  { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes ads-pulse  { 0%,100% { box-shadow: 0 0 0 0 rgba(14,165,233,0.35); } 50% { box-shadow: 0 0 0 6px rgba(14,165,233,0); } }
+      `}</style>
     </div>
   )
 }
 
-// ─── Buildings preview ────────────────────────────────────────────────────────
+// ─── Shared form modal ────────────────────────────────────────────────────────
+
+function FormModal({ title, fields, filled }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 330, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', padding: '24px 26px', boxShadow: '0 16px 60px rgba(0,0,0,0.28)' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, color: 'var(--text-primary)', marginBottom: 18 }}>{title}</div>
+        {fields.map(({ label, value, placeholder }, i) => (
+          <div key={i} style={{ marginBottom: 13 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+            <div style={{
+              padding: '8px 12px', borderRadius: 9,
+              border: `1px solid ${filled ? 'var(--accent)' : 'var(--border)'}`,
+              background: 'var(--bg)', fontSize: 13.5, minHeight: 36,
+              display: 'flex', alignItems: 'center', gap: 5,
+              color: filled ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              transition: 'border-color 0.35s, color 0.35s',
+            }}>
+              {filled ? value : (
+                <>
+                  <span style={{ opacity: 0.55 }}>{placeholder}</span>
+                  {i === 0 && <span style={{ animation: 'ads-blink 0.9s step-start infinite', fontWeight: 300, marginLeft: 1 }}>|</span>}
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, marginTop: 6 }}>
+          <div style={{ padding: '8px 16px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Cancel</div>
+          <div style={{ padding: '8px 16px', borderRadius: 9, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600 }}>Save</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Shared simulation phase hook ─────────────────────────────────────────────
+
+function useSimPhase() {
+  const resetRef = useRef(null)
+  const [phase, setPhase] = useState('browsing')
+  const [formFilled, setFormFilled] = useState(false)
+
+  useEffect(() => {
+    if (phase !== 'form') { setFormFilled(false); return }
+    const t = setTimeout(() => setFormFilled(true), 1800)
+    return () => clearTimeout(t)
+  }, [phase])
+
+  const handleAction = useCallback((action) => {
+    if (action === 'openForm') {
+      setPhase('form')
+    } else if (action === 'submitForm') {
+      setPhase('added')
+      clearTimeout(resetRef.current)
+      resetRef.current = setTimeout(() => setPhase('browsing'), 3200)
+    } else if (action === 'reset') {
+      clearTimeout(resetRef.current)
+      setPhase('browsing')
+    }
+  }, [])
+
+  return { phase, formFilled, handleAction }
+}
+
+// ─── Buildings sim ─────────────────────────────────────────────────────────────
+// Cursor steps in SIM_W × SIM_H coordinate space.
+// Sidebar 240px wide; main content x=240–860, y=0–490.
+// Add Building button ≈ (805, 50). Cards row-1 centres ≈ y=237.
+
+const BLDG_SIM_STEPS = [
+  { x: 411, y: 237, move: 600, hold: 1200 },
+  { x: 688, y: 237, move: 500, hold: 800  },
+  { x: 805, y: 50,  move: 900, hold: 400,  click: true, action: 'openForm'    },
+  { x: 550, y: 175, move: 500, hold: 900  },
+  { x: 550, y: 248, move: 300, hold: 800  },
+  { x: 550, y: 321, move: 300, hold: 700  },
+  { x: 648, y: 385, move: 400, hold: 350,  click: true, action: 'submitForm'  },
+  { x: 411, y: 237, move: 700, hold: 2800 },
+  { x: 650, y: 310, move: 500, hold: 400,  action: 'reset'                    },
+]
 
 export function AdminBuildingsPreview() {
+  const { phase, formFilled, handleAction } = useSimPhase()
+  const buildings = phase === 'added' ? [NEW_BUILDING, ...DEMO_BUILDINGS] : DEMO_BUILDINGS
+
   return (
-    <ScaledPreview>
+    <ScaledPreview renderOverlay={(scale) => (
+      <SimCursor steps={BLDG_SIM_STEPS} scale={scale} onAction={handleAction} />
+    )}>
       <SimSidebar active="buildings" />
-      <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', background: 'var(--bg)', minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)' }}>
-            Buildings <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', marginLeft: 6 }}>4</span>
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, fontFamily: 'var(--font-display)', minHeight: 40 }}>
-            <Icon name="plus" size={15} color="#fff" /> Add Building
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', background: 'var(--bg)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)' }}>
+              Buildings <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', marginLeft: 6 }}>{buildings.length}</span>
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, fontFamily: 'var(--font-display)', minHeight: 40 }}>
+              <Icon name="plus" size={15} color="#fff" /> Add Building
+            </div>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-          <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', height: 42, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <Icon name="search" size={15} color="var(--text-tertiary)" />
-            <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Search buildings…</span>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+            <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', height: 42, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+              <Icon name="search" size={15} color="var(--text-tertiary)" />
+              <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Search buildings…</span>
+            </div>
+            <div style={{ height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-secondary)', fontSize: 13.5, display: 'flex', alignItems: 'center' }}>All categories</div>
           </div>
-          <div style={{ height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-secondary)', fontSize: 13.5, display: 'flex', alignItems: 'center' }}>All categories</div>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-          {DEMO_BUILDINGS.map((b, i) => {
-            const [badgeBg, badgeColor] = catBadge(b.category)
-            return (
-              <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', padding: 20, boxShadow: 'var(--card-shadow, 0 1px 4px rgba(0,0,0,0.07))', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 15.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>{b.coords}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+            {buildings.map((b, i) => {
+              const [badgeBg, badgeColor] = catBadge(b.category)
+              return (
+                <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: b.isNew ? '2px solid var(--accent)' : '1px solid var(--border-light)', padding: 20, boxShadow: b.isNew ? '0 0 0 4px rgba(14,165,233,0.10)' : 'var(--card-shadow, 0 1px 4px rgba(0,0,0,0.07))', display: 'flex', flexDirection: 'column', gap: 12, animation: b.isNew ? 'ads-fadein 0.4s ease-out' : undefined }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 15.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>{b.coords}</div>
+                    </div>
+                    <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 9999, fontSize: 11.5, fontWeight: 600, background: badgeBg, color: badgeColor, whiteSpace: 'nowrap', flexShrink: 0 }}>{b.category}</span>
                   </div>
-                  <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 9999, fontSize: 11.5, fontWeight: 600, background: badgeBg, color: badgeColor, whiteSpace: 'nowrap', flexShrink: 0 }}>{b.category}</span>
-                </div>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{b.desc}</p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border-light)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-tertiary)' }}>
-                    <Icon name="door" size={13} /> {b.rooms} rooms
-                  </span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {['edit', 'arrowRight', 'trash'].map(ic => (
-                      <div key={ic} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
-                        <Icon name={ic} size={14} />
-                      </div>
-                    ))}
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{b.desc}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border-light)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-tertiary)' }}>
+                      <Icon name="door" size={13} /> {b.rooms} rooms
+                    </span>
+                    {b.isNew
+                      ? <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 9999, background: 'rgba(14,165,233,0.12)', color: '#0EA5E9', fontWeight: 600 }}>✓ Just added</span>
+                      : <div style={{ display: 'flex', gap: 4 }}>
+                          {['edit', 'arrowRight', 'trash'].map(ic => (
+                            <div key={ic} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+                              <Icon name={ic} size={14} />
+                            </div>
+                          ))}
+                        </div>
+                    }
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
-      </main>
+              )
+            })}
+          </div>
+        </main>
+
+        {phase === 'form' && (
+          <FormModal
+            title="Add Building"
+            fields={[
+              { label: 'Building name', value: 'Science Block',      placeholder: 'e.g. Science Block' },
+              { label: 'Category',      value: 'Academic',           placeholder: 'Select category…'   },
+              { label: 'Coordinates',   value: '51.5242, -0.1298',   placeholder: 'lat, lng'            },
+            ]}
+            filled={formFilled}
+          />
+        )}
+      </div>
     </ScaledPreview>
   )
 }
 
-// ─── Rooms preview ────────────────────────────────────────────────────────────
+// ─── Rooms sim ────────────────────────────────────────────────────────────────
+// Header strip ≈ 69px. Add Room button ≈ (800, 38).
+// Room cards: 3-col grid starting at y≈130. Row-1 centres ≈ y=170.
+
+const ROOMS_SIM_STEPS = [
+  { x: 364, y: 170, move: 500, hold: 1000 },
+  { x: 553, y: 170, move: 400, hold: 700  },
+  { x: 742, y: 260, move: 500, hold: 800  },
+  { x: 800, y: 38,  move: 800, hold: 400,  click: true, action: 'openForm'   },
+  { x: 550, y: 175, move: 500, hold: 900  },
+  { x: 550, y: 248, move: 300, hold: 800  },
+  { x: 550, y: 321, move: 300, hold: 700  },
+  { x: 648, y: 385, move: 400, hold: 350,  click: true, action: 'submitForm' },
+  { x: 364, y: 170, move: 600, hold: 2800 },
+  { x: 560, y: 230, move: 400, hold: 400,  action: 'reset'                   },
+]
 
 export function AdminRoomsPreview() {
-  return (
-    <ScaledPreview>
-      <SimSidebar active="rooms" />
-      <main style={{ flex: 1, background: 'var(--bg)', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ borderBottom: '1px solid var(--border)', padding: '16px 32px', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Rooms</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Building:</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13.5, fontWeight: 500 }}>
-              <Icon name="building" size={14} />
-              University Library
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-          </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-            <Icon name="plus" size={14} color="#fff" /> Add Room
-          </div>
-        </div>
+  const { phase, formFilled, handleAction } = useSimPhase()
+  const rooms = phase === 'added' ? [NEW_ROOM, ...DEMO_ROOMS] : DEMO_ROOMS
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '22px 32px' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
-            {DEMO_ROOMS.length} rooms · {DEMO_ROOMS.filter(r => r.isOffice).length} offices · {DEMO_ROOMS.filter(r => r.hasSchedule).length} with schedule
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            {DEMO_ROOMS.map((r, i) => (
-              <div key={i} style={{ background: 'var(--surface)', borderRadius: 12, border: `1px solid ${r.isOffice ? 'rgba(14,165,233,0.35)' : 'var(--border-light)'}`, padding: '14px 16px', boxShadow: 'var(--card-shadow, 0 1px 4px rgba(0,0,0,0.07))' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>{r.number}</span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {r.isOffice && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 9999, background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 600 }}>★ Office</span>}
-                    {r.hasSchedule && (
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 9999, background: 'rgba(34,197,94,0.1)', color: '#16A34A', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Icon name="calendar" size={9} /> Sched
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r.type}</div>
+  return (
+    <ScaledPreview renderOverlay={(scale) => (
+      <SimCursor steps={ROOMS_SIM_STEPS} scale={scale} onAction={handleAction} />
+    )}>
+      <SimSidebar active="rooms" />
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <main style={{ flex: 1, background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ borderBottom: '1px solid var(--border)', padding: '16px 32px', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Rooms</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Building:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13.5, fontWeight: 500 }}>
+                <Icon name="building" size={14} />
+                University Library
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
-            ))}
-            <div style={{ borderRadius: 12, border: '2px dashed var(--border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 90, opacity: 0.6 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="plus" size={16} color="var(--accent)" />
-              </div>
-              <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>Add room</span>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              <Icon name="plus" size={14} color="#fff" /> Add Room
             </div>
           </div>
-        </div>
-      </main>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '22px 32px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+              {rooms.length} rooms · {rooms.filter(r => r.isOffice).length} offices · {rooms.filter(r => r.hasSchedule).length} with schedule
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {rooms.map((r, i) => (
+                <div key={i} style={{ background: 'var(--surface)', borderRadius: 12, border: r.isNew ? '2px solid var(--accent)' : r.isOffice ? '1px solid rgba(14,165,233,0.35)' : '1px solid var(--border-light)', padding: '14px 16px', boxShadow: r.isNew ? '0 0 0 3px rgba(14,165,233,0.10)' : 'var(--card-shadow, 0 1px 4px rgba(0,0,0,0.07))', animation: r.isNew ? 'ads-fadein 0.4s ease-out' : undefined }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>{r.number}</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {r.isNew && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 9999, background: 'rgba(14,165,233,0.12)', color: '#0EA5E9', fontWeight: 600 }}>New</span>}
+                      {r.isOffice && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 9999, background: 'var(--accent-subtle)', color: 'var(--accent)', fontWeight: 600 }}>★ Office</span>}
+                      {r.hasSchedule && (
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 9999, background: 'rgba(34,197,94,0.1)', color: '#16A34A', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <Icon name="calendar" size={9} /> Sched
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r.type}</div>
+                </div>
+              ))}
+              <div style={{ borderRadius: 12, border: '2px dashed var(--border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 90, opacity: 0.6 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="plus" size={16} color="var(--accent)" />
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>Add room</span>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {phase === 'form' && (
+          <FormModal
+            title="Add Room"
+            fields={[
+              { label: 'Room number', value: 'C301',       placeholder: 'e.g. C301'       },
+              { label: 'Room name',   value: 'Physics Lab', placeholder: 'e.g. Physics Lab' },
+              { label: 'Room type',   value: 'Laboratory',  placeholder: 'Select type…'    },
+            ]}
+            filled={formFilled}
+          />
+        )}
+      </div>
     </ScaledPreview>
   )
 }
 
-// ─── Events preview ───────────────────────────────────────────────────────────
+// ─── Events sim ───────────────────────────────────────────────────────────────
+// Add Event button ≈ (795, 50). Events list starts at y≈96.
+
+const EVENTS_SIM_STEPS = [
+  { x: 580, y: 170, move: 500, hold: 1000 },
+  { x: 580, y: 283, move: 400, hold: 800  },
+  { x: 795, y: 50,  move: 800, hold: 400,  click: true, action: 'openForm'   },
+  { x: 550, y: 175, move: 500, hold: 900  },
+  { x: 550, y: 248, move: 300, hold: 800  },
+  { x: 550, y: 321, move: 300, hold: 700  },
+  { x: 648, y: 385, move: 400, hold: 350,  click: true, action: 'submitForm' },
+  { x: 580, y: 170, move: 600, hold: 2800 },
+  { x: 580, y: 250, move: 400, hold: 400,  action: 'reset'                   },
+]
 
 export function AdminEventsPreview() {
+  const { phase, formFilled, handleAction } = useSimPhase()
+
   const EVT_STATUS = {
     upcoming: { label: 'Upcoming', bg: 'rgba(14,165,233,0.12)',  color: '#0EA5E9' },
     active:   { label: 'Active',   bg: 'rgba(34,197,94,0.12)',   color: '#16A34A' },
     ended:    { label: 'Ended',    bg: 'rgba(148,163,184,0.12)', color: '#64748B' },
   }
 
-  return (
-    <ScaledPreview>
-      <SimSidebar active="events" />
-      <main style={{ flex: 1, padding: '28px 36px', overflowY: 'auto', background: 'var(--bg)', minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
-          <div>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 4px', color: 'var(--text-primary)' }}>
-              Events <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', marginLeft: 6 }}>4</span>
-            </h1>
-            <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)', margin: 0 }}>Live updates shown on the student public map.</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, fontFamily: 'var(--font-display)', minHeight: 40, whiteSpace: 'nowrap' }}>
-            <Icon name="plus" size={15} color="#fff" /> Add Event
-          </div>
-        </div>
+  const events = phase === 'added' ? [NEW_EVENT, ...DEMO_EVENTS] : DEMO_EVENTS
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {DEMO_EVENTS.map((ev, i) => {
-            const cat    = EVENT_CAT[ev.category] || EVENT_CAT.social
-            const status = ev.isPublished ? (EVT_STATUS[ev.status] || EVT_STATUS.ended) : { label: 'Draft', bg: 'rgba(148,163,184,0.12)', color: '#64748B' }
-            return (
-              <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', padding: '16px 18px', boxShadow: 'var(--card-shadow, 0 1px 4px rgba(0,0,0,0.07))', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 4, borderRadius: 4, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 20 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14.5, color: 'var(--text-primary)' }}>{ev.title}</span>
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: status.bg, color: status.color, fontWeight: 600 }}>{status.label}</span>
-                  </div>
-                  {ev.building && (
-                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Icon name="building" size={12} /> {ev.building}
+  return (
+    <ScaledPreview renderOverlay={(scale) => (
+      <SimCursor steps={EVENTS_SIM_STEPS} scale={scale} onAction={handleAction} />
+    )}>
+      <SimSidebar active="events" />
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <main style={{ flex: 1, padding: '28px 36px', overflowY: 'auto', background: 'var(--bg)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
+            <div>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 4px', color: 'var(--text-primary)' }}>
+                Events <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', marginLeft: 6 }}>{events.length}</span>
+              </h1>
+              <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)', margin: 0 }}>Live updates shown on the student public map.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, fontFamily: 'var(--font-display)', minHeight: 40, whiteSpace: 'nowrap' }}>
+              <Icon name="plus" size={15} color="#fff" /> Add Event
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {events.map((ev, i) => {
+              const cat    = EVENT_CAT[ev.category] || EVENT_CAT.social
+              const status = ev.isPublished ? (EVT_STATUS[ev.status] || EVT_STATUS.ended) : { label: 'Draft', bg: 'rgba(148,163,184,0.12)', color: '#64748B' }
+              return (
+                <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: ev.isNew ? '2px solid var(--accent)' : '1px solid var(--border-light)', padding: '16px 18px', boxShadow: ev.isNew ? '0 0 0 4px rgba(14,165,233,0.09)' : 'var(--card-shadow, 0 1px 4px rgba(0,0,0,0.07))', display: 'flex', gap: 14, alignItems: 'flex-start', animation: ev.isNew ? 'ads-fadein 0.4s ease-out' : undefined }}>
+                  <div style={{ width: 4, borderRadius: 4, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 20 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14.5, color: 'var(--text-primary)' }}>{ev.title}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: status.bg, color: status.color, fontWeight: 600 }}>{status.label}</span>
+                      {ev.isNew && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: 'rgba(14,165,233,0.12)', color: '#0EA5E9', fontWeight: 600 }}>✓ Just added</span>}
                     </div>
-                  )}
-                  {ev.desc && <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '0 0 6px', lineHeight: 1.5 }}>{ev.desc}</p>}
-                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Icon name="calendar" size={12} />
-                    {ev.startsAt}{ev.endsAt ? ` → ${ev.endsAt}` : ''}
+                    {ev.building && (
+                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Icon name="building" size={12} /> {ev.building}
+                      </div>
+                    )}
+                    {ev.desc && <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '0 0 6px', lineHeight: 1.5 }}>{ev.desc}</p>}
+                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name="calendar" size={12} />
+                      {ev.startsAt}{ev.endsAt ? ` → ${ev.endsAt}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ev.isPublished ? 'var(--success, #12B76A)' : 'var(--text-tertiary)' }}>
+                      <Icon name="zap" size={14} />
+                    </div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+                      <Icon name="edit" size={14} />
+                    </div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+                      <Icon name="trash" size={14} />
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ev.isPublished ? 'var(--success, #12B76A)' : 'var(--text-tertiary)' }}>
-                    <Icon name="zap" size={14} />
-                  </div>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
-                    <Icon name="edit" size={14} />
-                  </div>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
-                    <Icon name="trash" size={14} />
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </main>
+              )
+            })}
+          </div>
+        </main>
+
+        {phase === 'form' && (
+          <FormModal
+            title="Add Event"
+            fields={[
+              { label: 'Event title', value: 'Career Fair 2026', placeholder: 'e.g. Career Fair 2026' },
+              { label: 'Category',    value: 'Social',           placeholder: 'Select category…'      },
+              { label: 'Building',    value: 'Student Union',    placeholder: 'Select building…'      },
+            ]}
+            filled={formFilled}
+          />
+        )}
+      </div>
     </ScaledPreview>
   )
 }

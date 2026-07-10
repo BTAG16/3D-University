@@ -422,13 +422,15 @@ function PublicMap() {
           }}>
             <Icon name="navigation" size={15} color="#fff" /> Get Directions
           </button>
-          <button onClick={handleOpenIndoorNav} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
-            cursor: 'pointer', background: 'transparent', color: D.accent, border: `1px solid ${D.border}`,
-          }}>
-            <Icon name="layers" size={15} color={D.accent} /> Indoor Navigation
-          </button>
+          {selectedBuilding?.mappedin_url && (
+            <button onClick={handleOpenIndoorNav} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+              cursor: 'pointer', background: 'transparent', color: D.accent, border: `1px solid ${D.border}`,
+            }}>
+              <Icon name="layers" size={15} color={D.accent} /> Indoor Navigation
+            </button>
+          )}
           <button onClick={() => setShowRoomsList(true)} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,

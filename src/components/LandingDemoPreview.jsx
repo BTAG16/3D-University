@@ -29,26 +29,25 @@ const MAP_SIM_STEPS = [
   { x: 150, y: 315, move: 600,  hold: 350,  click: true,  action: 'selectDormitory' },
   // Dormitory detail
   { x: 150, y: 195, move: 300,  hold: 1500, click: false },
+  // Back to building list
+  { x: 150, y: 82,  move: 500,  hold: 350,  click: true,  action: 'goBack'         },
   // Pan cursor over map
   { x: 695, y: 310, move: 900,  hold: 900,  click: false },
-  // Click Add Building in header
-  { x: 1063, y: 28, move: 700,  hold: 350,  click: true,  action: 'openForm'        },
-  // Hover over form fields
-  { x: 680,  y: 330, move: 500,  hold: 1800, click: false },
-  // Close form
-  { x: 868,  y: 200, move: 500,  hold: 350,  click: true,  action: 'closeForm'      },
 
   // ── Navigation simulation — FPV 3D walkthrough ────────────────────────────
   // Select admin building
   { x: 150,  y: 175, move: 700,  hold: 350,  click: true,  action: 'selectAdmin' },
-  // Click Get Directions — triggers real FPV tour (camera flies route in 3D)
+  // Click Get Directions — triggers real Mapbox route fetch + FPV tour
   { x: 150,  y: 312, move: 600,  hold: 350,  click: true,  action: 'startNav'   },
-  // Cursor hovers map while FPV tour plays (~27s for 5 steps at 110m each)
-  { x: 640,  y: 380, move: 800,  hold: 4800, click: false },
-  { x: 710,  y: 330, move: 700,  hold: 5200, click: false },
-  { x: 590,  y: 295, move: 800,  hold: 5000, click: false },
-  { x: 720,  y: 260, move: 700,  hold: 5200, click: false },
-  { x: 650,  y: 240, move: 600,  hold: 4600, click: false },
+  // Extra pause for route API fetch + initial camera positioning
+  { x: 640,  y: 380, move: 800,  hold: 3200, click: false },
+  // Cursor drifts around map while FPV tour plays the real walking route (~35s)
+  { x: 710,  y: 330, move: 700,  hold: 5500, click: false },
+  { x: 590,  y: 295, move: 800,  hold: 5500, click: false },
+  { x: 720,  y: 260, move: 700,  hold: 5500, click: false },
+  { x: 650,  y: 240, move: 600,  hold: 5500, click: false },
+  { x: 720,  y: 300, move: 700,  hold: 5500, click: false },
+  { x: 640,  y: 340, move: 600,  hold: 4000, click: false },
   // FPV completes → stop nav and reset
   { x: 720,  y: 380, move: 800,  hold: 600,  click: false, action: 'stopNav'    },
 ]
@@ -84,8 +83,6 @@ export default function LandingDemoPreview() {
       case 'selectAdmin':     ctrl.selectBuilding?.(admin);     break
       case 'showRooms':       ctrl.showRooms?.();               break
       case 'goBack':          ctrl.goBack?.();                  break
-      case 'openForm':        ctrl.openForm?.();                break
-      case 'closeForm':       ctrl.closeForm?.();               break
       case 'startNav':        ctrl.startNav?.(admin);           break
       case 'stopNav':         ctrl.stopNav?.(); ctrl.reset?.(); break
       default: break
@@ -118,8 +115,8 @@ export default function LandingDemoPreview() {
         <DemoMap embedded controlRef={controlRef} />
       </div>
 
-      {/* Sim cursor overlay — desktop only (no mouse on phones/tablets) */}
-      {showCursor && <SimCursor steps={MAP_SIM_STEPS} scale={scale} onAction={handleAction} />}
+      {/* Sim cursor — always mounted so timers fire actions on mobile too; arrow hidden on touch */}
+      <SimCursor steps={MAP_SIM_STEPS} scale={scale} onAction={handleAction} visible={showCursor} />
     </div>
   )
 }

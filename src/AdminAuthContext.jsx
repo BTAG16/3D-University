@@ -254,6 +254,7 @@ export function AdminAuthProvider({ children }) {
         facilities: buildingData.facilities || [],
         departments: buildingData.departments || [],
         hours: buildingData.hours || null,
+        mappedin_url: buildingData.mappedin_url || null,
         is_admin_building: buildingData.is_admin_building || false
       }
 
@@ -301,8 +302,9 @@ export function AdminAuthProvider({ children }) {
         facilities: updates.facilities,
         departments: updates.departments,
         hours: updates.hours,
-        is_admin_building: updates.is_admin_building !== undefined 
-          ? updates.is_admin_building 
+        mappedin_url: updates.mappedin_url,
+        is_admin_building: updates.is_admin_building !== undefined
+          ? updates.is_admin_building
           : updates.isAdminBuilding
       }
 

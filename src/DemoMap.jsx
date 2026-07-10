@@ -35,7 +35,9 @@ const LIGHT = {
   accent:  '#0EA5E9',
 }
 
-const DEMO_LOCATION = { latitude: 51.5185, longitude: -0.1280 }
+// Placed ~350m south-east of the Admin building so the real walking route
+// stays on actual streets rather than cutting through campus buildings.
+const DEMO_LOCATION = { latitude: 51.5219, longitude: -0.1302 }
 
 export const initialDemoBuildings = [
   {
@@ -171,38 +173,6 @@ function DemoMap({ embedded = false, controlRef } = {}) {
     toast.info('Simulated campus location set — explore distances below')
   }
 
-  // Draw dashed route lines from demo location to each building
-  useEffect(() => {
-    if (!userLocation) return
-    let removed = false
-    const PREFIX = 'demo-line'
-    const addLines = () => {
-      if (removed) return
-      const map = mapRef.current?.getMap?.()
-      if (!map) return
-      if (!map.isStyleLoaded()) { map.once('idle', addLines); return }
-      buildings.forEach(b => {
-        const sid = `${PREFIX}-${b.id}`, lid = `${PREFIX}-${b.id}-line`
-        try { map.removeLayer(lid) } catch (_) {}
-        try { map.removeSource(sid) } catch (_) {}
-        try {
-          map.addSource(sid, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [[userLocation.longitude, userLocation.latitude], b.coordinates] } } })
-          map.addLayer({ id: lid, type: 'line', source: sid, paint: { 'line-color': '#0EA5E9', 'line-width': 2.5, 'line-dasharray': [3, 4], 'line-opacity': 0.7 } })
-        } catch (_) {}
-      })
-    }
-    const t = setTimeout(addLines, 300)
-    return () => {
-      removed = true
-      clearTimeout(t)
-      const map = mapRef.current?.getMap?.()
-      if (!map) return
-      buildings.forEach(b => {
-        try { map.removeLayer(`${PREFIX}-${b.id}-line`) } catch (_) {}
-        try { map.removeSource(`${PREFIX}-${b.id}`) } catch (_) {}
-      })
-    }
-  }, [userLocation])
 
   const handleBuildingClick = (building) => {
     setSelectedBuilding(building)
@@ -422,35 +392,16 @@ function DemoMap({ embedded = false, controlRef } = {}) {
         setSelectedBuilding(building)
         setUserLocation(DEMO_LOCATION)
         setSimNavState(null)
-        // Build a synthetic walking route from user location to building for the FPV 3D tour
-        const sLng = DEMO_LOCATION.longitude, sLat = DEMO_LOCATION.latitude
-        const [eLng, eLat] = building.coordinates
-        const pts = [
-          [sLng, sLat],
-          [sLng + (eLng - sLng) * 0.18, sLat + (eLat - sLat) * 0.22],
-          [sLng + (eLng - sLng) * 0.40, sLat + (eLat - sLat) * 0.48],
-          [sLng + (eLng - sLng) * 0.65, sLat + (eLat - sLat) * 0.72],
-          [sLng + (eLng - sLng) * 0.86, sLat + (eLat - sLat) * 0.91],
-          [eLng, eLat],
-        ]
-        setRouteData({
-          geometry: { type: 'LineString', coordinates: pts },
-          steps: [
-            { instruction: 'Head north along the main path', location: pts[1], distance: 110 },
-            { instruction: 'Bear left past the fountain',    location: pts[2], distance: 110 },
-            { instruction: 'Continue through the quad',      location: pts[3], distance: 110 },
-            { instruction: 'Turn right at the main gate',    location: pts[4], distance: 80  },
-            { instruction: `Arrived at ${building.name}`,   location: pts[5], distance: 60  },
-          ],
-          duration: 9,
-          distance: '0.72',
-        })
+        // Trigger real Mapbox Directions fetch — MapComponent picks up userLocation +
+        // destinationCoords + showDirections=true and calls onRouteDataChange with the
+        // actual walking route, so the FPV camera follows real streets.
         setShowDirections(true)
       },
       setNavState: () => {}, // FPV tour self-advances; cursor steps are decorative only
       stopNav: () => {
         navDestRef.current = null
         mapRef.current?.stopFpvTour()
+        mapRef.current?.clearDirections?.()
         tourStartedRef.current = false
         setFpvTour(null)
         setShowDirections(false)
@@ -462,6 +413,7 @@ function DemoMap({ embedded = false, controlRef } = {}) {
       reset: () => {
         navDestRef.current = null
         mapRef.current?.stopFpvTour()
+        mapRef.current?.clearDirections?.()
         tourStartedRef.current = false
         setFpvTour(null)
         setSelectedBuilding(null)

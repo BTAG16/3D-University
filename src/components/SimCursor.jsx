@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 // steps: [{ x, y, move: ms, hold: ms, click?: bool, action?: string }]
 // scale: applied to x/y so cursor renders in the outer (scaled) container space
 // onAction: called with step.action string when the step's cursor arrives
-export default function SimCursor({ steps = [], scale = 1, onAction }) {
+export default function SimCursor({ steps = [], scale = 1, onAction, visible = true }) {
   const [idx, setIdx] = useState(0)
   const [ripple, setRipple] = useState(false)
   const timerRef = useRef(null)
@@ -45,6 +45,9 @@ export default function SimCursor({ steps = [], scale = 1, onAction }) {
   }, [steps, onAction]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!steps.length) return null
+  // Hooks always run above — returning null here keeps timers alive on mobile
+  // (where we hide the cursor arrow but still need actions to fire)
+  if (!visible) return null
   const step = steps[idx]
   const cx = step.x * scale
   const cy = step.y * scale
