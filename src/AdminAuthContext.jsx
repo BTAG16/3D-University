@@ -39,10 +39,15 @@ export function AdminAuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // TOKEN_REFRESHED fires every time the tab becomes active and Supabase silently
-      // rotates the JWT. The admin data hasn't changed — skip re-loading to prevent
-      // the UI flash/glitch caused by a full session reload cascade.
-      if (event === 'TOKEN_REFRESHED' && adminSessionRef.current) return
+      // Skip any auth event where the user hasn't changed and we already have a
+      // valid admin session. This covers TOKEN_REFRESHED, re-fired SIGNED_IN,
+      // USER_UPDATED, and any other event Supabase fires on tab-focus/visibility
+      // change — all of which were causing a full session reload and UI flash.
+      // Sign-out is safe: session?.user is null, so the ID check fails and we fall through.
+      if (
+        adminSessionRef.current &&
+        session?.user?.id === adminSessionRef.current.user?.id
+      ) return
 
       setUser(session?.user ?? null)
       if (session?.user) {
