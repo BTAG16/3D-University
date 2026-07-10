@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
 import { useDarkMode } from './hooks'
+import { supabase } from './lib/supabase'
 import './Landing.css'
 
 // ─── SVG helpers ─────────────────────────────────────────────────────────────
@@ -145,6 +146,35 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false)
   const [faqOpen, setFaqOpen] = useState(-1)
 
+  const [showDemoModal, setShowDemoModal]   = useState(false)
+  const [demoForm,  setDemoForm]            = useState({ name: '', university: '', email: '', role: '', message: '' })
+  const [demoStatus,  setDemoStatus]        = useState('idle') // idle | sending | sent | error
+  const [contactForm, setContactForm]       = useState({ name: '', email: '', subject: 'Partnership', message: '' })
+  const [contactStatus, setContactStatus]   = useState('idle')
+
+  const sendContactEmail = async (body) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-contact', { body })
+      return !error
+    } catch { return false }
+  }
+
+  const handleDemoSubmit = async (e) => {
+    e.preventDefault()
+    setDemoStatus('sending')
+    const ok = await sendContactEmail({ ...demoForm, type: 'demo' })
+    setDemoStatus(ok ? 'sent' : 'error')
+    if (ok) setDemoForm({ name: '', university: '', email: '', role: '', message: '' })
+  }
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault()
+    setContactStatus('sending')
+    const ok = await sendContactEmail({ ...contactForm, type: 'contact' })
+    setContactStatus(ok ? 'sent' : 'error')
+    if (ok) setContactForm({ name: '', email: '', subject: 'Partnership', message: '' })
+  }
+
   const parallaxRef = useRef(null)
   const showcaseRef = useRef(null)
   const statsRef = useRef(null)
@@ -203,8 +233,8 @@ export default function Landing() {
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 19, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>Kampus</span>
           </a>
           <div className="rl-nav-links">
-            {['features', 'how-it-works', 'testimonials', 'faq'].map(id => (
-              <a key={id} href={`#${id}`} className="rl-nav-link">{id === 'how-it-works' ? 'How It Works' : id === 'faq' ? 'FAQ' : id.charAt(0).toUpperCase() + id.slice(1)}</a>
+            {[['features','Features'],['how-it-works','How It Works'],['testimonials','Testimonials'],['faq','FAQ'],['contact','Contact']].map(([id, label]) => (
+              <a key={id} href={`#${id}`} className="rl-nav-link">{label}</a>
             ))}
           </div>
           <div className="rl-nav-actions">
@@ -229,7 +259,7 @@ export default function Landing() {
       {/* ═══ MOBILE DRAWER ═══ */}
       {menuOpen && (
         <div className="rl-drawer" style={{ position: 'fixed', top: 64, left: 0, right: 0, bottom: 0, zIndex: 99, background: 'var(--bg)', flexDirection: 'column', padding: 24, gap: 4 }}>
-          {[['#features','Features'],['#how-it-works','How It Works'],['#testimonials','Testimonials'],['#faq','FAQ']].map(([href, label]) => (
+          {[['#features','Features'],['#how-it-works','How It Works'],['#testimonials','Testimonials'],['#faq','FAQ'],['#contact','Contact']].map(([href, label]) => (
             <a key={href} href={href} onClick={closeMenu} className="hero-seq rl-drawer-link">{label}</a>
           ))}
           <div className="hero-seq" style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12, animationDelay: '0.26s' }}>
@@ -266,6 +296,9 @@ export default function Landing() {
                 <button onClick={ctaAction} className="rl-btn-primary-pill">Get started free</button>
                 <button onClick={demoAction} className="rl-btn-outline-pill">
                   See live demo <ArrowIcon size={16} />
+                </button>
+                <button onClick={() => setShowDemoModal(true)} style={{ fontSize: 13.5, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', padding: '4px 0', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                  Request a guided demo
                 </button>
               </div>
               <div className="rl-hero-trust hero-seq" style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-tertiary)', flexWrap: 'wrap', justifyContent: 'center', animationDelay: '0.53s' }}>
@@ -516,6 +549,88 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ═══ CONTACT ═══ */}
+      {(() => {
+        const fldSt = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 44 }
+        return (
+          <section id="contact" style={{ background: 'var(--alt-bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+            <div className="rl-container">
+              <div className="rl-grid-2" style={{ alignItems: 'start', gap: 'clamp(40px,7vw,80px)' }}>
+                {/* Left */}
+                <div data-reveal>
+                  <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Get in touch</div>
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,48px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>We'd love to hear from you</h2>
+                  <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 36px', textWrap: 'pretty' }}>Whether you're exploring a partnership, have a question about the platform, want to collaborate, or just want to say hi — drop us a message and we'll get back to you.</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {[
+                      { icon: '🤝', title: 'Partnerships & collabs', desc: 'EdTech, university systems, campus apps' },
+                      { icon: '💬', title: 'Questions & feedback',  desc: 'Feature ideas, bug reports, general help' },
+                      { icon: '🚀', title: 'Guided demo',           desc: 'Want a walkthrough? We\'ll set it up for you' },
+                    ].map(item => (
+                      <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 2 }}>{item.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                          <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{item.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Right — form */}
+                <div data-reveal style={{ transitionDelay: '120ms' }}>
+                  <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border-light)', padding: 'clamp(24px,4vw,36px)', boxShadow: 'var(--card-shadow)' }}>
+                    {contactStatus === 'sent' ? (
+                      <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                        <div style={{ fontSize: 42, marginBottom: 16 }}>✅</div>
+                        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary)' }}>Message sent!</h3>
+                        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px' }}>We'll get back to you within 1–2 business days.</p>
+                        <button onClick={() => setContactStatus('idle')} style={{ fontSize: 13.5, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>Send another message</button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Name *</label>
+                            <input required value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" style={fldSt} />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Email *</label>
+                            <input required type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="you@example.com" style={fldSt} />
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Subject *</label>
+                          <select required value={contactForm.subject} onChange={e => setContactForm(f => ({ ...f, subject: e.target.value }))} style={{ ...fldSt, cursor: 'pointer' }}>
+                            <option>Partnership</option>
+                            <option>Collaboration</option>
+                            <option>Feature request</option>
+                            <option>Bug report</option>
+                            <option>General question</option>
+                            <option>Feedback</option>
+                            <option>Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Message *</label>
+                          <textarea required rows={5} value={contactForm.message} onChange={e => setContactForm(f => ({ ...f, message: e.target.value }))} placeholder="Tell us what's on your mind…" style={{ ...fldSt, resize: 'vertical', lineHeight: 1.55, minHeight: 120 }} />
+                        </div>
+                        {contactStatus === 'error' && (
+                          <p style={{ fontSize: 13, color: 'var(--error)', margin: 0 }}>Something went wrong. Please try again or email us directly.</p>
+                        )}
+                        <button type="submit" disabled={contactStatus === 'sending'} className="rl-btn-primary-pill" style={{ opacity: contactStatus === 'sending' ? 0.7 : 1, cursor: contactStatus === 'sending' ? 'not-allowed' : 'pointer' }}>
+                          {contactStatus === 'sending' ? 'Sending…' : 'Send message'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )
+      })()}
+
       {/* ═══ FINAL CTA ═══ */}
       <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--navy)', padding: 'clamp(88px,10vw,136px) 0', textAlign: 'center' }}>
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', height: '100%', background: 'radial-gradient(ellipse 55% 55% at 50% 50%, rgba(14,165,233,0.13) 0%, transparent 70%)', pointerEvents: 'none' }} />
@@ -526,6 +641,9 @@ export default function Landing() {
             <button onClick={ctaAction} className="rl-btn-white-pill">Get started free</button>
             <button onClick={demoAction} className="rl-btn-ghost-pill">
               See live demo <ArrowIcon size={16} />
+            </button>
+            <button onClick={() => setShowDemoModal(true)} className="rl-btn-ghost-pill">
+              Request a demo <ArrowIcon size={16} />
             </button>
           </div>
         </div>
@@ -544,7 +662,7 @@ export default function Landing() {
             </div>
             {[
               { title: 'Product',  links: [['#features','Features'],['#how-it-works','How It Works'],['/demo','Live Demo']] },
-              { title: 'Company', links: [['#top','About'],['#top','Blog'],['#top','Contact']] },
+              { title: 'Company', links: [['#top','About'],['#contact','Contact'],['#contact','Partnerships']] },
               { title: 'Legal',   links: [['/privacy','Privacy Policy'],['/terms','Terms of Service'],['#top','Cookies']] },
             ].map(col => (
               <div key={col.title} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
@@ -567,6 +685,76 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* ═══ DEMO REQUEST MODAL ═══ */}
+      {showDemoModal && (() => {
+        const fldSt = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 44 }
+        return (
+          <div onClick={e => { if (e.target === e.currentTarget) { setShowDemoModal(false); setDemoStatus('idle') } }}
+            style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--border-light)', boxShadow: '0 32px 64px -16px rgba(0,0,0,0.4)', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px,5vw,36px)' }}>
+              {demoStatus === 'sent' ? (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, margin: '0 0 10px', color: 'var(--text-primary)' }}>Request received!</h2>
+                  <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: '0 0 28px', lineHeight: 1.65 }}>We'll reach out within 1–2 business days to schedule your guided walkthrough.</p>
+                  <button onClick={() => { setShowDemoModal(false); setDemoStatus('idle') }} className="rl-btn-primary-pill">Done</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+                    <div>
+                      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-primary)' }}>Request a guided demo</h2>
+                      <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)', margin: 0 }}>We'll walk you through setup and answer any questions.</p>
+                    </div>
+                    <button onClick={() => { setShowDemoModal(false); setDemoStatus('idle') }} style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginLeft: 12 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+                  <form onSubmit={handleDemoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Name *</label>
+                        <input required value={demoForm.name} onChange={e => setDemoForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" style={fldSt} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Email *</label>
+                        <input required type="email" value={demoForm.email} onChange={e => setDemoForm(f => ({ ...f, email: e.target.value }))} placeholder="you@university.edu" style={fldSt} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>University *</label>
+                      <input required value={demoForm.university} onChange={e => setDemoForm(f => ({ ...f, university: e.target.value }))} placeholder="University name" style={fldSt} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Your role</label>
+                      <select value={demoForm.role} onChange={e => setDemoForm(f => ({ ...f, role: e.target.value }))} style={{ ...fldSt, cursor: 'pointer' }}>
+                        <option value="">Select role (optional)</option>
+                        <option>IT Director</option>
+                        <option>Head of Student Affairs</option>
+                        <option>Campus Operations</option>
+                        <option>Web / Digital Team</option>
+                        <option>Student Representative</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Anything you'd like us to focus on?</label>
+                      <textarea rows={3} value={demoForm.message} onChange={e => setDemoForm(f => ({ ...f, message: e.target.value }))} placeholder="e.g. indoor navigation, branding, events, integrations…" style={{ ...fldSt, resize: 'vertical', lineHeight: 1.55, minHeight: 80 }} />
+                    </div>
+                    {demoStatus === 'error' && (
+                      <p style={{ fontSize: 13, color: 'var(--error)', margin: 0 }}>Something went wrong. Please try again.</p>
+                    )}
+                    <button type="submit" disabled={demoStatus === 'sending'} className="rl-btn-primary-pill" style={{ opacity: demoStatus === 'sending' ? 0.7 : 1, cursor: demoStatus === 'sending' ? 'not-allowed' : 'pointer', marginTop: 4 }}>
+                      {demoStatus === 'sending' ? 'Sending…' : 'Request demo'}
+                    </button>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
     </div>
   )
