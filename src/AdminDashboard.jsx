@@ -253,20 +253,21 @@ function AdminDashboard() {
   }, [])
 
   useEffect(() => {
-    const accent = dashboardSettings?.accentColor || '#0EA5E9'
+    // localStorage takes priority; fall back to DB value so fresh devices
+    // see the admin's saved brand colour without needing a prior visit.
+    const accent = dashboardSettings?.accentColor || university?.accent_color || '#0EA5E9'
     document.documentElement.style.setProperty('--accent', accent)
     document.documentElement.style.setProperty('--primary', accent)
     document.documentElement.style.setProperty('--primary-color', accent)
     document.documentElement.style.setProperty('--primary-dark', `color-mix(in srgb, ${accent} 70%, black)`)
-    
-    // Cleanup on unmount
+
     return () => {
       document.documentElement.style.removeProperty('--accent')
       document.documentElement.style.removeProperty('--primary')
       document.documentElement.style.removeProperty('--primary-color')
       document.documentElement.style.removeProperty('--primary-dark')
     }
-  }, [dashboardSettings?.accentColor])
+  }, [dashboardSettings?.accentColor, university?.accent_color])
 
   useEffect(() => {
     if (!adminSession) { navigate('/admin/login'); return }
@@ -399,6 +400,7 @@ function AdminDashboard() {
       cookies_enabled:   settings.cookies !== false,
     })
     if (r.success) {
+      await loadUniversity() // refresh university state so name/accent update immediately
       toast.success('Settings saved!')
     } else {
       toast.error(`Failed to save settings: ${r.error}`)
