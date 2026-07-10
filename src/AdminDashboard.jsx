@@ -388,12 +388,16 @@ function AdminDashboard() {
     localStorage.setItem(`universitySettings_${university.id}`, JSON.stringify(settings))
     setDashboardSettings(settings)
     // Persist functional settings to DB so students see them
-    await dbService.updateUniversity(university.id, {
+    const r = await dbService.updateUniversity(university.id, {
       welcome_message: settings.welcomeMessage || null,
       analytics_enabled: settings.analytics !== false,
       cookies_enabled: settings.cookies !== false,
     })
-    toast.success('Settings saved!')
+    if (r.success) {
+      toast.success('Settings saved!')
+    } else {
+      toast.error(`Failed to save settings: ${r.error}`)
+    }
   }
 
   const handleDeleteUniversity = async () => {
