@@ -169,7 +169,7 @@ const MapComponent = forwardRef(({
         (layer) => layer.type === 'symbol' && layer.layout['text-field']
       )?.id
 
-      map.addLayer(
+      if (!map.getLayer('add-3d-buildings')) map.addLayer(
         {
           id: 'add-3d-buildings',
           source: 'composite',
@@ -394,22 +394,33 @@ const MapComponent = forwardRef(({
     const applyRouteToMap = (geometry) => {
       const map = mapRef.current
       if (!map) return
-      if (map.getLayer('route')) { map.removeLayer('route'); map.removeSource('route') }
-      map.addSource('route', {
-        type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry }
-      })
-      map.addLayer({
-        id: 'route', type: 'line', source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#667eea', 'line-width': 4, 'line-opacity': 0.8 }
-      })
-      const coords = geometry.coordinates
-      const bounds = coords.reduce(
-        (b, c) => b.extend(c),
-        new mapboxgl.LngLatBounds(coords[0], coords[0])
-      )
-      map.fitBounds(bounds, { padding: { top: 100, bottom: 100, left: 100, right: 100 }, pitch: 45 })
+
+      const doApply = () => {
+        if (!mapRef.current) return
+        if (map.getLayer('route')) { map.removeLayer('route'); map.removeSource('route') }
+        map.addSource('route', {
+          type: 'geojson',
+          data: { type: 'Feature', properties: {}, geometry }
+        })
+        map.addLayer({
+          id: 'route', type: 'line', source: 'route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#667eea', 'line-width': 4, 'line-opacity': 0.8 }
+        })
+        const coords = geometry.coordinates
+        const bounds = coords.reduce(
+          (b, c) => b.extend(c),
+          new mapboxgl.LngLatBounds(coords[0], coords[0])
+        )
+        map.fitBounds(bounds, { padding: { top: 100, bottom: 100, left: 100, right: 100 }, pitch: 45 })
+      }
+
+      // Style may not be ready yet (e.g. cache hit fires synchronously before load completes)
+      if (map.isStyleLoaded()) {
+        doApply()
+      } else {
+        map.once('load', doApply)
+      }
     }
 
     const fetchDirections = async () => {
