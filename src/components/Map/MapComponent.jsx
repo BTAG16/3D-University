@@ -226,9 +226,19 @@ const MapComponent = forwardRef(({
     }
     window.addEventListener('resize', handleWindowResize)
 
+    // When the tab becomes visible again the WebGL canvas needs a resize tick
+    // to clear the brief render stutter Mapbox shows after being paused.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && mapRef.current) {
+        mapRef.current.resize()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
     return () => {
       resizeObserver.disconnect()
       window.removeEventListener('resize', handleWindowResize)
+      document.removeEventListener('visibilitychange', handleVisibility)
       const t = tourRef.current
       if (t.timeoutId) clearTimeout(t.timeoutId)
       t.active = false

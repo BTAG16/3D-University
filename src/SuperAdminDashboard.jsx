@@ -179,7 +179,7 @@ export default function SuperAdminDashboard() {
     if (!adminSession) { navigate('/admin'); return }
     if (!adminSession.user.isSuperAdmin) { navigate('/admin/dashboard'); return }
     loadData()
-  }, [adminSession, navigate])
+  }, [adminSession?.user?.id, navigate])
 
   useEffect(() => {
     if (!adminSession?.user?.isSuperAdmin) return
@@ -190,7 +190,7 @@ export default function SuperAdminDashboard() {
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [adminSession])
+  }, [adminSession?.user?.id])
 
   const formatTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
 
