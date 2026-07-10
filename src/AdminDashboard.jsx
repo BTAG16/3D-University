@@ -271,7 +271,7 @@ function AdminDashboard() {
   useEffect(() => {
     if (!adminSession) { navigate('/admin/login'); return }
     loadUniversity()
-  }, [adminSession, navigate])
+  }, [adminSession?.user?.id, navigate])
 
   const loadEvents = async () => {
     if (!university) return

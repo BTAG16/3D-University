@@ -3,6 +3,10 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import './MapComponent.css'
 
+// Module-level cache: keyed by "startLng,startLat;endLng,endLat"
+// Persists across re-renders and tab switches for the lifetime of the page.
+const directionsCache = new Map()
+
 const getBearing = (from, to) => {
   const rad = Math.PI / 180
   const dLng = (to[0] - from[0]) * rad
@@ -387,9 +391,40 @@ const MapComponent = forwardRef(({
       return
     }
 
+    const applyRouteToMap = (geometry) => {
+      const map = mapRef.current
+      if (!map) return
+      if (map.getLayer('route')) { map.removeLayer('route'); map.removeSource('route') }
+      map.addSource('route', {
+        type: 'geojson',
+        data: { type: 'Feature', properties: {}, geometry }
+      })
+      map.addLayer({
+        id: 'route', type: 'line', source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#667eea', 'line-width': 4, 'line-opacity': 0.8 }
+      })
+      const coords = geometry.coordinates
+      const bounds = coords.reduce(
+        (b, c) => b.extend(c),
+        new mapboxgl.LngLatBounds(coords[0], coords[0])
+      )
+      map.fitBounds(bounds, { padding: { top: 100, bottom: 100, left: 100, right: 100 }, pitch: 45 })
+    }
+
     const fetchDirections = async () => {
       const start = `${userLocation.longitude},${userLocation.latitude}`
       const end = `${destinationCoords[0]},${destinationCoords[1]}`
+      const cacheKey = `${start};${end}`
+
+      // Serve from cache — avoids redundant API calls on re-renders and tab-switch reconnects.
+      if (directionsCache.has(cacheKey)) {
+        const cached = directionsCache.get(cacheKey)
+        if (onRouteDataChange) onRouteDataChange(cached)
+        applyRouteToMap(cached.geometry)
+        return
+      }
+
       const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}?geometries=geojson&overview=full&steps=true&language=en&access_token=${mapboxToken}`
 
       try {
@@ -412,55 +447,14 @@ const MapComponent = forwardRef(({
             geometry: route.geometry,
             steps
           }
-          if (onRouteDataChange) {
-            onRouteDataChange(nextRouteData)
-          }
 
-          if (mapRef.current.getLayer('route')) {
-            mapRef.current.removeLayer('route')
-            mapRef.current.removeSource('route')
-          }
-
-          mapRef.current.addSource('route', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: route.geometry
-            }
-          })
-
-          mapRef.current.addLayer({
-            id: 'route',
-            type: 'line',
-            source: 'route',
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round'
-            },
-            paint: {
-              'line-color': '#667eea',
-              'line-width': 4,
-              'line-opacity': 0.8
-            }
-          })
-
-          const coordinates = route.geometry.coordinates
-          const bounds = coordinates.reduce(
-            (bounds, coord) => bounds.extend(coord),
-            new mapboxgl.LngLatBounds(coordinates[0], coordinates[0])
-          )
-
-          mapRef.current.fitBounds(bounds, {
-            padding: { top: 100, bottom: 100, left: 100, right: 100 },
-            pitch: 45
-          })
+          directionsCache.set(cacheKey, nextRouteData)
+          if (onRouteDataChange) onRouteDataChange(nextRouteData)
+          applyRouteToMap(route.geometry)
         }
       } catch (error) {
         console.error('Error fetching directions:', error)
-        if (onRouteDataChange) {
-          onRouteDataChange(null)
-        }
+        if (onRouteDataChange) onRouteDataChange(null)
       }
     }
 

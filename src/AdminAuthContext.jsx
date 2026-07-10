@@ -20,6 +20,10 @@ export function AdminAuthProvider({ children }) {
   const [superAdminKey, setSuperAdminKey] = useState(null)
   const [superAdminKeyExpiry, setSuperAdminKeyExpiry] = useState(null)
 
+  // Keep a ref so the auth listener can check current session without stale closure
+  const adminSessionRef = useRef(null)
+  useEffect(() => { adminSessionRef.current = adminSession }, [adminSession])
+
   useEffect(() => {
     // Check for existing Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,7 +38,12 @@ export function AdminAuthProvider({ children }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED fires every time the tab becomes active and Supabase silently
+      // rotates the JWT. The admin data hasn't changed — skip re-loading to prevent
+      // the UI flash/glitch caused by a full session reload cascade.
+      if (event === 'TOKEN_REFRESHED' && adminSessionRef.current) return
+
       setUser(session?.user ?? null)
       if (session?.user) {
         loadAdminSession(session.user)
