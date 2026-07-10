@@ -88,8 +88,8 @@ const MapComponent = forwardRef(({
         const nextCoord = steps[i + 1]?.location ||
           coords[Math.min(Math.floor(((i + 1) / steps.length) * coords.length), coords.length - 1)]
         const bearing = getBearing(stepCoord, nextCoord)
-        const dur = Math.min(Math.max((step.distance || 60) * 50, 3000), 8000)
-        map.easeTo({ center: stepCoord, bearing, pitch: 76, zoom: 19, duration: dur, essential: true })
+        const dur = Math.min(Math.max((step.distance || 60) * 50, 1500), 8000)
+        map.easeTo({ center: stepCoord, bearing, pitch: 68, zoom: 19, duration: dur, essential: true })
         schedule(() => advance(i + 1), dur + 400)
       }
 

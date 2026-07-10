@@ -35,9 +35,9 @@ const LIGHT = {
   accent:  '#0EA5E9',
 }
 
-const DEMO_LOCATION = { latitude: 51.5220, longitude: -0.1325 }
+const DEMO_LOCATION = { latitude: 51.5185, longitude: -0.1280 }
 
-const initialDemoBuildings = [
+export const initialDemoBuildings = [
   {
     id: 'demo-admin',
     name: 'Administration Building',
@@ -73,7 +73,7 @@ const initialDemoBuildings = [
   },
 ]
 
-function DemoMap() {
+function DemoMap({ embedded = false, controlRef } = {}) {
   const navigate = useNavigate()
   const toast = useToast()
   const [dark, toggleDark] = useDarkMode()
@@ -94,11 +94,12 @@ function DemoMap() {
   const [officeRooms, setOfficeRooms] = useState([])
   const [routeData, setRouteData] = useState(null)
   const [fpvTour, setFpvTour] = useState(null)
-  const [showDemoBanner, setShowDemoBanner] = useState(true)
+  const [showDemoBanner, setShowDemoBanner] = useState(!embedded)
   const [showNavGate, setShowNavGate] = useState(false)
   const [showDemoCards, setShowDemoCards] = useState(false)
   const [showBuildingForm, setShowBuildingForm] = useState(false)
   const [editingBuilding, setEditingBuilding] = useState(null)
+  const [simNavState, setSimNavState] = useState(null) // embedded nav simulation HUD
   const [userAddedBuilding, setUserAddedBuilding] = useState(() =>
     sessionStorage.getItem('demoUserAddedBuilding') === 'true'
   )
@@ -108,13 +109,15 @@ function DemoMap() {
   const sheetRef = useRef(null)
   const sheetStateRef = useRef(sheetState)
   const touchDrag = useRef({ active: false, startY: 0, startTx: 0, moved: false })
+  const navDestRef = useRef(null)
 
   useEffect(() => {
+    if (embedded) return // always desktop sidebar layout when embedded
     const check = () => setIsMobile(window.innerWidth <= 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
-  }, [])
+  }, [embedded])
 
   useEffect(() => { sheetStateRef.current = sheetState }, [sheetState])
 
@@ -212,6 +215,7 @@ function DemoMap() {
   }
 
   const handleShowDirections = () => {
+    if (embedded) return
     setShowNavGate(true)
   }
 
@@ -400,8 +404,82 @@ function DemoMap() {
     </>
   )
 
+  // Expose imperative control for embedded auto-demo (updates every render for fresh closures)
+  if (controlRef) {
+    controlRef.current = {
+      selectBuilding: handleBuildingClick,
+      showRooms: () => setShowRoomsList(true),
+      goBack: () => {
+        setSelectedBuilding(null)
+        setShowRoomsList(false)
+        setOfficeRooms([])
+        if (isMobile) setSheetState('list')
+      },
+      openForm: () => { if (!userAddedBuilding) { setEditingBuilding(null); setShowBuildingForm(true) } },
+      closeForm: () => { setShowBuildingForm(false); setEditingBuilding(null) },
+      startNav: (building) => {
+        navDestRef.current = building
+        setSelectedBuilding(building)
+        setUserLocation(DEMO_LOCATION)
+        setSimNavState(null)
+        // Build a synthetic walking route from user location to building for the FPV 3D tour
+        const sLng = DEMO_LOCATION.longitude, sLat = DEMO_LOCATION.latitude
+        const [eLng, eLat] = building.coordinates
+        const pts = [
+          [sLng, sLat],
+          [sLng + (eLng - sLng) * 0.18, sLat + (eLat - sLat) * 0.22],
+          [sLng + (eLng - sLng) * 0.40, sLat + (eLat - sLat) * 0.48],
+          [sLng + (eLng - sLng) * 0.65, sLat + (eLat - sLat) * 0.72],
+          [sLng + (eLng - sLng) * 0.86, sLat + (eLat - sLat) * 0.91],
+          [eLng, eLat],
+        ]
+        setRouteData({
+          geometry: { type: 'LineString', coordinates: pts },
+          steps: [
+            { instruction: 'Head north along the main path', location: pts[1], distance: 110 },
+            { instruction: 'Bear left past the fountain',    location: pts[2], distance: 110 },
+            { instruction: 'Continue through the quad',      location: pts[3], distance: 110 },
+            { instruction: 'Turn right at the main gate',    location: pts[4], distance: 80  },
+            { instruction: `Arrived at ${building.name}`,   location: pts[5], distance: 60  },
+          ],
+          duration: 9,
+          distance: '0.72',
+        })
+        setShowDirections(true)
+      },
+      setNavState: () => {}, // FPV tour self-advances; cursor steps are decorative only
+      stopNav: () => {
+        navDestRef.current = null
+        mapRef.current?.stopFpvTour()
+        tourStartedRef.current = false
+        setFpvTour(null)
+        setShowDirections(false)
+        setRouteData(null)
+        setSelectedBuilding(null)
+        setSimNavState(null)
+        setUserLocation(null)
+      },
+      reset: () => {
+        navDestRef.current = null
+        mapRef.current?.stopFpvTour()
+        tourStartedRef.current = false
+        setFpvTour(null)
+        setSelectedBuilding(null)
+        setShowRoomsList(false)
+        setOfficeRooms([])
+        setShowBuildingForm(false)
+        setEditingBuilding(null)
+        setSimNavState(null)
+        setShowDirections(false)
+        setRouteData(null)
+        setUserLocation(null)
+        if (isMobile) setSheetState('peek')
+      },
+    }
+  }
+
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: D.bg, color: D.text, overflow: 'hidden' }}>
+    <div style={{ height: embedded ? '100%' : '100dvh', display: 'flex', flexDirection: 'column', background: D.bg, color: D.text, overflow: 'hidden', position: 'relative' }}>
 
       {/* ── Demo banner ── */}
       {showDemoBanner && (
@@ -445,9 +523,11 @@ function DemoMap() {
         padding: '0 14px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20, gap: 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          <button onClick={() => navigate('/')} title="Back to home" style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 8, padding: '0', cursor: 'pointer', color: D.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, minWidth: 36, minHeight: 36 }}>
-            <Icon name="arrowRight" size={14} color={D.textDim} style={{ transform: 'rotate(180deg)' }} />
-          </button>
+          {!embedded && (
+            <button onClick={() => navigate('/')} title="Back to home" style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 8, padding: '0', cursor: 'pointer', color: D.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, minWidth: 36, minHeight: 36 }}>
+              <Icon name="arrowRight" size={14} color={D.textDim} style={{ transform: 'rotate(180deg)' }} />
+            </button>
+          )}
           <div style={{ width: 34, height: 34, borderRadius: 9, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="compass" size={16} color="#fff" />
           </div>
@@ -468,10 +548,12 @@ function DemoMap() {
             <Icon name="plus" size={14} color={D.textDim} />
             {!isMobile && (userAddedBuilding ? 'Added (1/1)' : 'Add Building')}
           </button>
-          <button onClick={() => navigate('/admin/login')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.accent}`, background: `${D.accent}18`, color: D.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
-            <Icon name="zap" size={14} color={D.accent} />
-            {!isMobile && 'Get Started'}
-          </button>
+          {!embedded && (
+            <button onClick={() => navigate('/admin/login')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.accent}`, background: `${D.accent}18`, color: D.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
+              <Icon name="zap" size={14} color={D.accent} />
+              {!isMobile && 'Get Started'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -674,6 +756,45 @@ function DemoMap() {
             </div>
           )}
 
+          {/* ── Embedded nav simulation HUD ── */}
+          {embedded && simNavState && (
+            <div style={{
+              position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+              background: dark ? 'rgba(17,17,20,0.93)' : 'rgba(255,255,255,0.95)',
+              backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+              border: `1px solid ${D.border2}`, borderRadius: 14,
+              padding: '14px 16px', maxWidth: 400, width: 'calc(100% - 32px)', zIndex: 10,
+              boxShadow: `0 8px 32px rgba(0,0,0,${dark ? '0.5' : '0.12'})`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: simNavState.instruction ? 10 : 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name="navigation" size={16} color="#fff" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: D.text, lineHeight: 1.35, marginBottom: simNavState.instruction ? 2 : 0 }}>
+                    {simNavState.instruction || 'Starting navigation…'}
+                  </div>
+                  {simNavState.instruction && (
+                    <div style={{ fontSize: 12, color: D.textDim }}>
+                      Step {simNavState.stepIndex + 1} of {simNavState.totalSteps}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {simNavState.instruction && (
+                <div>
+                  <div style={{ height: 3, background: D.border2, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: D.accent, borderRadius: 2, width: `${((simNavState.stepIndex + 1) / simNavState.totalSteps) * 100}%`, transition: 'width 0.5s ease' }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: D.textMut, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Step {simNavState.stepIndex + 1}/{simNavState.totalSteps}</span>
+                    <span>~6 min walk · 0.48 km</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Mobile bottom sheet ── */}
           {isMobile && !showDirections && (() => {
             const translateY = {
@@ -854,7 +975,7 @@ function DemoMap() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
-                onClick={() => navigate('/admin/login')}
+                onClick={() => embedded ? setShowNavGate(false) : navigate('/admin/login')}
                 style={{ width: '100%', padding: '14px', borderRadius: 10, background: D.accent, color: '#fff', border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
               >
                 Get Started Free
@@ -871,7 +992,28 @@ function DemoMap() {
       )}
 
       {/* ── Add / Edit building slide-over ── */}
-      {showBuildingForm && (
+      {showBuildingForm && (embedded ? (
+        // Inline overlay — SlideOver uses createPortal to body and escapes the embed container
+        <div style={{ position: 'absolute', inset: 0, zIndex: 120, background: D.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: `1px solid ${D.border}`, flexShrink: 0 }}>
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, margin: 0, color: D.text }}>{editingBuilding ? 'Edit building' : 'Add building'}</h2>
+              {!editingBuilding && <div style={{ fontSize: 12.5, color: D.textMut, marginTop: 2 }}>Demo allows 1 test building</div>}
+            </div>
+            <button onClick={() => { setShowBuildingForm(false); setEditingBuilding(null) }}
+              style={{ width: 32, height: 32, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', color: D.textDim, background: 'transparent', border: `1px solid ${D.border}`, cursor: 'pointer' }}>
+              <Icon name="x" size={14} color={D.textDim} />
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+            <BuildingForm
+              building={editingBuilding}
+              onSave={handleSaveBuilding}
+              onCancel={() => { setShowBuildingForm(false); setEditingBuilding(null) }}
+            />
+          </div>
+        </div>
+      ) : (
         <SlideOver
           title={editingBuilding ? 'Edit building' : 'Add building'}
           subtitle={editingBuilding ? undefined : 'Demo allows 1 test building'}
@@ -883,7 +1025,7 @@ function DemoMap() {
             onCancel={() => { setShowBuildingForm(false); setEditingBuilding(null) }}
           />
         </SlideOver>
-      )}
+      ))}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>

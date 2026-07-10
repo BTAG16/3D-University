@@ -4,6 +4,8 @@ import { useAdminAuth } from './AdminAuthContext'
 import { useDarkMode } from './hooks'
 import { supabase } from './lib/supabase'
 import './Landing.css'
+import LandingDemoPreview from './components/LandingDemoPreview'
+import { AdminBuildingsPreview, AdminRoomsPreview, AdminEventsPreview } from './components/AdminDemoSim'
 
 // ─── SVG helpers ─────────────────────────────────────────────────────────────
 function Svg({ size = 24, children, ...rest }) {
@@ -342,16 +344,7 @@ export default function Landing() {
                       your-domain.com/map?uni=your-university
                     </span>
                   </div>
-                  <img className="img-light" src="/product-light.png" alt="Kampus 3D campus map" style={{ width: '100%', height: 'auto' }} />
-                  <img className="img-dark"  src="/product-dark.png"  alt="Kampus 3D campus map" style={{ width: '100%', height: 'auto' }} />
-                </div>
-                {/* floating phone */}
-                <div style={{ position: 'absolute', bottom: '-8%', left: '-6%', width: '24%', minWidth: 96, borderRadius: 18, padding: 5, background: 'linear-gradient(150deg, var(--frame-hi), var(--frame))', boxShadow: '0 32px 64px -16px rgba(13,27,42,0.35), inset 0 1px 0 rgba(255,255,255,0.25)' }}>
-                  <div style={{ borderRadius: 14, overflow: 'hidden', position: 'relative' }}>
-                    <div style={{ position: 'absolute', top: 5, left: '50%', transform: 'translateX(-50%)', width: 34, height: 10, borderRadius: 12, background: '#000', zIndex: 2 }} />
-                    <img className="img-light" src="/mobile-light.jpg" alt="Kampus mobile view" style={{ width: '100%', height: 'auto' }} />
-                    <img className="img-dark"  src="/mobile-dark.jpg"  alt="Kampus mobile view" style={{ width: '100%', height: 'auto' }} />
-                  </div>
+                  <LandingDemoPreview />
                 </div>
               </div>
             </div>
@@ -390,33 +383,122 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══ PRODUCT SHOWCASE ═══ */}
-      <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--navy)', padding: 'clamp(88px,10vw,128px) 0' }}>
-        <div style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%)', width: 900, height: 560, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(14,165,233,0.10) 0%, transparent 68%)', pointerEvents: 'none' }} />
-        <div className="rl-container" style={{ position: 'relative', zIndex: 1 }}>
-          <div data-reveal style={{ textAlign: 'center', marginBottom: 'clamp(40px,5vw,56px)' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: '#38BDF8', marginBottom: 16 }}>Product</div>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: '#fff', textWrap: 'balance' }}>Everything your campus needs</h2>
-            <p style={{ fontSize: 17, lineHeight: 1.7, color: 'rgba(255,255,255,0.5)', maxWidth: 480, margin: '0 auto', textWrap: 'pretty' }}>From 3D maps to room timetables — one platform, managed from one dashboard.</p>
-          </div>
-          <div data-reveal style={{ maxWidth: 820, margin: '0 auto', transitionDelay: '100ms' }} ref={showcaseRef}>
-            <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 60px 120px -30px rgba(0,0,0,0.7), 0 0 80px -20px rgba(14,165,233,0.18)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'var(--navy-surface)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                {['rgba(255,255,255,0.16)','rgba(255,255,255,0.16)','rgba(255,255,255,0.16)'].map((bg, i) => (
-                  <span key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: bg }} />
+      {/* ═══ ADMIN: BUILDINGS ═══ (text left, preview right) */}
+      <section style={{ background: 'var(--alt-bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-grid-2" style={{ alignItems: 'center', gap: 'clamp(40px,6vw,80px)' }}>
+            <div data-reveal>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Admin Dashboard</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(28px,4vw,46px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>Manage your buildings effortlessly</h2>
+              <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 32px', textWrap: 'pretty' }}>Add, edit, and organise every building on your campus from one clean dashboard — no technical knowledge required.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[
+                  { icon: '📍', title: 'Pin any building',       desc: 'Drop a coordinate and instantly place the building on the student map.' },
+                  { icon: '🏷️', title: 'Categories & details',  desc: 'Set building type, opening hours, facilities, and departments.' },
+                  { icon: '✏️', title: 'Edit or remove anytime', desc: 'Your campus evolves — your map keeps up without hassle.' },
+                  { icon: '🔍', title: 'Search & filter',        desc: 'Find any building instantly with full-text search and category filters.' },
+                ].map(item => (
+                  <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, lineHeight: 1, marginTop: 3, flexShrink: 0 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{item.desc}</div>
+                    </div>
+                  </div>
                 ))}
               </div>
-              <img className="img-light" src="/product-light.png" alt="Kampus 3D map product" style={{ width: '100%', height: 'auto' }} />
-              <img className="img-dark"  src="/product-dark.png"  alt="Kampus 3D map product" style={{ width: '100%', height: 'auto' }} />
+            </div>
+            <div data-reveal style={{ transitionDelay: '100ms' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 32px 64px -20px rgba(13,27,42,0.18), 0 8px 24px -8px rgba(13,27,42,0.10)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid var(--border-light)', background: 'var(--surface)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FC5F57' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
+                  <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 240, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>kampus.app/admin/buildings</span>
+                </div>
+                <AdminBuildingsPreview />
+              </div>
             </div>
           </div>
-          <div data-reveal style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 'clamp(36px,5vw,48px)', transitionDelay: '200ms' }}>
-            {PILLS.map(pill => (
-              <span key={pill} className="rl-pill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                {pill}
-              </span>
-            ))}
+        </div>
+      </section>
+
+      {/* ═══ ADMIN: ROOMS ═══ (preview left, text right) */}
+      <section style={{ background: 'var(--bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-grid-2" style={{ alignItems: 'center', gap: 'clamp(40px,6vw,80px)' }}>
+            <div data-reveal>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 32px 64px -20px rgba(13,27,42,0.18), 0 8px 24px -8px rgba(13,27,42,0.10)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid var(--border-light)', background: 'var(--surface)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FC5F57' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
+                  <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 240, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>kampus.app/admin/rooms</span>
+                </div>
+                <AdminRoomsPreview />
+              </div>
+            </div>
+            <div data-reveal style={{ transitionDelay: '100ms' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Room Management</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(28px,4vw,46px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>Full room inventory at your fingertips</h2>
+              <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 32px', textWrap: 'pretty' }}>Give students complete room-level detail — from computer labs and seminar rooms to key offices and study spaces.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[
+                  { icon: '🚪', title: 'Room numbers & names',  desc: 'Students find exactly which room they need, first time.' },
+                  { icon: '🗓️', title: 'Weekly timetables',     desc: 'Attach schedules to any room — live availability on the map.' },
+                  { icon: '⭐', title: 'Mark key offices',       desc: 'Flag registrar, student services, and faculty offices.' },
+                  { icon: '📂', title: 'Per-building view',      desc: 'Switch between buildings to manage rooms independently.' },
+                ].map(item => (
+                  <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, lineHeight: 1, marginTop: 3, flexShrink: 0 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ ADMIN: EVENTS ═══ (text left, preview right) */}
+      <section style={{ background: 'var(--alt-bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-grid-2" style={{ alignItems: 'center', gap: 'clamp(40px,6vw,80px)' }}>
+            <div data-reveal>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Live Events</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(28px,4vw,46px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>Broadcast live events to every student</h2>
+              <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 32px', textWrap: 'pretty' }}>Create and publish campus events in seconds — visible on the student map in real time.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[
+                  { icon: '📢', title: 'Publish in one click',    desc: 'Drafts stay hidden; toggle to publish when you\'re ready.' },
+                  { icon: '🎭', title: '5 event categories',      desc: 'Lecture, Social, Alert, Maintenance, and Open Day — colour-coded.' },
+                  { icon: '🏛️', title: 'Attach to a building',   desc: 'Students see events pinned directly on the relevant building.' },
+                  { icon: '⏰', title: 'Start & end times',       desc: 'Upcoming, Active, and Ended status updates automatically.' },
+                ].map(item => (
+                  <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, lineHeight: 1, marginTop: 3, flexShrink: 0 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div data-reveal style={{ transitionDelay: '100ms' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 32px 64px -20px rgba(13,27,42,0.18), 0 8px 24px -8px rgba(13,27,42,0.10)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid var(--border-light)', background: 'var(--surface)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FC5F57' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
+                  <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 240, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>kampus.app/admin/events</span>
+                </div>
+                <AdminEventsPreview />
+              </div>
+            </div>
           </div>
         </div>
       </section>
