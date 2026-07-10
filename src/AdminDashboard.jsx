@@ -354,20 +354,26 @@ function AdminDashboard() {
   const handleSaveBuilding = async (data) => {
     if (editingBuilding) {
       const r = await updateBuilding(editingBuilding.id, data)
-      if (r.success) { await loadUniversity(); setShowModal(false); setEditingBuilding(null); toast.success('Building updated!') }
-      else toast.error(`Failed: ${r.error}`)
+      if (r.success) {
+        setShowModal(false); setEditingBuilding(null); toast.success('Building updated!')
+        loadUniversity() // refresh in background — no await so UI closes first
+      } else toast.error(`Failed: ${r.error}`)
     } else {
       const r = await addBuilding(data)
-      if (r.success) { await loadUniversity(); setShowModal(false); toast.success('Building added!') }
-      else toast.error(`Failed: ${r.error}`)
+      if (r.success) {
+        setShowModal(false); toast.success('Building added!')
+        loadUniversity()
+      } else toast.error(`Failed: ${r.error}`)
     }
   }
 
   const handleDeleteBuilding = (id) => setDeleteConfirm(id)
   const confirmDelete = async () => {
     const r = await deleteBuilding(deleteConfirm)
-    if (r.success) { await loadUniversity(); setDeleteConfirm(null); toast.success('Building deleted') }
-    else toast.error(`Failed: ${r.error}`)
+    if (r.success) {
+      setDeleteConfirm(null); toast.success('Building deleted')
+      loadUniversity()
+    } else toast.error(`Failed: ${r.error}`)
   }
 
   const copyPublicLink = () => {
