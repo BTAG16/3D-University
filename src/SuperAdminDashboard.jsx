@@ -158,7 +158,7 @@ export default function SuperAdminDashboard() {
   const isMobile = useIsMobile()
 
   const [universities, setUniversities] = useState([])
-  const [stats, setStats] = useState({ totalUniversities: 0, totalBuildings: 0, totalAdmins: 0, totalRooms: 0 })
+  const [stats, setStats] = useState({ totalUniversities: 0, totalBuildings: 0, totalAdmins: 0, totalRooms: 0, totalEvents: 0 })
   const [analytics, setAnalytics] = useState({
     avgBuildingsPerUniversity: 0,
     avgRoomsPerBuilding: 0,
@@ -235,6 +235,7 @@ export default function SuperAdminDashboard() {
           totalBuildings: statsRes.data.totalBuildings,
           totalAdmins: statsRes.data.totalAdmins,
           totalRooms: statsRes.data.totalRooms,
+          totalEvents: statsRes.data.totalEvents,
         })
         computeAnalytics(list, statsRes.data)
       }
@@ -452,6 +453,7 @@ export default function SuperAdminDashboard() {
                   { label: 'Universities', value: stats.totalUniversities, icon: 'globe',    color: '#0EA5E9' },
                   { label: 'Buildings',    value: stats.totalBuildings,    icon: 'building', color: '#a78bfa' },
                   { label: 'Rooms',        value: stats.totalRooms,        icon: 'door',     color: '#34d399' },
+                  { label: 'Live Events',  value: stats.totalEvents,       icon: 'calendar', color: '#f472b6' },
                   { label: 'Admin Accounts', value: stats.totalAdmins,    icon: 'userPlus', color: '#fb923c' },
                 ].map(s => (
                   <div key={s.label} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: '14px 16px' }}>
@@ -646,7 +648,8 @@ export default function SuperAdminDashboard() {
                     { label: 'Avg buildings / campus', value: analytics.avgBuildingsPerUniversity, good: parseFloat(analytics.avgBuildingsPerUniversity) > 3 },
                     { label: 'Avg rooms / building',   value: analytics.avgRoomsPerBuilding,        good: parseFloat(analytics.avgRoomsPerBuilding) > 5  },
                     { label: 'Campuses with map pins', value: `${universities.filter(u => u.markerLat).length} / ${universities.length}`, good: universities.length === 0 || universities.every(u => u.markerLat) },
-                    { label: 'Total data points',      value: stats.totalUniversities + stats.totalBuildings + stats.totalRooms, good: true },
+                    { label: 'Published events',       value: stats.totalEvents, good: true },
+                    { label: 'Total data points',      value: stats.totalUniversities + stats.totalBuildings + stats.totalRooms + stats.totalEvents, good: true },
                   ].map(m => (
                     <div key={m.label} style={{ padding: '12px', borderRadius: 9, background: dark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: `1px solid ${border}` }}>
                       <div style={{ fontSize: 11.5, color: textTer, marginBottom: 6 }}>{m.label}</div>
