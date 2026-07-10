@@ -160,7 +160,8 @@
 @media (max-width: 640px) {
   .toast-container {
     top: auto;
-    bottom: 16px;
+    /* sit above the fixed bottom nav (60px) + safe area + 8px gap */
+    bottom: calc(60px + env(safe-area-inset-bottom) + 8px);
     right: 12px;
     left: 12px;
     max-width: none;

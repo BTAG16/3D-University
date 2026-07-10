@@ -151,28 +151,47 @@ export default function Landing() {
   const [demoStatus,  setDemoStatus]        = useState('idle') // idle | sending | sent | error
   const [contactForm, setContactForm]       = useState({ name: '', email: '', subject: 'Partnership', message: '' })
   const [contactStatus, setContactStatus]   = useState('idle')
+  const [honeypot, setHoneypot]             = useState('')
+
+  const COOLDOWN_MS = 90_000 // 90 seconds between submissions per form
 
   const sendContactEmail = async (body) => {
     try {
-      const { error } = await supabase.functions.invoke('send-contact', { body })
+      const { error } = await supabase.functions.invoke('send-contact', { body: { ...body, website: honeypot } })
       return !error
     } catch { return false }
   }
 
   const handleDemoSubmit = async (e) => {
     e.preventDefault()
+    if (honeypot) return // bot trap
+    const last = localStorage.getItem('kampus_demo_submit')
+    if (last && Date.now() - parseInt(last) < COOLDOWN_MS) {
+      setDemoStatus('error'); return
+    }
     setDemoStatus('sending')
     const ok = await sendContactEmail({ ...demoForm, type: 'demo' })
     setDemoStatus(ok ? 'sent' : 'error')
-    if (ok) setDemoForm({ name: '', university: '', email: '', role: '', message: '' })
+    if (ok) {
+      localStorage.setItem('kampus_demo_submit', String(Date.now()))
+      setDemoForm({ name: '', university: '', email: '', role: '', message: '' })
+    }
   }
 
   const handleContactSubmit = async (e) => {
     e.preventDefault()
+    if (honeypot) return // bot trap
+    const last = localStorage.getItem('kampus_contact_submit')
+    if (last && Date.now() - parseInt(last) < COOLDOWN_MS) {
+      setContactStatus('error'); return
+    }
     setContactStatus('sending')
     const ok = await sendContactEmail({ ...contactForm, type: 'contact' })
     setContactStatus(ok ? 'sent' : 'error')
-    if (ok) setContactForm({ name: '', email: '', subject: 'Partnership', message: '' })
+    if (ok) {
+      localStorage.setItem('kampus_contact_submit', String(Date.now()))
+      setContactForm({ name: '', email: '', subject: 'Partnership', message: '' })
+    }
   }
 
   const parallaxRef = useRef(null)
@@ -589,6 +608,8 @@ export default function Landing() {
                       </div>
                     ) : (
                       <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* honeypot — hidden from humans, bots fill it in */}
+                        <input type="text" name="website" value={honeypot} onChange={e => setHoneypot(e.target.value)} style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                           <div>
                             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Name *</label>
@@ -712,6 +733,8 @@ export default function Landing() {
                     </button>
                   </div>
                   <form onSubmit={handleDemoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* honeypot */}
+                    <input type="text" name="website" value={honeypot} onChange={e => setHoneypot(e.target.value)} style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Name *</label>

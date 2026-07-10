@@ -13,9 +13,14 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([])
 
+  const MAX_TOASTS = 3
+
   const addToast = (message, type = 'info', duration = 4000) => {
     const id = Date.now()
-    setToasts(prev => [...prev, { id, message, type, duration }])
+    setToasts(prev => {
+      const next = [...prev, { id, message, type, duration }]
+      return next.length > MAX_TOASTS ? next.slice(next.length - MAX_TOASTS) : next
+    })
     return id
   }
 
