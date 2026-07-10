@@ -389,9 +389,14 @@ function AdminDashboard() {
     setDashboardSettings(settings)
     // Persist functional settings to DB so students see them
     const r = await dbService.updateUniversity(university.id, {
-      welcome_message: settings.welcomeMessage || null,
+      name:              settings.name || university.name,
+      welcome_message:   settings.welcomeMessage || null,
+      accent_color:      settings.accentColor || null,
+      timezone:          settings.timezone || 'UTC',
+      map_center_lat:    settings.mapCenterLat ? parseFloat(settings.mapCenterLat) : null,
+      map_center_lng:    settings.mapCenterLng ? parseFloat(settings.mapCenterLng) : null,
       analytics_enabled: settings.analytics !== false,
-      cookies_enabled: settings.cookies !== false,
+      cookies_enabled:   settings.cookies !== false,
     })
     if (r.success) {
       toast.success('Settings saved!')

@@ -25,7 +25,8 @@ const MapComponent = forwardRef(({
   destinationCoords = null,
   darkMode = false,
   onRouteDataChange = null,
-  activeBuildingIds = new Set()
+  activeBuildingIds = new Set(),
+  initialCenter = null,
 }, ref) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
@@ -146,12 +147,13 @@ const MapComponent = forwardRef(({
 
     mapboxgl.accessToken = mapboxToken
 
-    const center = buildings.length > 0
-      ? [
-          buildings.reduce((sum, b) => sum + b.coordinates[0], 0) / buildings.length,
-          buildings.reduce((sum, b) => sum + b.coordinates[1], 0) / buildings.length
-        ]
-      : [0, 0]
+    const center = initialCenter
+      ?? (buildings.length > 0
+        ? [
+            buildings.reduce((sum, b) => sum + b.coordinates[0], 0) / buildings.length,
+            buildings.reduce((sum, b) => sum + b.coordinates[1], 0) / buildings.length
+          ]
+        : [0, 0])
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,

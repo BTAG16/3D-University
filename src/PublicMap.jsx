@@ -53,9 +53,8 @@ function PublicMap() {
   const [university, setUniversity] = useState(null)
   const [error, setError] = useState(null)
 
-  const savedSettings = university ? JSON.parse(localStorage.getItem(`universitySettings_${university.id}`) || '{}') : {}
-  const dynamicAccent = savedSettings.accentColor || (dark ? DARK.accent : LIGHT.accent)
-  
+  const dynamicAccent = university?.accent_color || (dark ? DARK.accent : LIGHT.accent)
+
   const D = {
     ...(dark ? DARK : LIGHT),
     accent: dynamicAccent
@@ -613,6 +612,11 @@ function PublicMap() {
             darkMode={dark}
             onRouteDataChange={setRouteData}
             activeBuildingIds={activeBuildingIds}
+            initialCenter={
+              university?.map_center_lat && university?.map_center_lng
+                ? [university.map_center_lng, university.map_center_lat]
+                : null
+            }
           />
 
           {/* Events drawer */}
