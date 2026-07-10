@@ -120,7 +120,6 @@ function BuildingForm({ building, onSave, onCancel }) {
     }
 
     setSaving(true)
-    toast.info(building ? 'Updating building...' : 'Adding building...')
 
     try {
       const buildingData = {
@@ -143,7 +142,6 @@ function BuildingForm({ building, onSave, onCancel }) {
       }
 
       await onSave(buildingData)
-      toast.success(building ? 'Building updated successfully!' : 'Building added successfully!')
     } catch (error) {
       toast.error('Failed to save building')
       console.error('Save error:', error)

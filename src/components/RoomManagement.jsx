@@ -110,7 +110,6 @@ function RoomManagement({ universityId, buildings, onClose }) {
     if (!window.confirm('Are you sure you want to delete this room?')) return
 
     try {
-      toast.info('Deleting room...')
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.deleteRoom(roomId)
       
@@ -131,8 +130,6 @@ function RoomManagement({ universityId, buildings, onClose }) {
 
   const handleToggleOffice = async (room) => {
     try {
-      const message = room.is_office ? 'Removing office status...' : 'Marking as office...'
-      toast.info(message)
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.updateRoom(room.id, {
         is_office: !room.is_office
@@ -156,7 +153,6 @@ function RoomManagement({ universityId, buildings, onClose }) {
 
   const handleEditRoom = async (roomId, updates) => {
     try {
-      toast.info('Updating room...')
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.updateRoom(roomId, updates)
       
@@ -205,7 +201,6 @@ function RoomManagement({ universityId, buildings, onClose }) {
 
   const confirmBulkDelete = async () => {
     try {
-      toast.info(`Deleting ${selectedRooms.length} rooms...`)
       const { dbService } = await import('../lib/dbService')
       
       const deletePromises = selectedRooms.map(roomId => 
