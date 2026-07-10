@@ -718,11 +718,11 @@ function AdminDashboard() {
         <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', boxShadow: 'var(--card-shadow)', padding: 24, marginBottom: 16 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, margin: '0 0 18px' }}>University profile</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>University name</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', transition: 'all 150ms var(--ease)', minHeight: 44 }} />
             </div>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Logo</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, overflow: 'hidden' }}>
@@ -738,7 +738,7 @@ function AdminDashboard() {
                 </label>
               </div>
             </div>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Timezone</label>
               <select value={timezone} onChange={e => setTimezone(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', cursor: 'pointer', minHeight: 44 }}>
                 <option>Europe/Budapest (CET)</option>
@@ -748,7 +748,7 @@ function AdminDashboard() {
                 <option>America/Los_Angeles (PST)</option>
               </select>
             </div>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Default map center</label>
               <div style={{ display: 'flex', gap: 10 }}>
                 <input type="text" value={mapCenterLat} onChange={e => setMapCenterLat(e.target.value)} style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', fontVariantNumeric: 'tabular-nums', minHeight: 44 }} />
@@ -760,7 +760,7 @@ function AdminDashboard() {
 
         <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', boxShadow: 'var(--card-shadow)', padding: 24, marginBottom: 16 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, margin: '0 0 18px' }}>Branding</h2>
-          <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start', marginBottom: 16 }}>
+          <div className="dr-settings-grid" style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 6 }}>Accent color</label>
             <div style={{ display: 'flex', gap: 10 }}>
               {brandSwatches.map((sw, i) => (
@@ -768,9 +768,9 @@ function AdminDashboard() {
               ))}
             </div>
           </div>
-          <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+          <div className="dr-settings-grid">
             <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Welcome message</label>
-            <textarea rows="2" value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }}></textarea>
+            <textarea rows="3" value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit', minHeight: 80 }}></textarea>
           </div>
         </div>
 

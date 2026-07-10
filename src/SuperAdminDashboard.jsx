@@ -668,7 +668,7 @@ export default function SuperAdminDashboard() {
           {activeTab === 'map' && (
             <div style={{ height: 'calc(100dvh - 130px)', minHeight: 400, borderRadius: 12, overflow: 'hidden', border: `1px solid ${border}` }}>
               <GlobalMap
-                key={dark ? 'dark' : 'light'}
+                key={`${dark ? 'dark' : 'light'}-${universities.length}`}
                 universities={universities}
                 dark={dark}
               />
