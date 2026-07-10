@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AdminAuthProvider } from './AdminAuthContext'
 import { ToastProvider } from './components/Toast'
-import { CookieConsent } from './components/CookieConsent'
 import AdminLogin from './AdminLogin'
 import AdminRegister from './AdminRegister'
 import AdminDashboard from './AdminDashboard'
@@ -36,9 +35,6 @@ function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          
-          {/* Cookie Consent Banner - Shows on all pages except embed */}
-          <CookieConsent />
         </BrowserRouter>
       </AdminAuthProvider>
     </ToastProvider>

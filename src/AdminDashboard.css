@@ -62,10 +62,16 @@
   .dr-sidebar   { display:none !important; }
   .dr-main      { margin-left:0 !important; padding:72px 16px 88px !important; }
   .dr-mobile-top    { display:flex !important; }
-  .dr-mobile-bottom { display:flex !important; }
+  .dr-mobile-bottom { display:flex !important; overflow-x:auto !important; overflow-y:hidden !important; scroll-snap-type:x mandatory; }
+  .dr-mobile-bottom::-webkit-scrollbar { display:none; }
+  .dr-mobile-bottom button { flex:none !important; min-width:60px; scroll-snap-align:start; }
   .dr-stats   { grid-template-columns:1fr 1fr; gap:10px; }
   .dr-actions { grid-template-columns:1fr; }
-  .dr-settings-grid { grid-template-columns:1fr; gap:8px; }
+  .dr-settings-grid { grid-template-columns:1fr !important; gap:16px !important; }
+  .dr-settings-grid input,
+  .dr-settings-grid select,
+  .dr-settings-grid textarea { width:100%; box-sizing:border-box; }
+  .dr-settings-header { flex-wrap:wrap; gap:12px !important; }
 }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.01ms !important; }

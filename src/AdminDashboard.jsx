@@ -208,7 +208,7 @@ function MobileBottomNav({ activeTab, setActiveTab }) {
       {NAV.map(item => {
         const active = activeTab === item.id
         return (
-          <button key={item.id} onClick={() => setActiveTab(item.id)} style={{ flex: 1, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, color: active ? 'var(--accent)' : 'var(--text-tertiary)', transition: 'color 200ms var(--ease)', minHeight: 44 }}>
+          <button key={item.id} onClick={() => setActiveTab(item.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, color: active ? 'var(--accent)' : 'var(--text-tertiary)', transition: 'color 200ms var(--ease)', minHeight: 44, flex: 1 }}>
             <span style={{ display: 'inline-flex', lineHeight: 0, transform: active ? 'scale(1.12)' : 'scale(1)', transition: 'transform 250ms var(--spring)' }}>
               <Icon name={item.icon} size={18} />
             </span>
@@ -283,8 +283,8 @@ function AdminDashboard() {
   }
 
   useEffect(() => {
-    if (activeTab === 'events' && university) loadEvents()
-  }, [activeTab, university])
+    if (university) loadEvents()
+  }, [university])
 
   const handleSaveEvent = async (data) => {
     if (editingEvent) {
@@ -384,10 +384,16 @@ function AdminDashboard() {
     setTimeout(() => setCopyEmbedSuccess(false), 2000)
   }
 
-  const handleSettingsSave = (settings) => {
+  const handleSettingsSave = async (settings) => {
     localStorage.setItem(`universitySettings_${university.id}`, JSON.stringify(settings))
     setDashboardSettings(settings)
-    toast.success('Settings saved successfully!')
+    // Persist functional settings to DB so students see them
+    await dbService.updateUniversity(university.id, {
+      welcome_message: settings.welcomeMessage || null,
+      analytics_enabled: settings.analytics !== false,
+      cookies_enabled: settings.cookies !== false,
+    })
+    toast.success('Settings saved!')
   }
 
   const handleDeleteUniversity = async () => {
@@ -412,7 +418,19 @@ function AdminDashboard() {
   })
 
   // ─── Overview Tab ──────────────────────────────────────────────────────────
-  const OverviewTab = () => (
+  const OverviewTab = () => {
+    const now = new Date()
+    const recentBuilding = [...(university.buildings || [])].sort(
+      (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
+    )[0]
+    const lastUpdatedStr = recentBuilding
+      ? new Date(recentBuilding.updated_at || recentBuilding.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      : '—'
+    const activeEventCount = events.filter(e =>
+      e.is_published && new Date(e.starts_at) <= now && (!e.ends_at || new Date(e.ends_at) >= now)
+    ).length
+
+    return (
     <div className="tab-panel">
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
         <div>
@@ -428,8 +446,8 @@ function AdminDashboard() {
         {[
           { label: 'Total Buildings', value: university.buildings.length, sub: 'Active on map',        icon: <Icon name="building" size={15} />, iconBg: 'var(--accent-subtle)',    iconColor: 'var(--accent)',   subColor: 'var(--success)' },
           { label: 'Total Rooms',     value: analytics.totalRooms,        sub: 'Across all buildings', icon: <Icon name="door"     size={15} />, iconBg: 'rgba(192,132,252,0.16)', iconColor: '#9333EA',         subColor: 'var(--text-tertiary)' },
-          { label: 'Public Link',     value: 'Live',                       sub: 'Visible to students',  icon: <Icon name="globe"    size={15} />, iconBg: 'var(--success-subtle)',  iconColor: 'var(--success)', subColor: 'var(--text-tertiary)' },
-          { label: 'Last Updated',    value: 'Just now',                   sub: 'via dashboard',        icon: <Icon name="calendar" size={15} />, iconBg: 'var(--warning-subtle)',  iconColor: 'var(--warning)', subColor: 'var(--text-tertiary)' },
+          { label: 'Active Events',   value: activeEventCount,             sub: activeEventCount > 0 ? 'Live on map' : 'None right now', icon: <Icon name="zap" size={15} />, iconBg: 'rgba(34,197,94,0.12)', iconColor: '#16A34A', subColor: activeEventCount > 0 ? 'var(--success)' : 'var(--text-tertiary)' },
+          { label: 'Last Updated',    value: lastUpdatedStr,               sub: 'most recent building', icon: <Icon name="calendar" size={15} />, iconBg: 'var(--warning-subtle)',  iconColor: 'var(--warning)', subColor: 'var(--text-tertiary)' },
         ].map((stat, i) => (
           <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', padding: 20, boxShadow: 'var(--card-shadow)', transition: 'all 200ms var(--ease)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -484,6 +502,7 @@ function AdminDashboard() {
       </div>
     </div>
   )
+  }
 
   // ─── Buildings Tab ─────────────────────────────────────────────────────────
   const BuildingsTab = () => (
@@ -671,9 +690,9 @@ function AdminDashboard() {
     const [mapCenterLat, setMapCenterLat] = useState(saved.mapCenterLat || '')
     const [mapCenterLng, setMapCenterLng] = useState(saved.mapCenterLng || '')
     const [accentColor, setAccentColor] = useState(saved.accentColor || '#0EA5E9')
-    const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || 'Welcome! Find any building, room, or office on campus.')
-    const [analytics, setAnalytics] = useState(saved.analytics !== false)
-    const [cookies, setCookies] = useState(saved.cookies !== false)
+    const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || university?.welcome_message || 'Welcome! Find any building, room, or office on campus.')
+    const [analytics, setAnalytics] = useState(saved.analytics !== false && university?.analytics_enabled !== false)
+    const [cookies, setCookies] = useState(saved.cookies !== false && university?.cookies_enabled !== false)
 
     const handleSave = () => {
       handleSettingsSave({
