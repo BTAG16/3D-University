@@ -554,10 +554,11 @@ export default function SuperAdminDashboard() {
                       title="Delete"
                       onClick={() => {
                         if (window.confirm(`Permanently delete "${uni.name}"?\nThis will remove all buildings, rooms, and admin accounts.`)) {
-                          dbService.deleteUniversity(uni.id).then(r => {
-                            if (r.success) { toast.success('University deleted'); loadData() }
-                            else toast.error(r.error)
-                          })
+                          supabase.functions.invoke('delete-admin-auth', { body: { universityId: uni.id } })
+                            .then(({ data, error }) => {
+                              if (error || !data?.success) toast.error(error?.message || data?.error || 'Delete failed')
+                              else { toast.success('University deleted'); loadData() }
+                            })
                         }
                       }}
                       style={{ width: 32, height: 32, borderRadius: 7, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

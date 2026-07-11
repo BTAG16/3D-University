@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from './Toast'
+import { sanitizeError } from '../lib/errorUtils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faDoorOpen, faPlus, faUpload, faEdit, faTrash, faStar, faSearch,
@@ -123,8 +124,9 @@ function RoomManagement({ universityId, buildings, onClose }) {
         setError(result.error)
       }
     } catch (err) {
-      toast.error(err.message)
-      setError(err.message)
+      const msg = sanitizeError(err.message)
+      toast.error(msg)
+      setError(msg)
     }
   }
 
@@ -146,8 +148,9 @@ function RoomManagement({ universityId, buildings, onClose }) {
         setError(result.error)
       }
     } catch (err) {
-      toast.error(err.message)
-      setError(err.message)
+      const msg = sanitizeError(err.message)
+      toast.error(msg)
+      setError(msg)
     }
   }
 
@@ -167,8 +170,9 @@ function RoomManagement({ universityId, buildings, onClose }) {
         setError(result.error)
       }
     } catch (err) {
-      toast.error(err.message)
-      setError(err.message)
+      const msg = sanitizeError(err.message)
+      toast.error(msg)
+      setError(msg)
     }
   }
 
@@ -216,7 +220,7 @@ function RoomManagement({ universityId, buildings, onClose }) {
       setBulkDeleteConfirm(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (error) {
-      const errorMsg = `Error deleting rooms: ${error.message}`
+      const errorMsg = sanitizeError(error.message) || 'Error deleting rooms'
       toast.error(errorMsg)
       setError(errorMsg)
       setBulkDeleteConfirm(false)

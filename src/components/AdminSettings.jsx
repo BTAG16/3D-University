@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { dbService } from '../lib/dbService'
+import { sanitizeError } from '../lib/errorUtils'
 import { useToast } from './Toast'
 import './AdminSettings.css'
 
@@ -197,7 +198,7 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate, da
       setNewEmail('')
       setEmailPassword('')
     } catch (err) {
-      toast.error(err.message || 'Failed to change email')
+      toast.error(sanitizeError(err.message) || 'Failed to change email')
     } finally {
       setLoading(false)
     }
@@ -235,7 +236,7 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate, da
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {
-      toast.error(err.message || 'Failed to change password')
+      toast.error(sanitizeError(err.message) || 'Failed to change password')
     } finally {
       setLoading(false)
     }
@@ -341,7 +342,7 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate, da
       if (onLogout) onLogout()
       onClose()
     } catch (err) {
-      toast.error(err.message || 'Failed to delete account')
+      toast.error(sanitizeError(err.message) || 'Failed to delete account')
     } finally {
       setLoading(false)
     }
@@ -359,7 +360,7 @@ function AdminSettings({ onClose, adminSession, onLogout, onUniversityUpdate, da
       if (onUniversityUpdate) onUniversityUpdate({ logo_url: logoUrl || null })
       toast.success('Logo updated')
     } catch (err) {
-      toast.error(err.message || 'Failed to update logo')
+      toast.error(sanitizeError(err.message) || 'Failed to update logo')
     } finally {
       setLogoSaving(false)
     }
