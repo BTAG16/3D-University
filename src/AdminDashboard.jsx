@@ -331,14 +331,6 @@ function AdminDashboard() {
     return () => { supabase.removeChannel(channel) }
   }, [university?.id])
 
-  // Polling fallback — re-fetches university every 15 s so settings stay in sync
-  // across devices even before the realtime migration is applied.
-  useEffect(() => {
-    if (!university?.id) return
-    const id = setInterval(loadUniversity, 15000)
-    return () => clearInterval(id)
-  }, [university?.id])
-
   const handleSaveEvent = async (data) => {
     if (editingEvent) {
       const r = await dbService.updateEvent(editingEvent.id, data)
