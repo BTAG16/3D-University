@@ -346,7 +346,7 @@ function PublicMap() {
       </button>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `16px 16px calc(16px + env(safe-area-inset-bottom))`, WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         {/* Header: icon + name + category badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -758,7 +758,7 @@ function PublicMap() {
             }[sheetState] ?? 'calc(85dvh - 68px)'
 
             const MobileQuickCard = () => (
-              <div style={{ padding: '0 16px 20px', overflowY: 'auto', flex: 1 }}>
+              <div style={{ padding: `0 16px calc(20px + env(safe-area-inset-bottom))`, overflowY: 'auto', flex: 1, minHeight: 0 }}>
                 {/* Building row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 11, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -866,7 +866,7 @@ function PublicMap() {
 
                 {/* Content */}
                 {(sheetState === 'peek' || sheetState === 'list') && (
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `4px 12px calc(16px + env(safe-area-inset-bottom))`, display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 8px' }}>
                       Buildings ({filteredBuildings.length})
                     </div>
