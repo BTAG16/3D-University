@@ -172,7 +172,10 @@ function PublicMap() {
     const uniId = university.id
     dbService.getEvents(uniId).then(r => { if (r.success) setEvents(r.data || []) })
     const channel = supabase
-      .channel(`events:${uniId}`)
+      .channel(`public_map:${uniId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'universities', filter: `id=eq.${uniId}` }, payload => {
+        setUniversity(prev => prev ? { ...prev, ...payload.new } : prev)
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `university_id=eq.${uniId}` }, payload => {
         if (payload.eventType === 'INSERT') {
           if (payload.new.is_published) setEvents(prev => [...prev, payload.new].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)))
