@@ -191,7 +191,7 @@ function PublicMap() {
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [university])
+  }, [university?.id])
 
   // Show welcome message on first visit
   useEffect(() => {
