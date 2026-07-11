@@ -84,9 +84,6 @@ function PublicMap() {
   )
   const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
-  const sheetRef = useRef(null)
-  const sheetStateRef = useRef(sheetState)
-  const touchDrag = useRef({ active: false, startY: 0, startTx: 0, moved: false })
 
   useEffect(() => {
     const check = () => {
@@ -98,25 +95,6 @@ function PublicMap() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Keep sheetStateRef in sync so touch handlers always see the current value
-  useEffect(() => { sheetStateRef.current = sheetState }, [sheetState])
-
-  // Non-passive touchmove listener — needed to call preventDefault and block page scroll while dragging
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!touchDrag.current.active) return
-      e.preventDefault()
-      const dy = e.touches[0].clientY - touchDrag.current.startY
-      if (Math.abs(dy) > 5) touchDrag.current.moved = true
-      const sheet = sheetRef.current
-      if (!sheet) return
-      const maxTx = sheet.offsetHeight - 68
-      const newTx = Math.max(0, Math.min(maxTx, touchDrag.current.startTx + dy))
-      sheet.style.transform = `translateY(${newTx}px)`
-    }
-    document.addEventListener('touchmove', onMove, { passive: false })
-    return () => document.removeEventListener('touchmove', onMove)
-  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -227,6 +205,13 @@ function PublicMap() {
     if (!showDirections) tourStartedRef.current = false
   }, [showDirections])
 
+  // Apply accent color as a CSS custom property on :root so all consumers (markers, CSS files) pick it up platform-wide
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', D.accent)
+    document.documentElement.style.setProperty('--accent-subtle', `color-mix(in srgb, ${D.accent} 15%, transparent)`)
+    document.documentElement.style.setProperty('--accent-muted', `color-mix(in srgb, ${D.accent} 18%, transparent)`)
+  }, [D.accent])
+
   // Auto-start FPV tour once route data arrives
   useEffect(() => {
     if (showDirections && routeData?.steps?.length && !tourStartedRef.current) {
@@ -253,7 +238,6 @@ function PublicMap() {
     setShowDirections(false)
     setRouteData(null)
     setShowRoomsList(false)
-    if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
     if (isMobile) setSheetState('card')
     try {
       const r = await dbService.getRooms(building.id)
@@ -610,6 +594,7 @@ function PublicMap() {
             showDirections={showDirections}
             destinationCoords={selectedBuilding?.coordinates}
             darkMode={dark}
+            accentColor={D.accent}
             onRouteDataChange={setRouteData}
             activeBuildingIds={activeBuildingIds}
             initialCenter={
@@ -810,90 +795,65 @@ function PublicMap() {
             )
 
             return (
-              <div ref={sheetRef} style={{
+              <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
                 height: '85dvh',
-                background: D.surface,
-                borderRadius: '18px 18px 0 0',
-                border: `1px solid ${D.border2}`,
-                borderBottom: 'none',
                 transform: `translateY(${translateY})`,
                 transition: 'transform 0.32s cubic-bezier(0.16,1,0.3,1)',
                 display: 'flex', flexDirection: 'column',
                 zIndex: 10,
-                overflow: 'hidden',
-                boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+                overflow: 'visible',
               }}>
-                {/* Drag handle — draggable up/down, tap cycles state */}
-                <div
-                  onTouchStart={(e) => {
-                    const sheet = sheetRef.current
-                    if (!sheet) return
-                    const h = sheet.offsetHeight
-                    const state = sheetStateRef.current
-                    const txMap = {
-                      peek:   h - 68,
-                      list:   h - Math.round(window.innerHeight * 0.48),
-                      card:   h - 224,
-                      detail: 0,
-                    }
-                    touchDrag.current = {
-                      active: true,
-                      startY: e.touches[0].clientY,
-                      startTx: txMap[state] ?? (h - 68),
-                      moved: false,
-                    }
-                    sheet.style.transition = 'none'
-                  }}
-                  onTouchEnd={(e) => {
-                    if (!touchDrag.current.active) return
-                    touchDrag.current.active = false
-                    const sheet = sheetRef.current
-
-                    if (!touchDrag.current.moved) {
-                      // Tap: cycle state
-                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
-                      const cur = sheetStateRef.current
-                      if (cur === 'peek') setSheetState('list')
-                      else if (cur === 'list') setSheetState('peek')
-                      else if (cur === 'card') setSheetState('detail')
-                      else setSheetState('card')
-                      return
-                    }
-
-                    // Snap to nearest state
-                    const finalDy = e.changedTouches[0].clientY - touchDrag.current.startY
-                    const finalTx = touchDrag.current.startTx + finalDy
-                    const h = sheet ? sheet.offsetHeight : window.innerHeight * 0.85
-                    const cur = sheetStateRef.current
-                    const candidates = [
-                      { state: 'peek', tx: h - 68 },
-                      { state: 'list', tx: h - Math.round(window.innerHeight * 0.48) },
-                    ]
-                    if (cur === 'card' || cur === 'detail') {
-                      candidates.push({ state: 'card', tx: h - 224 })
-                      candidates.push({ state: 'detail', tx: 0 })
-                    }
-                    const best = candidates.reduce((a, b) =>
-                      Math.abs(b.tx - finalTx) < Math.abs(a.tx - finalTx) ? b : a
-                    )
-                    if (sheet) {
-                      sheet.style.transition = 'transform 0.32s cubic-bezier(0.16,1,0.3,1)'
-                      sheet.style.transform = `translateY(${best.tx}px)`
-                    }
-                    setSheetState(best.state)
-                    // Let React take over after the snap animation ends
-                    setTimeout(() => {
-                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
-                    }, 340)
-                  }}
-                  style={{ padding: '16px 0 12px', width: '100%', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}
-                >
-                  <div style={{ width: 36, height: 4, borderRadius: 2, background: D.border2 }} />
+                {/* Toggle button — half above the sheet's rounded top edge */}
+                <div style={{ position: 'relative', height: 0, flexShrink: 0 }}>
+                  <button
+                    onClick={() => {
+                      if (sheetState === 'peek') {
+                        setSheetState(selectedBuilding ? 'card' : 'list')
+                      } else {
+                        setSheetState('peek')
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: -14,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 48, height: 28,
+                      background: D.surface,
+                      border: `1px solid ${D.border2}`,
+                      borderRadius: 14,
+                      cursor: 'pointer',
+                      padding: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+                      zIndex: 1,
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-flex',
+                      transform: sheetState === 'peek' ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.28s cubic-bezier(0.16,1,0.3,1)',
+                    }}>
+                      <Icon name="chevronDown" size={16} color={D.textDim} />
+                    </span>
+                  </button>
                 </div>
 
+                {/* Inner sheet — visual container with rounded corners and clipping */}
+                <div style={{
+                  flex: 1,
+                  background: D.surface,
+                  borderRadius: '18px 18px 0 0',
+                  border: `1px solid ${D.border2}`,
+                  borderBottom: 'none',
+                  display: 'flex', flexDirection: 'column',
+                  overflow: 'hidden',
+                  boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+                }}>
+
                 {/* Search bar — always visible */}
-                <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>
+                <div style={{ padding: '12px 12px 8px', flexShrink: 0 }}>
                   <SearchBox
                     value={searchQuery}
                     onChange={(q) => { setSearchQuery(q); if (sheetState === 'peek') setSheetState('list') }}
@@ -930,6 +890,7 @@ function PublicMap() {
                       </div>
                     : <BuildingDetailPanel />
                 )}
+                </div>
               </div>
             )
           })()}

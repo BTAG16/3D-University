@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
 import { dbService } from './lib/dbService'
+import { supabase } from './lib/supabase'
 import { useToast } from './components/Toast'
 import { useDarkMode } from './hooks'
 import { Icon } from './icons'
@@ -287,6 +288,57 @@ function AdminDashboard() {
     if (university) loadEvents()
   }, [university])
 
+  // Realtime sync — reflect changes made on other devices without a page refresh
+  useEffect(() => {
+    if (!university?.id) return
+    const uniId = university.id
+    const channel = supabase
+      .channel(`admin_sync:${uniId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'universities',
+        filter: `id=eq.${uniId}`,
+      }, payload => {
+        const u = payload.new
+        setUniversity(prev => prev ? { ...prev, ...u } : prev)
+        // Sync in-memory settings AND update localStorage so stale values don't win
+        setDashboardSettings(prev => {
+          const next = {
+            ...prev,
+            name:           u.name                 ?? prev.name,
+            accentColor:    u.accent_color          ?? prev.accentColor,
+            welcomeMessage: u.welcome_message        ?? prev.welcomeMessage,
+            timezone:       u.timezone              ?? prev.timezone,
+            mapCenterLat:   u.map_center_lat  != null ? String(u.map_center_lat)  : prev.mapCenterLat,
+            mapCenterLng:   u.map_center_lng  != null ? String(u.map_center_lng)  : prev.mapCenterLng,
+            analytics:      u.analytics_enabled      ?? prev.analytics,
+            cookies:        u.cookies_enabled        ?? prev.cookies,
+          }
+          localStorage.setItem(`universitySettings_${uniId}`, JSON.stringify(next))
+          return next
+        })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'buildings',
+        filter: `university_id=eq.${uniId}`,
+      }, () => {
+        loadUniversity()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [university?.id])
+
+  // Polling fallback — re-fetches university every 15 s so settings stay in sync
+  // across devices even before the realtime migration is applied.
+  useEffect(() => {
+    if (!university?.id) return
+    const id = setInterval(loadUniversity, 15000)
+    return () => clearInterval(id)
+  }, [university?.id])
+
   const handleSaveEvent = async (data) => {
     if (editingEvent) {
       const r = await dbService.updateEvent(editingEvent.id, data)
@@ -316,7 +368,22 @@ function AdminDashboard() {
     const uni = await getUniversity()
     setUniversity(uni)
     if (uni) {
-      setDashboardSettings(JSON.parse(localStorage.getItem(`universitySettings_${uni.id}`) || '{}'))
+      // Merge localStorage with DB values — DB always wins for shared settings
+      // so changes saved on another device are immediately reflected here.
+      const local = JSON.parse(localStorage.getItem(`universitySettings_${uni.id}`) || '{}')
+      const merged = {
+        ...local,
+        name:           uni.name                 ?? local.name,
+        accentColor:    uni.accent_color          ?? local.accentColor,
+        welcomeMessage: uni.welcome_message        ?? local.welcomeMessage,
+        timezone:       uni.timezone              ?? local.timezone,
+        mapCenterLat:   uni.map_center_lat  != null ? String(uni.map_center_lat)  : local.mapCenterLat,
+        mapCenterLng:   uni.map_center_lng  != null ? String(uni.map_center_lng)  : local.mapCenterLng,
+        analytics:      uni.analytics_enabled      ?? local.analytics,
+        cookies:        uni.cookies_enabled        ?? local.cookies,
+      }
+      localStorage.setItem(`universitySettings_${uni.id}`, JSON.stringify(merged))
+      setDashboardSettings(merged)
     }
     if (uni?.buildings) calculateAnalytics(uni)
   }

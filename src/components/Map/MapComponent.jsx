@@ -24,6 +24,7 @@ const MapComponent = forwardRef(({
   showDirections = false,
   destinationCoords = null,
   darkMode = false,
+  accentColor = '#0EA5E9',
   onRouteDataChange = null,
   activeBuildingIds = new Set(),
   initialCenter = null,
@@ -397,15 +398,25 @@ const MapComponent = forwardRef(({
     })
   }, [userLocation])
 
-  // Fetch and display directions
+  // Auto-draw route whenever user location + destination are both available
   useEffect(() => {
-    if (!mapRef.current || !showDirections || !userLocation || !destinationCoords) {
+    const map = mapRef.current
+    if (!map) return
+
+    // Clear route when either location or destination is missing
+    if (!userLocation || !destinationCoords) {
+      const doClear = () => {
+        if (!mapRef.current) return
+        if (map.getLayer('route')) { map.removeLayer('route'); map.removeSource('route') }
+      }
+      if (map.isStyleLoaded()) doClear()
+      else map.once('load', doClear)
+      if (onRouteDataChange) onRouteDataChange(null)
       return
     }
 
     const applyRouteToMap = (geometry) => {
-      const map = mapRef.current
-      if (!map) return
+      if (!mapRef.current) return
 
       const doApply = () => {
         if (!mapRef.current) return
@@ -417,14 +428,8 @@ const MapComponent = forwardRef(({
         map.addLayer({
           id: 'route', type: 'line', source: 'route',
           layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#667eea', 'line-width': 4, 'line-opacity': 0.8 }
+          paint: { 'line-color': accentColor, 'line-width': 4, 'line-opacity': 0.8 }
         })
-        const coords = geometry.coordinates
-        const bounds = coords.reduce(
-          (b, c) => b.extend(c),
-          new mapboxgl.LngLatBounds(coords[0], coords[0])
-        )
-        map.fitBounds(bounds, { padding: { top: 100, bottom: 100, left: 100, right: 100 }, pitch: 45 })
       }
 
       // Style may not be ready yet (e.g. cache hit fires synchronously before load completes)
@@ -482,7 +487,7 @@ const MapComponent = forwardRef(({
     }
 
     fetchDirections()
-  }, [showDirections, userLocation, destinationCoords, mapboxToken, onRouteDataChange])
+  }, [userLocation, destinationCoords, accentColor, mapboxToken, onRouteDataChange])
 
   if (!mapboxToken) {
     return (
