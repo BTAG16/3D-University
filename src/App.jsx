@@ -1,44 +1,49 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AdminAuthProvider } from './AdminAuthContext'
 import { ToastProvider } from './components/Toast'
-import AdminLogin from './AdminLogin'
-import AdminRegister from './AdminRegister'
-import AdminMfaSetup from './AdminMfaSetup'
-import AdminMfaChallenge from './AdminMfaChallenge'
-import AdminDashboard from './AdminDashboard'
-import SuperAdminLogin from './SuperAdminLogin'
-import SuperAdminDashboard from './SuperAdminDashboard'
-import PublicMap from './PublicMap'
-import EmbedMap from './EmbedMap'
-import DemoMap from './DemoMap'
-import Landing from './Landing'
-import Privacy from './pages/Privacy'
-import Terms from './pages/Terms'
+import { PageLoader } from './components/LoadingSpinner'
 import './App.css'
+
+const Landing = lazy(() => import('./Landing'))
+const AdminLogin = lazy(() => import('./AdminLogin'))
+const AdminRegister = lazy(() => import('./AdminRegister'))
+const AdminMfaSetup = lazy(() => import('./AdminMfaSetup'))
+const AdminMfaChallenge = lazy(() => import('./AdminMfaChallenge'))
+const AdminDashboard = lazy(() => import('./AdminDashboard'))
+const SuperAdminLogin = lazy(() => import('./SuperAdminLogin'))
+const SuperAdminDashboard = lazy(() => import('./SuperAdminDashboard'))
+const PublicMap = lazy(() => import('./PublicMap'))
+const EmbedMap = lazy(() => import('./EmbedMap'))
+const DemoMap = lazy(() => import('./DemoMap'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const Terms = lazy(() => import('./pages/Terms'))
 
 function App() {
   return (
     <ToastProvider>
       <AdminAuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/admin" element={<AdminLogin />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/register" element={<AdminRegister />} />
-            <Route path="/admin/mfa-setup" element={<AdminMfaSetup />} />
-            <Route path="/admin/mfa-challenge" element={<AdminMfaChallenge />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/super-admin" element={<SuperAdminLogin />} />
-            <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-            <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
-            <Route path="/map" element={<PublicMap />} />
-            <Route path="/embed" element={<EmbedMap />} />
-            <Route path="/demo" element={<DemoMap />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <Suspense fallback={<PageLoader text="Loading..." />}>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/register" element={<AdminRegister />} />
+              <Route path="/admin/mfa-setup" element={<AdminMfaSetup />} />
+              <Route path="/admin/mfa-challenge" element={<AdminMfaChallenge />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/super-admin" element={<SuperAdminLogin />} />
+              <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+              <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
+              <Route path="/map" element={<PublicMap />} />
+              <Route path="/embed" element={<EmbedMap />} />
+              <Route path="/demo" element={<DemoMap />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </AdminAuthProvider>
     </ToastProvider>
