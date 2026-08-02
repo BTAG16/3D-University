@@ -9,6 +9,7 @@ import Modal from './components/Modal'
 import RoomsList from './components/RoomsList'
 import IndoorNavModal from './components/IndoorNavModal'
 import { CookieConsent } from './components/CookieConsent'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useToast } from './components/Toast'
 import { Icon } from './icons'
 import { useDarkMode } from './hooks'
@@ -106,14 +107,14 @@ function PublicMap() {
       }
       try {
         setLoading(true)
-        let result = await dbService.getUniversity(uniId)
+        let result = await dbService.getUniversityPublic(uniId)
         if (!result.success) {
-          const all = await dbService.getAllUniversities()
+          const all = await dbService.getAllUniversitiesPublic()
           if (all.success && all.data) {
             const found = all.data.find(u =>
               u.id === uniId || u.name.toLowerCase().replace(/\s+/g, '').includes(uniId.toLowerCase())
             )
-            if (found) result = await dbService.getUniversity(found.id)
+            if (found) result = await dbService.getUniversityPublic(found.id)
           }
         }
         if (!result.success || !result.data) {
@@ -588,24 +589,32 @@ function PublicMap() {
 
         {/* Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-          <MapComponent
-            ref={mapRef}
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            userLocation={userLocation}
-            onBuildingClick={handleBuildingClick}
-            showDirections={showDirections}
-            destinationCoords={selectedBuilding?.coordinates}
-            darkMode={dark}
-            accentColor={D.accent}
-            onRouteDataChange={setRouteData}
-            activeBuildingIds={activeBuildingIds}
-            initialCenter={
-              university?.map_center_lat && university?.map_center_lng
-                ? [university.map_center_lng, university.map_center_lat]
-                : null
-            }
-          />
+          <ErrorBoundary fallback={
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: D.textDim, background: D.bg, padding: 24, textAlign: 'center' }}>
+              <Icon name="alertCircle" size={32} color={D.textMut} />
+              <span style={{ fontSize: 14 }}>Map unavailable in this browser.</span>
+              <span style={{ fontSize: 12, color: D.textMut }}>Try enabling hardware acceleration, or use a different browser.</span>
+            </div>
+          }>
+            <MapComponent
+              ref={mapRef}
+              buildings={buildings}
+              selectedBuilding={selectedBuilding}
+              userLocation={userLocation}
+              onBuildingClick={handleBuildingClick}
+              showDirections={showDirections}
+              destinationCoords={selectedBuilding?.coordinates}
+              darkMode={dark}
+              accentColor={D.accent}
+              onRouteDataChange={setRouteData}
+              activeBuildingIds={activeBuildingIds}
+              initialCenter={
+                university?.map_center_lat && university?.map_center_lng
+                  ? [university.map_center_lng, university.map_center_lat]
+                  : null
+              }
+            />
+          </ErrorBoundary>
 
           {/* Events drawer */}
           {showEventsDrawer && (

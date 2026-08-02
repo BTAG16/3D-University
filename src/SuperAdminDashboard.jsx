@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
 import { dbService } from './lib/dbService'
@@ -6,8 +6,8 @@ import { supabase } from './lib/supabase'
 import { useToast } from './components/Toast'
 import { useDarkMode, useIsMobile } from './hooks'
 import { Icon } from './icons'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import MapComponent from './components/Map/MapComponent'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const NAV = [
   { id: 'overview',     label: 'Overview',     icon: 'layers'   },
@@ -17,108 +17,20 @@ const NAV = [
 ]
 
 // ── Global Map ──────────────────────────────────────────────────────────────
-function GlobalMap({ universities, dark }) {
-  const containerRef = useRef(null)
-  const mapRef = useRef(null)
+// Uses the same MapComponent (and marker chip/stem/dot styling) as PublicMap,
+// so the platform-wide view is visually consistent with the per-university one.
+function GlobalMap({ universities, dark, onSelectUniversity }) {
+  const buildings = universities
+    .filter(u => u.markerLat && u.markerLng)
+    .map(u => ({
+      id: u.id,
+      name: u.name,
+      category: u.city,
+      coordinates: [u.markerLng, u.markerLat],
+      universityData: u,
+    }))
 
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
-    if (!token) return
-
-    mapboxgl.accessToken = token
-
-    const unisWithCoords = universities.filter(u => u.markerLat && u.markerLng)
-
-    // Auto-center: if we have universities, center on them; else world view
-    let center = [0, 20]
-    let zoom = 1.5
-    if (unisWithCoords.length === 1) {
-      center = [unisWithCoords[0].markerLng, unisWithCoords[0].markerLat]
-      zoom = 13
-    } else if (unisWithCoords.length > 1) {
-      const avgLng = unisWithCoords.reduce((s, u) => s + u.markerLng, 0) / unisWithCoords.length
-      const avgLat = unisWithCoords.reduce((s, u) => s + u.markerLat, 0) / unisWithCoords.length
-      center = [avgLng, avgLat]
-      zoom = 4
-    }
-
-    const map = new mapboxgl.Map({
-      container: el,
-      style: dark
-        ? 'mapbox://styles/mapbox/dark-v11'
-        : 'mapbox://styles/mapbox/light-v11',
-      center,
-      zoom,
-    })
-    mapRef.current = map
-
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
-
-    map.on('load', () => {
-      unisWithCoords.forEach((uni, idx) => {
-        const colors = ['#0EA5E9', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#60a5fa']
-        const color = colors[idx % colors.length]
-
-        const markerEl = document.createElement('div')
-        markerEl.style.cssText = [
-          'width:38px', 'height:38px', 'border-radius:50%',
-          `background:${color}`, 'border:3px solid #fff',
-          'display:flex', 'align-items:center', 'justify-content:center',
-          'cursor:pointer', `box-shadow:0 2px 12px ${color}55`,
-          'font-size:14px', 'color:#fff', 'font-weight:700',
-          'font-family:system-ui,sans-serif',
-          'transition:transform 150ms ease',
-        ].join(';')
-        markerEl.title = uni.name
-        markerEl.innerHTML = (uni.name || 'U').charAt(0).toUpperCase()
-        markerEl.onmouseenter = () => { markerEl.style.transform = 'scale(1.15)' }
-        markerEl.onmouseleave = () => { markerEl.style.transform = 'scale(1)' }
-
-        const buildingCount = uni.buildingCount || 0
-        const roomCount = uni.buildings?.reduce((s, b) => s + (b.rooms?.[0]?.count || 0), 0) || 0
-
-        const popup = new mapboxgl.Popup({ offset: 24, closeButton: false, maxWidth: '220px' })
-          .setHTML(`
-            <div style="font-family:system-ui,sans-serif;padding:4px 0">
-              <div style="font-weight:700;font-size:14px;margin-bottom:4px;color:#111">${uni.name}</div>
-              <div style="color:#666;font-size:12px;margin-bottom:8px">${uni.city || ''}</div>
-              <div style="display:flex;gap:12px;font-size:12px">
-                <span style="color:#0EA5E9;font-weight:600">${buildingCount} buildings</span>
-                <span style="color:#888">${roomCount} rooms</span>
-              </div>
-              <div style="color:#999;font-size:11px;margin-top:6px">
-                Joined ${new Date(uni.created_at).toLocaleDateString('en', { month: 'short', year: 'numeric' })}
-              </div>
-            </div>
-          `)
-
-        new mapboxgl.Marker({ element: markerEl })
-          .setLngLat([uni.markerLng, uni.markerLat])
-          .setPopup(popup)
-          .addTo(map)
-      })
-
-      // If multiple, fit bounds
-      if (unisWithCoords.length > 1) {
-        const bounds = unisWithCoords.reduce(
-          (b, u) => b.extend([u.markerLng, u.markerLat]),
-          new mapboxgl.LngLatBounds(
-            [unisWithCoords[0].markerLng, unisWithCoords[0].markerLat],
-            [unisWithCoords[0].markerLng, unisWithCoords[0].markerLat]
-          )
-        )
-        map.fitBounds(bounds, { padding: 80, maxZoom: 13 })
-      }
-    })
-
-    return () => { map.remove(); mapRef.current = null }
-  }, []) // mount only — parent passes key={dark} to remount on theme change
-
-  const noCoords = universities.filter(u => u.markerLat && u.markerLng).length === 0
-
-  if (noCoords) {
+  if (buildings.length === 0) {
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-tertiary)' }}>
         <Icon name="globe" size={40} color="var(--text-tertiary)" />
@@ -128,7 +40,20 @@ function GlobalMap({ universities, dark }) {
     )
   }
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+  return (
+    <ErrorBoundary fallback={
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-tertiary)' }}>
+        <Icon name="alertCircle" size={40} color="var(--text-tertiary)" />
+        <p style={{ fontSize: 14, margin: 0 }}>Map unavailable in this browser.</p>
+      </div>
+    }>
+      <MapComponent
+        buildings={buildings}
+        onBuildingClick={(b) => onSelectUniversity(b.universityData)}
+        darkMode={dark}
+      />
+    </ErrorBoundary>
+  )
 }
 
 // ── Mini bar chart ───────────────────────────────────────────────────────────
@@ -208,7 +133,12 @@ export default function SuperAdminDashboard() {
       const [{ data: uniData, error: uniErr }, statsRes] = await Promise.all([
         supabase
           .from('universities')
-          .select('*, buildings(id, name, coordinates, is_admin_building, category, rooms(count))')
+          .select(`
+            id, name, city, created_at, logo_url, welcome_message,
+            analytics_enabled, cookies_enabled, accent_color, timezone,
+            map_center_lat, map_center_lng,
+            buildings(id, name, coordinates, is_admin_building, category, rooms(count))
+          `)
           .order('created_at', { ascending: false }),
         dbService.getStats(),
       ])
@@ -672,6 +602,7 @@ export default function SuperAdminDashboard() {
                 key={`${dark ? 'dark' : 'light'}-${universities.length}`}
                 universities={universities}
                 dark={dark}
+                onSelectUniversity={setSelectedUniversity}
               />
             </div>
           )}

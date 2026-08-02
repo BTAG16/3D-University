@@ -1,0 +1,13 @@
+-- Supabase security linter (0010_security_definer_view) flagged
+-- public.rooms_with_building as SECURITY DEFINER (the Postgres default for
+-- views), meaning it runs with the view creator's privileges rather than the
+-- querying user's, bypassing the caller's RLS context.
+--
+-- Checked live: rooms, buildings, and universities all already have RLS
+-- enabled with fully public (qual: true) SELECT policies, so this isn't an
+-- active data leak today — this view backs public building/room search and
+-- everything it touches is meant to be public. Fixing anyway as defense in
+-- depth: if any of those tables' policies are ever tightened later, a
+-- SECURITY DEFINER view would keep bypassing that silently unless also
+-- updated.
+alter view public.rooms_with_building set (security_invoker = on);

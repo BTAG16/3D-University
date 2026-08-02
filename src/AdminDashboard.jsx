@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import QRCode from 'qrcode'
 import { useAdminAuth } from './AdminAuthContext'
 import { dbService } from './lib/dbService'
 import { supabase } from './lib/supabase'
@@ -456,6 +457,7 @@ function AdminDashboard() {
     // Persist functional settings to DB so students see them
     const r = await dbService.updateUniversity(university.id, {
       name:              settings.name || university.name,
+      logo_url:          settings.logoUrl || null,
       welcome_message:   settings.welcomeMessage || null,
       accent_color:      settings.accentColor || null,
       timezone:          settings.timezone || 'UTC',
@@ -657,24 +659,28 @@ function AdminDashboard() {
   const LinkTab = () => {
     const publicUrl = `${window.location.origin}/map?uni=${university.id}`
     const qrRef = (canvas) => {
-      if (!canvas || canvas._drawn) return
-      canvas._drawn = true
-      const ctx = canvas.getContext('2d')
-      const n = 24, cell = 4
-      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 96, 96)
-      ctx.fillStyle = '#0D1B2A'
-      let seed = 7
-      const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
-      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-        const inFinder = (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8)
-        if (!inFinder && rnd() > 0.52) ctx.fillRect(x * cell, y * cell, cell, cell)
+      if (!canvas || canvas._drawnFor === publicUrl) return
+      canvas._drawnFor = publicUrl
+      QRCode.toCanvas(canvas, publicUrl, {
+        width: 96,
+        margin: 1,
+        color: { dark: '#0D1B2A', light: '#ffffff' }
+      }).catch(err => console.error('QR render error:', err))
+    }
+    const handleDownloadQr = async () => {
+      try {
+        const dataUrl = await QRCode.toDataURL(publicUrl, {
+          width: 512,
+          margin: 2,
+          color: { dark: '#0D1B2A', light: '#ffffff' }
+        })
+        const a = document.createElement('a')
+        a.href = dataUrl
+        a.download = `${university.name || 'campus-map'}-qr.png`
+        a.click()
+      } catch (err) {
+        toast.error('Failed to generate QR download')
       }
-      const finder = (fx, fy) => {
-        ctx.fillRect(fx, fy, 28, 28)
-        ctx.fillStyle = '#fff'; ctx.fillRect(fx + 4, fy + 4, 20, 20)
-        ctx.fillStyle = '#0D1B2A'; ctx.fillRect(fx + 8, fy + 8, 12, 12)
-      }
-      finder(0, 0); finder(96 - 28, 0); finder(0, 96 - 28)
     }
     return (
       <div className="tab-panel" style={{ maxWidth: 620 }}>
@@ -709,7 +715,7 @@ function AdminDashboard() {
           <div style={{ flex: 1, minWidth: 200 }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>QR code</h2>
             <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '0 0 14px', lineHeight: 1.6 }}>Print it on orientation materials, posters, and campus signage.</p>
-            <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: 'all 150ms var(--ease)', minHeight: 40, background: 'none', cursor: 'pointer' }}>
+            <button onClick={handleDownloadQr} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: 'all 150ms var(--ease)', minHeight: 40, background: 'none', cursor: 'pointer' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download PNG
             </button>
@@ -752,13 +758,17 @@ function AdminDashboard() {
 
     const handleLogoUpload = (e) => {
       const file = e.target.files[0]
-      if (file) {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setLogoUrl(reader.result)
-        }
-        reader.readAsDataURL(file)
+      if (!file) return
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Logo must be under 2MB')
+        e.target.value = ''
+        return
       }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setLogoUrl(reader.result)
+      }
+      reader.readAsDataURL(file)
     }
 
     const [name, setName] = useState(saved.name || university?.name || '')

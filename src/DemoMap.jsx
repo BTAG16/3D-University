@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MapComponent from './components/Map/MapComponent'
+import ErrorBoundary from './components/ErrorBoundary'
 import BuildingCard from './components/BuildingCard'
 import SearchBox from './components/SearchBox'
 import SlideOver from './components/SlideOver'
@@ -572,17 +573,23 @@ function DemoMap({ embedded = false, controlRef } = {}) {
 
         {/* Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-          <MapComponent
-            ref={mapRef}
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            userLocation={userLocation}
-            onBuildingClick={handleBuildingClick}
-            showDirections={showDirections}
-            destinationCoords={selectedBuilding?.coordinates}
-            darkMode={dark}
-            onRouteDataChange={setRouteData}
-          />
+          <ErrorBoundary fallback={
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+              Map unavailable in this browser.
+            </div>
+          }>
+            <MapComponent
+              ref={mapRef}
+              buildings={buildings}
+              selectedBuilding={selectedBuilding}
+              userLocation={userLocation}
+              onBuildingClick={handleBuildingClick}
+              showDirections={showDirections}
+              destinationCoords={selectedBuilding?.coordinates}
+              darkMode={dark}
+              onRouteDataChange={setRouteData}
+            />
+          </ErrorBoundary>
 
           {/* Demo location cards */}
           {userLocation && showDemoCards && !selectedBuilding && !showDirections && (

@@ -1,0 +1,12 @@
+-- Confirmed live via direct REST call: GET /rest/v1/universities?select=admin_email
+-- returns every university's admin contact email to anyone with just the
+-- public anon key. The app-level fix (explicit column lists in
+-- getUniversityPublic/getAllUniversitiesPublic) stops the UI from asking for
+-- this column, but the underlying RLS SELECT policy (`true` for everyone)
+-- still lets anon read it directly at the API layer.
+--
+-- Fix: revoke column-level SELECT on admin_email from anon specifically.
+-- authenticated keeps it (admin dashboards fetch their own/other universities'
+-- full row via select('*') under a real session), so no client code changes
+-- are needed — confirmed no anon-facing code path requests this column.
+revoke select (admin_email) on public.universities from anon;
