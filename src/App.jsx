@@ -7,7 +7,6 @@ import './App.css'
 
 const Landing = lazy(() => import('./Landing'))
 const AdminLogin = lazy(() => import('./AdminLogin'))
-const AdminRegister = lazy(() => import('./AdminRegister'))
 const AdminMfaSetup = lazy(() => import('./AdminMfaSetup'))
 const AdminMfaChallenge = lazy(() => import('./AdminMfaChallenge'))
 const AdminDashboard = lazy(() => import('./AdminDashboard'))
@@ -29,7 +28,7 @@ function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/register" element={<AdminRegister />} />
+              <Route path="/admin/register" element={<Navigate to="/admin/login" replace />} />
               <Route path="/admin/mfa-setup" element={<AdminMfaSetup />} />
               <Route path="/admin/mfa-challenge" element={<AdminMfaChallenge />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
