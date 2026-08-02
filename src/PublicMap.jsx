@@ -780,7 +780,7 @@ function PublicMap() {
                       {routeData && <><span>·</span><span style={{ color: D.accent, fontWeight: 600 }}>~{routeData.duration} min walk</span></>}
                     </div>
                   </div>
-                  <button onClick={() => setSheetState('detail')} style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 7, padding: '5px 10px', cursor: 'pointer', color: D.textDim, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <button className="tap-target" onClick={() => setSheetState('detail')} style={{ background: 'none', border: `1px solid ${D.border2}`, borderRadius: 7, padding: '5px 14px', minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: D.textDim, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
                     Details
                   </button>
                 </div>
@@ -812,13 +812,17 @@ function PublicMap() {
                 height: '85dvh',
                 transform: `translateY(${translateY})`,
                 transition: 'transform 0.32s cubic-bezier(0.16,1,0.3,1)',
+                willChange: 'transform',
                 display: 'flex', flexDirection: 'column',
                 zIndex: 10,
                 overflow: 'visible',
               }}>
-                {/* Toggle button — half above the sheet's rounded top edge */}
+                {/* Toggle button — visual pill sits half above the sheet's rounded top
+                    edge, but the real tap target is enlarged to 44px (hit-slop) so it
+                    meets the mobile minimum without changing how it looks. */}
                 <div style={{ position: 'relative', height: 0, flexShrink: 0 }}>
                   <button
+                    className="tap-target"
                     onClick={() => {
                       if (sheetState === 'peek') {
                         setSheetState(selectedBuilding ? 'card' : 'list')
@@ -826,28 +830,36 @@ function PublicMap() {
                         setSheetState('peek')
                       }
                     }}
+                    aria-label={sheetState === 'peek' ? 'Expand buildings sheet' : 'Collapse buildings sheet'}
                     style={{
                       position: 'absolute',
-                      top: -14,
+                      top: -22,
                       left: '50%',
                       transform: 'translateX(-50%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 64, height: 44,
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      zIndex: 1,
+                    }}
+                  >
+                    <span style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       width: 48, height: 28,
                       background: D.surface,
                       border: `1px solid ${D.border2}`,
                       borderRadius: 14,
-                      cursor: 'pointer',
-                      padding: 0,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
-                      zIndex: 1,
-                    }}
-                  >
-                    <span style={{
-                      display: 'inline-flex',
-                      transform: sheetState === 'peek' ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.28s cubic-bezier(0.16,1,0.3,1)',
                     }}>
-                      <Icon name="chevronDown" size={16} color={D.textDim} />
+                      <span style={{
+                        display: 'inline-flex',
+                        transform: sheetState === 'peek' ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.28s cubic-bezier(0.16,1,0.3,1)',
+                      }}>
+                        <Icon name="chevronDown" size={16} color={D.textDim} />
+                      </span>
                     </span>
                   </button>
                 </div>
