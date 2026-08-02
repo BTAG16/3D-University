@@ -15,7 +15,7 @@ function BuildingCard({ building, distance, onClick, selected, dark = false }) {
   }
 
   return (
-    <div style={base} onClick={() => onClick(building)}>
+    <div className="tap-target" style={base} onClick={() => onClick(building)}>
       <div style={{
         width: 36, height: 36, borderRadius: 8, flexShrink: 0,
         background: 'var(--accent)',
