@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from './Toast'
+import { sanitizeError } from '../lib/errorUtils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faDoorOpen, faPlus, faUpload, faEdit, faTrash, faStar, faSearch,
@@ -110,7 +111,6 @@ function RoomManagement({ universityId, buildings, onClose }) {
     if (!window.confirm('Are you sure you want to delete this room?')) return
 
     try {
-      toast.info('Deleting room...')
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.deleteRoom(roomId)
       
@@ -124,15 +124,14 @@ function RoomManagement({ universityId, buildings, onClose }) {
         setError(result.error)
       }
     } catch (err) {
-      toast.error(err.message)
-      setError(err.message)
+      const msg = sanitizeError(err.message)
+      toast.error(msg)
+      setError(msg)
     }
   }
 
   const handleToggleOffice = async (room) => {
     try {
-      const message = room.is_office ? 'Removing office status...' : 'Marking as office...'
-      toast.info(message)
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.updateRoom(room.id, {
         is_office: !room.is_office
@@ -149,14 +148,14 @@ function RoomManagement({ universityId, buildings, onClose }) {
         setError(result.error)
       }
     } catch (err) {
-      toast.error(err.message)
-      setError(err.message)
+      const msg = sanitizeError(err.message)
+      toast.error(msg)
+      setError(msg)
     }
   }
 
   const handleEditRoom = async (roomId, updates) => {
     try {
-      toast.info('Updating room...')
       const { dbService } = await import('../lib/dbService')
       const result = await dbService.updateRoom(roomId, updates)
       
@@ -171,8 +170,9 @@ function RoomManagement({ universityId, buildings, onClose }) {
         setError(result.error)
       }
     } catch (err) {
-      toast.error(err.message)
-      setError(err.message)
+      const msg = sanitizeError(err.message)
+      toast.error(msg)
+      setError(msg)
     }
   }
 
@@ -205,7 +205,6 @@ function RoomManagement({ universityId, buildings, onClose }) {
 
   const confirmBulkDelete = async () => {
     try {
-      toast.info(`Deleting ${selectedRooms.length} rooms...`)
       const { dbService } = await import('../lib/dbService')
       
       const deletePromises = selectedRooms.map(roomId => 
@@ -221,7 +220,7 @@ function RoomManagement({ universityId, buildings, onClose }) {
       setBulkDeleteConfirm(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (error) {
-      const errorMsg = `Error deleting rooms: ${error.message}`
+      const errorMsg = sanitizeError(error.message) || 'Error deleting rooms'
       toast.error(errorMsg)
       setError(errorMsg)
       setBulkDeleteConfirm(false)

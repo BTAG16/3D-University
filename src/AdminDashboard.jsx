@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import QRCode from 'qrcode'
 import { useAdminAuth } from './AdminAuthContext'
 import { dbService } from './lib/dbService'
+import { supabase } from './lib/supabase'
 import { useToast } from './components/Toast'
 import { useDarkMode } from './hooks'
 import { Icon } from './icons'
@@ -253,25 +255,26 @@ function AdminDashboard() {
   }, [])
 
   useEffect(() => {
-    const accent = dashboardSettings?.accentColor || '#0EA5E9'
+    // localStorage takes priority; fall back to DB value so fresh devices
+    // see the admin's saved brand colour without needing a prior visit.
+    const accent = dashboardSettings?.accentColor || university?.accent_color || '#0EA5E9'
     document.documentElement.style.setProperty('--accent', accent)
     document.documentElement.style.setProperty('--primary', accent)
     document.documentElement.style.setProperty('--primary-color', accent)
     document.documentElement.style.setProperty('--primary-dark', `color-mix(in srgb, ${accent} 70%, black)`)
-    
-    // Cleanup on unmount
+
     return () => {
       document.documentElement.style.removeProperty('--accent')
       document.documentElement.style.removeProperty('--primary')
       document.documentElement.style.removeProperty('--primary-color')
       document.documentElement.style.removeProperty('--primary-dark')
     }
-  }, [dashboardSettings?.accentColor])
+  }, [dashboardSettings?.accentColor, university?.accent_color])
 
   useEffect(() => {
     if (!adminSession) { navigate('/admin/login'); return }
     loadUniversity()
-  }, [adminSession, navigate])
+  }, [adminSession?.user?.id, navigate])
 
   const loadEvents = async () => {
     if (!university) return
@@ -285,6 +288,49 @@ function AdminDashboard() {
   useEffect(() => {
     if (university) loadEvents()
   }, [university])
+
+  // Realtime sync — reflect changes made on other devices without a page refresh
+  useEffect(() => {
+    if (!university?.id) return
+    const uniId = university.id
+    const channel = supabase
+      .channel(`admin_sync:${uniId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'universities',
+        filter: `id=eq.${uniId}`,
+      }, payload => {
+        const u = payload.new
+        setUniversity(prev => prev ? { ...prev, ...u } : prev)
+        // Sync in-memory settings AND update localStorage so stale values don't win
+        setDashboardSettings(prev => {
+          const next = {
+            ...prev,
+            name:           u.name                 ?? prev.name,
+            accentColor:    u.accent_color          ?? prev.accentColor,
+            welcomeMessage: u.welcome_message        ?? prev.welcomeMessage,
+            timezone:       u.timezone              ?? prev.timezone,
+            mapCenterLat:   u.map_center_lat  != null ? String(u.map_center_lat)  : prev.mapCenterLat,
+            mapCenterLng:   u.map_center_lng  != null ? String(u.map_center_lng)  : prev.mapCenterLng,
+            analytics:      u.analytics_enabled      ?? prev.analytics,
+            cookies:        u.cookies_enabled        ?? prev.cookies,
+          }
+          localStorage.setItem(`universitySettings_${uniId}`, JSON.stringify(next))
+          return next
+        })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'buildings',
+        filter: `university_id=eq.${uniId}`,
+      }, () => {
+        loadUniversity()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [university?.id])
 
   const handleSaveEvent = async (data) => {
     if (editingEvent) {
@@ -315,7 +361,22 @@ function AdminDashboard() {
     const uni = await getUniversity()
     setUniversity(uni)
     if (uni) {
-      setDashboardSettings(JSON.parse(localStorage.getItem(`universitySettings_${uni.id}`) || '{}'))
+      // Merge localStorage with DB values — DB always wins for shared settings
+      // so changes saved on another device are immediately reflected here.
+      const local = JSON.parse(localStorage.getItem(`universitySettings_${uni.id}`) || '{}')
+      const merged = {
+        ...local,
+        name:           uni.name                 ?? local.name,
+        accentColor:    uni.accent_color          ?? local.accentColor,
+        welcomeMessage: uni.welcome_message        ?? local.welcomeMessage,
+        timezone:       uni.timezone              ?? local.timezone,
+        mapCenterLat:   uni.map_center_lat  != null ? String(uni.map_center_lat)  : local.mapCenterLat,
+        mapCenterLng:   uni.map_center_lng  != null ? String(uni.map_center_lng)  : local.mapCenterLng,
+        analytics:      uni.analytics_enabled      ?? local.analytics,
+        cookies:        uni.cookies_enabled        ?? local.cookies,
+      }
+      localStorage.setItem(`universitySettings_${uni.id}`, JSON.stringify(merged))
+      setDashboardSettings(merged)
     }
     if (uni?.buildings) calculateAnalytics(uni)
   }
@@ -353,20 +414,26 @@ function AdminDashboard() {
   const handleSaveBuilding = async (data) => {
     if (editingBuilding) {
       const r = await updateBuilding(editingBuilding.id, data)
-      if (r.success) { await loadUniversity(); setShowModal(false); setEditingBuilding(null); toast.success('Building updated!') }
-      else toast.error(`Failed: ${r.error}`)
+      if (r.success) {
+        setShowModal(false); setEditingBuilding(null); toast.success('Building updated!')
+        loadUniversity() // refresh in background — no await so UI closes first
+      } else toast.error(`Failed: ${r.error}`)
     } else {
       const r = await addBuilding(data)
-      if (r.success) { await loadUniversity(); setShowModal(false); toast.success('Building added!') }
-      else toast.error(`Failed: ${r.error}`)
+      if (r.success) {
+        setShowModal(false); toast.success('Building added!')
+        loadUniversity()
+      } else toast.error(`Failed: ${r.error}`)
     }
   }
 
   const handleDeleteBuilding = (id) => setDeleteConfirm(id)
   const confirmDelete = async () => {
     const r = await deleteBuilding(deleteConfirm)
-    if (r.success) { await loadUniversity(); setDeleteConfirm(null); toast.success('Building deleted') }
-    else toast.error(`Failed: ${r.error}`)
+    if (r.success) {
+      setDeleteConfirm(null); toast.success('Building deleted')
+      loadUniversity()
+    } else toast.error(`Failed: ${r.error}`)
   }
 
   const copyPublicLink = () => {
@@ -388,12 +455,23 @@ function AdminDashboard() {
     localStorage.setItem(`universitySettings_${university.id}`, JSON.stringify(settings))
     setDashboardSettings(settings)
     // Persist functional settings to DB so students see them
-    await dbService.updateUniversity(university.id, {
-      welcome_message: settings.welcomeMessage || null,
+    const r = await dbService.updateUniversity(university.id, {
+      name:              settings.name || university.name,
+      logo_url:          settings.logoUrl || null,
+      welcome_message:   settings.welcomeMessage || null,
+      accent_color:      settings.accentColor || null,
+      timezone:          settings.timezone || 'UTC',
+      map_center_lat:    settings.mapCenterLat ? parseFloat(settings.mapCenterLat) : null,
+      map_center_lng:    settings.mapCenterLng ? parseFloat(settings.mapCenterLng) : null,
       analytics_enabled: settings.analytics !== false,
-      cookies_enabled: settings.cookies !== false,
+      cookies_enabled:   settings.cookies !== false,
     })
-    toast.success('Settings saved!')
+    if (r.success) {
+      await loadUniversity() // refresh university state so name/accent update immediately
+      toast.success('Settings saved!')
+    } else {
+      toast.error(`Failed to save settings: ${r.error}`)
+    }
   }
 
   const handleDeleteUniversity = async () => {
@@ -581,24 +659,28 @@ function AdminDashboard() {
   const LinkTab = () => {
     const publicUrl = `${window.location.origin}/map?uni=${university.id}`
     const qrRef = (canvas) => {
-      if (!canvas || canvas._drawn) return
-      canvas._drawn = true
-      const ctx = canvas.getContext('2d')
-      const n = 24, cell = 4
-      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 96, 96)
-      ctx.fillStyle = '#0D1B2A'
-      let seed = 7
-      const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
-      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-        const inFinder = (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8)
-        if (!inFinder && rnd() > 0.52) ctx.fillRect(x * cell, y * cell, cell, cell)
+      if (!canvas || canvas._drawnFor === publicUrl) return
+      canvas._drawnFor = publicUrl
+      QRCode.toCanvas(canvas, publicUrl, {
+        width: 96,
+        margin: 1,
+        color: { dark: '#0D1B2A', light: '#ffffff' }
+      }).catch(err => console.error('QR render error:', err))
+    }
+    const handleDownloadQr = async () => {
+      try {
+        const dataUrl = await QRCode.toDataURL(publicUrl, {
+          width: 512,
+          margin: 2,
+          color: { dark: '#0D1B2A', light: '#ffffff' }
+        })
+        const a = document.createElement('a')
+        a.href = dataUrl
+        a.download = `${university.name || 'campus-map'}-qr.png`
+        a.click()
+      } catch (err) {
+        toast.error('Failed to generate QR download')
       }
-      const finder = (fx, fy) => {
-        ctx.fillRect(fx, fy, 28, 28)
-        ctx.fillStyle = '#fff'; ctx.fillRect(fx + 4, fy + 4, 20, 20)
-        ctx.fillStyle = '#0D1B2A'; ctx.fillRect(fx + 8, fy + 8, 12, 12)
-      }
-      finder(0, 0); finder(96 - 28, 0); finder(0, 96 - 28)
     }
     return (
       <div className="tab-panel" style={{ maxWidth: 620 }}>
@@ -633,7 +715,7 @@ function AdminDashboard() {
           <div style={{ flex: 1, minWidth: 200 }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>QR code</h2>
             <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '0 0 14px', lineHeight: 1.6 }}>Print it on orientation materials, posters, and campus signage.</p>
-            <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: 'all 150ms var(--ease)', minHeight: 40, background: 'none', cursor: 'pointer' }}>
+            <button onClick={handleDownloadQr} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: 'all 150ms var(--ease)', minHeight: 40, background: 'none', cursor: 'pointer' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download PNG
             </button>
@@ -676,13 +758,17 @@ function AdminDashboard() {
 
     const handleLogoUpload = (e) => {
       const file = e.target.files[0]
-      if (file) {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setLogoUrl(reader.result)
-        }
-        reader.readAsDataURL(file)
+      if (!file) return
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Logo must be under 2MB')
+        e.target.value = ''
+        return
       }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setLogoUrl(reader.result)
+      }
+      reader.readAsDataURL(file)
     }
 
     const [name, setName] = useState(saved.name || university?.name || '')

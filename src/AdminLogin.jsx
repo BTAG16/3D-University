@@ -111,15 +111,17 @@ function AdminLogin() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const { adminSession, adminLogin, sendPasswordResetEmail } = useAdminAuth()
+  const { adminSession, adminLogin, sendPasswordResetEmail, mfaStatus, user } = useAdminAuth()
   const navigate = useNavigate()
   const toast = useToast()
   const isMobile = useIsMobile()
   const [dark] = useDarkMode()
 
   useEffect(() => {
-    if (adminSession) navigate('/admin/dashboard')
-  }, [adminSession, navigate])
+    if (adminSession) { navigate('/admin/dashboard'); return }
+    if (user && mfaStatus === 'challenge') { navigate('/admin/mfa-challenge'); return }
+    if (user && mfaStatus === 'enroll') { navigate('/admin/mfa-setup'); return }
+  }, [adminSession, mfaStatus, user, navigate])
 
   const handleChange = (field) => (val) => {
     setFormData(prev => ({ ...prev, [field]: val }))

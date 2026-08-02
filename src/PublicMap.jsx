@@ -9,6 +9,7 @@ import Modal from './components/Modal'
 import RoomsList from './components/RoomsList'
 import IndoorNavModal from './components/IndoorNavModal'
 import { CookieConsent } from './components/CookieConsent'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useToast } from './components/Toast'
 import { Icon } from './icons'
 import { useDarkMode } from './hooks'
@@ -53,9 +54,8 @@ function PublicMap() {
   const [university, setUniversity] = useState(null)
   const [error, setError] = useState(null)
 
-  const savedSettings = university ? JSON.parse(localStorage.getItem(`universitySettings_${university.id}`) || '{}') : {}
-  const dynamicAccent = savedSettings.accentColor || (dark ? DARK.accent : LIGHT.accent)
-  
+  const dynamicAccent = university?.accent_color || (dark ? DARK.accent : LIGHT.accent)
+
   const D = {
     ...(dark ? DARK : LIGHT),
     accent: dynamicAccent
@@ -85,9 +85,6 @@ function PublicMap() {
   )
   const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
-  const sheetRef = useRef(null)
-  const sheetStateRef = useRef(sheetState)
-  const touchDrag = useRef({ active: false, startY: 0, startTx: 0, moved: false })
 
   useEffect(() => {
     const check = () => {
@@ -99,25 +96,6 @@ function PublicMap() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Keep sheetStateRef in sync so touch handlers always see the current value
-  useEffect(() => { sheetStateRef.current = sheetState }, [sheetState])
-
-  // Non-passive touchmove listener — needed to call preventDefault and block page scroll while dragging
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!touchDrag.current.active) return
-      e.preventDefault()
-      const dy = e.touches[0].clientY - touchDrag.current.startY
-      if (Math.abs(dy) > 5) touchDrag.current.moved = true
-      const sheet = sheetRef.current
-      if (!sheet) return
-      const maxTx = sheet.offsetHeight - 68
-      const newTx = Math.max(0, Math.min(maxTx, touchDrag.current.startTx + dy))
-      sheet.style.transform = `translateY(${newTx}px)`
-    }
-    document.addEventListener('touchmove', onMove, { passive: false })
-    return () => document.removeEventListener('touchmove', onMove)
-  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -129,14 +107,14 @@ function PublicMap() {
       }
       try {
         setLoading(true)
-        let result = await dbService.getUniversity(uniId)
+        let result = await dbService.getUniversityPublic(uniId)
         if (!result.success) {
-          const all = await dbService.getAllUniversities()
+          const all = await dbService.getAllUniversitiesPublic()
           if (all.success && all.data) {
             const found = all.data.find(u =>
               u.id === uniId || u.name.toLowerCase().replace(/\s+/g, '').includes(uniId.toLowerCase())
             )
-            if (found) result = await dbService.getUniversity(found.id)
+            if (found) result = await dbService.getUniversityPublic(found.id)
           }
         }
         if (!result.success || !result.data) {
@@ -195,7 +173,10 @@ function PublicMap() {
     const uniId = university.id
     dbService.getEvents(uniId).then(r => { if (r.success) setEvents(r.data || []) })
     const channel = supabase
-      .channel(`events:${uniId}`)
+      .channel(`public_map:${uniId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'universities', filter: `id=eq.${uniId}` }, payload => {
+        setUniversity(prev => prev ? { ...prev, ...payload.new } : prev)
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `university_id=eq.${uniId}` }, payload => {
         if (payload.eventType === 'INSERT') {
           if (payload.new.is_published) setEvents(prev => [...prev, payload.new].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)))
@@ -211,7 +192,7 @@ function PublicMap() {
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [university])
+  }, [university?.id])
 
   // Show welcome message on first visit
   useEffect(() => {
@@ -227,6 +208,13 @@ function PublicMap() {
   useEffect(() => {
     if (!showDirections) tourStartedRef.current = false
   }, [showDirections])
+
+  // Apply accent color as a CSS custom property on :root so all consumers (markers, CSS files) pick it up platform-wide
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', D.accent)
+    document.documentElement.style.setProperty('--accent-subtle', `color-mix(in srgb, ${D.accent} 15%, transparent)`)
+    document.documentElement.style.setProperty('--accent-muted', `color-mix(in srgb, ${D.accent} 18%, transparent)`)
+  }, [D.accent])
 
   // Auto-start FPV tour once route data arrives
   useEffect(() => {
@@ -254,7 +242,6 @@ function PublicMap() {
     setShowDirections(false)
     setRouteData(null)
     setShowRoomsList(false)
-    if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
     if (isMobile) setSheetState('card')
     try {
       const r = await dbService.getRooms(building.id)
@@ -360,7 +347,7 @@ function PublicMap() {
       </button>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `16px 16px calc(env(safe-area-inset-bottom) + 96px)`, WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         {/* Header: icon + name + category badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -422,13 +409,15 @@ function PublicMap() {
           }}>
             <Icon name="navigation" size={15} color="#fff" /> Get Directions
           </button>
-          <button onClick={handleOpenIndoorNav} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
-            cursor: 'pointer', background: 'transparent', color: D.accent, border: `1px solid ${D.border}`,
-          }}>
-            <Icon name="layers" size={15} color={D.accent} /> Indoor Navigation
-          </button>
+          {selectedBuilding?.mappedin_url && (
+            <button onClick={handleOpenIndoorNav} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+              cursor: 'pointer', background: 'transparent', color: D.accent, border: `1px solid ${D.border}`,
+            }}>
+              <Icon name="layers" size={15} color={D.accent} /> Indoor Navigation
+            </button>
+          )}
           <button onClick={() => setShowRoomsList(true)} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
@@ -600,18 +589,32 @@ function PublicMap() {
 
         {/* Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-          <MapComponent
-            ref={mapRef}
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            userLocation={userLocation}
-            onBuildingClick={handleBuildingClick}
-            showDirections={showDirections}
-            destinationCoords={selectedBuilding?.coordinates}
-            darkMode={dark}
-            onRouteDataChange={setRouteData}
-            activeBuildingIds={activeBuildingIds}
-          />
+          <ErrorBoundary fallback={
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: D.textDim, background: D.bg, padding: 24, textAlign: 'center' }}>
+              <Icon name="alertCircle" size={32} color={D.textMut} />
+              <span style={{ fontSize: 14 }}>Map unavailable in this browser.</span>
+              <span style={{ fontSize: 12, color: D.textMut }}>Try enabling hardware acceleration, or use a different browser.</span>
+            </div>
+          }>
+            <MapComponent
+              ref={mapRef}
+              buildings={buildings}
+              selectedBuilding={selectedBuilding}
+              userLocation={userLocation}
+              onBuildingClick={handleBuildingClick}
+              showDirections={showDirections}
+              destinationCoords={selectedBuilding?.coordinates}
+              darkMode={dark}
+              accentColor={D.accent}
+              onRouteDataChange={setRouteData}
+              activeBuildingIds={activeBuildingIds}
+              initialCenter={
+                university?.map_center_lat && university?.map_center_lng
+                  ? [university.map_center_lng, university.map_center_lat]
+                  : null
+              }
+            />
+          </ErrorBoundary>
 
           {/* Events drawer */}
           {showEventsDrawer && (
@@ -764,7 +767,7 @@ function PublicMap() {
             }[sheetState] ?? 'calc(85dvh - 68px)'
 
             const MobileQuickCard = () => (
-              <div style={{ padding: '0 16px 20px', overflowY: 'auto', flex: 1 }}>
+              <div style={{ padding: `0 16px calc(env(safe-area-inset-bottom) + 96px)`, overflowY: 'auto', flex: 1, minHeight: 0 }}>
                 {/* Building row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 11, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -804,90 +807,65 @@ function PublicMap() {
             )
 
             return (
-              <div ref={sheetRef} style={{
+              <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
                 height: '85dvh',
-                background: D.surface,
-                borderRadius: '18px 18px 0 0',
-                border: `1px solid ${D.border2}`,
-                borderBottom: 'none',
                 transform: `translateY(${translateY})`,
                 transition: 'transform 0.32s cubic-bezier(0.16,1,0.3,1)',
                 display: 'flex', flexDirection: 'column',
                 zIndex: 10,
-                overflow: 'hidden',
-                boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+                overflow: 'visible',
               }}>
-                {/* Drag handle — draggable up/down, tap cycles state */}
-                <div
-                  onTouchStart={(e) => {
-                    const sheet = sheetRef.current
-                    if (!sheet) return
-                    const h = sheet.offsetHeight
-                    const state = sheetStateRef.current
-                    const txMap = {
-                      peek:   h - 68,
-                      list:   h - Math.round(window.innerHeight * 0.48),
-                      card:   h - 224,
-                      detail: 0,
-                    }
-                    touchDrag.current = {
-                      active: true,
-                      startY: e.touches[0].clientY,
-                      startTx: txMap[state] ?? (h - 68),
-                      moved: false,
-                    }
-                    sheet.style.transition = 'none'
-                  }}
-                  onTouchEnd={(e) => {
-                    if (!touchDrag.current.active) return
-                    touchDrag.current.active = false
-                    const sheet = sheetRef.current
-
-                    if (!touchDrag.current.moved) {
-                      // Tap: cycle state
-                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
-                      const cur = sheetStateRef.current
-                      if (cur === 'peek') setSheetState('list')
-                      else if (cur === 'list') setSheetState('peek')
-                      else if (cur === 'card') setSheetState('detail')
-                      else setSheetState('card')
-                      return
-                    }
-
-                    // Snap to nearest state
-                    const finalDy = e.changedTouches[0].clientY - touchDrag.current.startY
-                    const finalTx = touchDrag.current.startTx + finalDy
-                    const h = sheet ? sheet.offsetHeight : window.innerHeight * 0.85
-                    const cur = sheetStateRef.current
-                    const candidates = [
-                      { state: 'peek', tx: h - 68 },
-                      { state: 'list', tx: h - Math.round(window.innerHeight * 0.48) },
-                    ]
-                    if (cur === 'card' || cur === 'detail') {
-                      candidates.push({ state: 'card', tx: h - 224 })
-                      candidates.push({ state: 'detail', tx: 0 })
-                    }
-                    const best = candidates.reduce((a, b) =>
-                      Math.abs(b.tx - finalTx) < Math.abs(a.tx - finalTx) ? b : a
-                    )
-                    if (sheet) {
-                      sheet.style.transition = 'transform 0.32s cubic-bezier(0.16,1,0.3,1)'
-                      sheet.style.transform = `translateY(${best.tx}px)`
-                    }
-                    setSheetState(best.state)
-                    // Let React take over after the snap animation ends
-                    setTimeout(() => {
-                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
-                    }, 340)
-                  }}
-                  style={{ padding: '16px 0 12px', width: '100%', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}
-                >
-                  <div style={{ width: 36, height: 4, borderRadius: 2, background: D.border2 }} />
+                {/* Toggle button — half above the sheet's rounded top edge */}
+                <div style={{ position: 'relative', height: 0, flexShrink: 0 }}>
+                  <button
+                    onClick={() => {
+                      if (sheetState === 'peek') {
+                        setSheetState(selectedBuilding ? 'card' : 'list')
+                      } else {
+                        setSheetState('peek')
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: -14,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 48, height: 28,
+                      background: D.surface,
+                      border: `1px solid ${D.border2}`,
+                      borderRadius: 14,
+                      cursor: 'pointer',
+                      padding: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+                      zIndex: 1,
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-flex',
+                      transform: sheetState === 'peek' ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.28s cubic-bezier(0.16,1,0.3,1)',
+                    }}>
+                      <Icon name="chevronDown" size={16} color={D.textDim} />
+                    </span>
+                  </button>
                 </div>
 
+                {/* Inner sheet — visual container with rounded corners and clipping */}
+                <div style={{
+                  flex: 1,
+                  background: D.surface,
+                  borderRadius: '18px 18px 0 0',
+                  border: `1px solid ${D.border2}`,
+                  borderBottom: 'none',
+                  display: 'flex', flexDirection: 'column',
+                  overflow: 'hidden',
+                  boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+                }}>
+
                 {/* Search bar — always visible */}
-                <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>
+                <div style={{ padding: '12px 12px 8px', flexShrink: 0 }}>
                   <SearchBox
                     value={searchQuery}
                     onChange={(q) => { setSearchQuery(q); if (sheetState === 'peek') setSheetState('list') }}
@@ -897,7 +875,7 @@ function PublicMap() {
 
                 {/* Content */}
                 {(sheetState === 'peek' || sheetState === 'list') && (
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `4px 12px calc(env(safe-area-inset-bottom) + 96px)`, display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 8px' }}>
                       Buildings ({filteredBuildings.length})
                     </div>
@@ -924,6 +902,7 @@ function PublicMap() {
                       </div>
                     : <BuildingDetailPanel />
                 )}
+                </div>
               </div>
             )
           })()}

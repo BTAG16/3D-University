@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sanitizeError } from './errorUtils'
 
 /**
  * Database Service
@@ -27,7 +28,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get universities error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -53,7 +54,58 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get university error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
+    }
+  },
+
+  /**
+   * Get single university by ID — public-safe column list (no admin_email).
+   * Use this instead of getUniversity() on any unauthenticated/public surface.
+   */
+  async getUniversityPublic(universityId) {
+    try {
+      const { data, error } = await supabase
+        .from('universities')
+        .select(`
+          id, name, city, logo_url, welcome_message, accent_color,
+          map_center_lat, map_center_lng, cookies_enabled,
+          buildings(
+            *,
+            key_offices(*),
+            rooms(count)
+          )
+        `)
+        .eq('id', universityId)
+        .single()
+
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Get university error:', error)
+      return { success: false, error: sanitizeError(error.message) }
+    }
+  },
+
+  /**
+   * Get all universities — public-safe column list (no admin_email).
+   * Use this instead of getAllUniversities() on any unauthenticated/public surface.
+   */
+  async getAllUniversitiesPublic() {
+    try {
+      const { data, error } = await supabase
+        .from('universities')
+        .select(`
+          id, name, city, logo_url, welcome_message, accent_color,
+          map_center_lat, map_center_lng, cookies_enabled,
+          buildings(count)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Get universities error:', error)
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -69,7 +121,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Create university error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -89,7 +141,7 @@ export const dbService = {
       return await this.getUniversity(admin.university_id)
     } catch (error) {
       console.error('Get university by admin error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -109,7 +161,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Update university error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -127,7 +179,7 @@ export const dbService = {
       return { success: true }
     } catch (error) {
       console.error('Delete university error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -154,7 +206,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get buildings error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -178,7 +230,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get building error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -197,7 +249,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Create building error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -217,7 +269,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Update building error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -235,7 +287,7 @@ export const dbService = {
       return { success: true }
     } catch (error) {
       console.error('Delete building error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -258,7 +310,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Create key office error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -278,7 +330,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Update key office error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -296,7 +348,7 @@ export const dbService = {
       return { success: true }
     } catch (error) {
       console.error('Delete key office error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -323,7 +375,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Create key offices error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -346,7 +398,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get rooms error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -368,7 +420,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get university rooms error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -390,7 +442,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get room error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -409,7 +461,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Create room error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -427,7 +479,7 @@ export const dbService = {
       return { success: true, data, count: data.length }
     } catch (error) {
       console.error('Bulk create rooms error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -448,7 +500,7 @@ export const dbService = {
       return { success: true, data, count: data.length }
     } catch (error) {
       console.error('Upsert rooms error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -468,7 +520,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Update room error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -486,7 +538,7 @@ export const dbService = {
       return { success: true }
     } catch (error) {
       console.error('Delete room error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -504,7 +556,7 @@ export const dbService = {
       return { success: true }
     } catch (error) {
       console.error('Delete building rooms error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -569,7 +621,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Convert room to office error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -589,7 +641,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Update room timetable error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -609,7 +661,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get rooms with timetables error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -629,7 +681,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Clear room timetable error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -654,7 +706,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get admins error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -681,7 +733,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get admin error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -708,7 +760,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Search buildings error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -747,7 +799,7 @@ export const dbService = {
       }
     } catch (error) {
       console.error('Search buildings and rooms error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -776,7 +828,7 @@ export const dbService = {
       }
     } catch (error) {
       console.error('Get stats error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -797,7 +849,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get events error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -813,7 +865,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Get all events error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -828,7 +880,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Create event error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -844,7 +896,7 @@ export const dbService = {
       return { success: true, data }
     } catch (error) {
       console.error('Update event error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 
@@ -858,7 +910,7 @@ export const dbService = {
       return { success: true }
     } catch (error) {
       console.error('Delete event error:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: sanitizeError(error.message) }
     }
   },
 }

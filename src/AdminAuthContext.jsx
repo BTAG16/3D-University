@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import { dbService } from './lib/dbService'
 import { authService } from './lib/authService'
@@ -17,8 +17,12 @@ export function AdminAuthProvider({ children }) {
   const [adminSession, setAdminSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
-  const [superAdminKey, setSuperAdminKey] = useState(null)
-  const [superAdminKeyExpiry, setSuperAdminKeyExpiry] = useState(null)
+  // null | 'enroll' (no verified TOTP factor yet) | 'challenge' (factor exists, needs step-up)
+  const [mfaStatus, setMfaStatus] = useState(null)
+
+  // Keep a ref so the auth listener can check current session without stale closure
+  const adminSessionRef = useRef(null)
+  useEffect(() => { adminSessionRef.current = adminSession }, [adminSession])
 
   useEffect(() => {
     // Check for existing Supabase session
@@ -34,7 +38,17 @@ export function AdminAuthProvider({ children }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Skip any auth event where the user hasn't changed and we already have a
+      // valid admin session. This covers TOKEN_REFRESHED, re-fired SIGNED_IN,
+      // USER_UPDATED, and any other event Supabase fires on tab-focus/visibility
+      // change — all of which were causing a full session reload and UI flash.
+      // Sign-out is safe: session?.user is null, so the ID check fails and we fall through.
+      if (
+        adminSessionRef.current &&
+        session?.user?.id === adminSessionRef.current.user?.id
+      ) return
+
       setUser(session?.user ?? null)
       if (session?.user) {
         loadAdminSession(session.user)
@@ -72,7 +86,9 @@ export function AdminAuthProvider({ children }) {
             universityId: null,
             isSuperAdmin: true
           },
-          university: null
+          university: null,
+          loginTime: Date.now(),
+          expiresAt: Date.now() + 10 * 60 * 1000
         })
         setLoading(false)
         return
@@ -87,6 +103,21 @@ export function AdminAuthProvider({ children }) {
         setLoading(false)
         return
       }
+
+      // MFA gate: tenant admins must have a verified TOTP factor and be
+      // stepped up to AAL2 before the session is granted. A password-only
+      // sign-in only ever reaches AAL1.
+      const aal = await authService.mfaGetAssuranceLevel()
+      if (aal.success && aal.currentLevel !== 'aal2') {
+        if (aal.nextLevel === 'aal2') {
+          setMfaStatus('challenge')
+        } else {
+          setMfaStatus('enroll')
+        }
+        setLoading(false)
+        return
+      }
+      setMfaStatus(null)
 
       setAdminSession({
         user: {
@@ -173,6 +204,28 @@ export function AdminAuthProvider({ children }) {
     }
   }
 
+  // MFA: start TOTP enrollment (mandatory, no verified factor yet)
+  const startMfaEnroll = async () => {
+    return await authService.mfaEnroll()
+  }
+
+  // MFA: list enrolled factors (used by the login-time challenge screen to
+  // find the verified factor's id)
+  const getMfaFactors = async () => {
+    return await authService.mfaListFactors()
+  }
+
+  // MFA: verify a 6-digit code — used both to confirm a brand new enrollment
+  // and to complete a step-up challenge during login. On success, re-loads
+  // the admin session now that the AAL2 gate passes.
+  const completeMfaVerification = async (factorId, code) => {
+    const result = await authService.mfaChallengeAndVerify(factorId, code)
+    if (result.success && user) {
+      await loadAdminSession(user)
+    }
+    return result
+  }
+
   // Logout
   const logout = async () => {
     try {
@@ -254,6 +307,7 @@ export function AdminAuthProvider({ children }) {
         facilities: buildingData.facilities || [],
         departments: buildingData.departments || [],
         hours: buildingData.hours || null,
+        mappedin_url: buildingData.mappedin_url || null,
         is_admin_building: buildingData.is_admin_building || false
       }
 
@@ -301,8 +355,9 @@ export function AdminAuthProvider({ children }) {
         facilities: updates.facilities,
         departments: updates.departments,
         hours: updates.hours,
-        is_admin_building: updates.is_admin_building !== undefined 
-          ? updates.is_admin_building 
+        mappedin_url: updates.mappedin_url,
+        is_admin_building: updates.is_admin_building !== undefined
+          ? updates.is_admin_building
           : updates.isAdminBuilding
       }
 
@@ -343,46 +398,19 @@ export function AdminAuthProvider({ children }) {
   }
 
   // Super Admin: Generate and send secret key via email
+  // Generation, storage, and emailing all happen server-side in the
+  // request-super-admin-key edge function (service role) — the client never
+  // sees or controls the code, closing the self-service bypass that existed
+  // when this was implemented client-side.
   const sendSuperAdminKeyEmail = async () => {
     try {
-      // Generate random 6-digit key
-      const secretKey = Math.floor(100000 + Math.random() * 900000).toString()
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes from now
-
-      // Store key in database (using your existing column names)
-      const { data: keyData, error: dbError } = await supabase
-        .from('super_admin_keys')
-        .insert({
-          secret_key: secretKey, 
-          expires_at: expiresAt,
-          used: false
-        })
-        .select()
-        .single()
-
-      if (dbError) {
-        console.error('Database error:', dbError)
-        throw new Error('Failed to save key to database')
-      }
-
-      // Store in state for immediate use
-      setSuperAdminKey(secretKey)
-      setSuperAdminKeyExpiry(Date.now() + 10 * 60 * 1000)
-
-      // Call Supabase Edge Function to send email
-      const { data, error } = await supabase.functions.invoke('send-super-admin-key', {
-        body: {
-          email: import.meta.env.VITE_SUPER_ADMIN_EMAIL,
-          secretKey
-        }
+      const { data, error } = await supabase.functions.invoke('request-super-admin-key', {
+        body: {}
       })
 
-      if (error) {
-        console.error('Email function error:', error)
-        throw error
-      }
+      if (error) throw error
+      if (!data?.success) throw new Error(data?.error || 'Failed to send secret key')
 
-      console.log('Secret key sent successfully:', data)
       return { success: true, message: 'Secret key sent to admin email' }
     } catch (error) {
       console.error('Send super admin key error:', error)
@@ -393,51 +421,36 @@ export function AdminAuthProvider({ children }) {
   // Super Admin: Login with secret key (FIXED)
   const loginSuperAdmin = async (inputKey) => {
     try {
-      // Verify key from database (using your existing column names)
-      const { data: keyRecord, error: keyError } = await supabase
-        .from('super_admin_keys')
-        .select('*')
-        .eq('secret_key', inputKey)  // Changed from 'key' to 'secret_key'
-        .eq('used', false)
-        .single()
+      // Verification happens server-side in the verify-super-admin-key edge
+      // function (service role) — the client no longer reads or writes
+      // super_admin_keys directly, closing the self-service login bypass
+      // that existed when this ran as a plain client-side table query.
+      const { data, error: verifyError } = await supabase.functions.invoke('verify-super-admin-key', {
+        body: { inputKey }
+      })
 
-      if (keyError || !keyRecord) {
-        return { success: false, error: 'Invalid secret key' }
+      if (verifyError) throw verifyError
+      if (!data?.success) {
+        return { success: false, error: data?.error || 'Invalid secret key' }
       }
 
-      // Check if key has expired
-      if (new Date(keyRecord.expires_at) < new Date()) {
-        return { success: false, error: 'Secret key has expired. Please request a new one.' }
-      }
-
-      // Mark key as used with timestamp
-      const { error: updateError } = await supabase
-        .from('super_admin_keys')
-        .update({ 
-          used: true,
-          used_at: new Date().toISOString()  // Added used_at timestamp
+      // Redeem the server-minted token into a real Supabase Auth session —
+      // without this, the browser only ever holds UI-level state with no
+      // genuine auth.uid(), and any edge function requiring a real bearer
+      // token (delete-admin-auth, etc.) would reject every request as
+      // unauthorized regardless of this "logged in" flag.
+      if (data.hashedToken) {
+        const { error: sessionError } = await supabase.auth.verifyOtp({
+          token_hash: data.hashedToken,
+          type: 'magiclink',
         })
-        .eq('id', keyRecord.id)
-
-      if (updateError) {
-        console.error('Error marking key as used:', updateError)
+        if (sessionError) {
+          console.error('Failed to establish super admin session:', sessionError)
+          return { success: false, error: 'Failed to establish session. Please try again.' }
+        }
       }
 
-      // Key is valid, fetch super admin user from database
-      const { data: admins, error: adminError } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('is_super_admin', true)
-        .single() // Use single() since there should be only one super admin
-
-      if (adminError) {
-        console.error('Super admin fetch error:', adminError)
-        throw new Error('Super admin not found in database')
-      }
-
-      if (!admins) {
-        throw new Error('Super admin record does not exist')
-      }
+      const admins = data.admin
 
       // Set super admin session WITHOUT Supabase auth
       setAdminSession({
@@ -451,10 +464,6 @@ export function AdminAuthProvider({ children }) {
         loginTime: Date.now(),
         expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
       })
-
-      // Clear the key from state after successful login
-      setSuperAdminKey(null)
-      setSuperAdminKeyExpiry(null)
 
       return { success: true, message: 'Super admin login successful' }
     } catch (error) {
@@ -510,6 +519,11 @@ export function AdminAuthProvider({ children }) {
     addBuilding,
     updateBuilding,
     deleteBuilding,
+    // MFA (TOTP) — tenant admins
+    mfaStatus,
+    startMfaEnroll,
+    getMfaFactors,
+    completeMfaVerification,
     // Super Admin functions
     sendSuperAdminKeyEmail,
     loginSuperAdmin,
