@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
 import { useIsMobile, useDarkMode } from './hooks'
@@ -20,7 +20,7 @@ function SuperAdminLogin() {
   const [loading, setLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
-  const [hasInitialized, setHasInitialized] = useState(false)
+  const hasInitialized = useRef(false)
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [dark] = useDarkMode()
@@ -33,11 +33,10 @@ function SuperAdminLogin() {
   }, [adminSession, navigate])
 
   useEffect(() => {
-    if (!hasInitialized) {
-      setHasInitialized(true)
-      sendSecretKeyEmail()
-    }
-  }, [hasInitialized])
+    if (hasInitialized.current) return
+    hasInitialized.current = true
+    sendSecretKeyEmail()
+  }, [])
 
   const sendSecretKeyEmail = async () => {
     try {

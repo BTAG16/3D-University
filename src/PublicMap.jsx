@@ -1,15 +1,28 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { dbService } from './lib/dbService'
+import { supabase } from './lib/supabase'
 import MapComponent from './components/Map/MapComponent'
 import BuildingCard from './components/BuildingCard'
 import SearchBox from './components/SearchBox'
 import Modal from './components/Modal'
 import RoomsList from './components/RoomsList'
 import IndoorNavModal from './components/IndoorNavModal'
+import { CookieConsent } from './components/CookieConsent'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useToast } from './components/Toast'
 import { Icon } from './icons'
 import { useDarkMode } from './hooks'
+
+const EVENT_CATS = {
+  lecture:     { label: 'Lecture',     bg: 'rgba(14,165,233,0.15)',  color: '#0EA5E9' },
+  social:      { label: 'Social',      bg: 'rgba(34,197,94,0.15)',   color: '#16A34A' },
+  alert:       { label: 'Alert',       bg: 'rgba(239,68,68,0.15)',   color: '#EF4444' },
+  maintenance: { label: 'Maintenance', bg: 'rgba(245,158,11,0.15)',  color: '#D97706' },
+  'open-day':  { label: 'Open Day',    bg: 'rgba(168,85,247,0.15)', color: '#9333EA' },
+}
+const isActive  = (e) => { const now = new Date(); return new Date(e.starts_at) <= now && (!e.ends_at || new Date(e.ends_at) >= now) }
+const isUpcoming = (e) => new Date(e.starts_at) > new Date()
 
 const DARK = {
   bg:      '#0A0A0C',
@@ -41,9 +54,8 @@ function PublicMap() {
   const [university, setUniversity] = useState(null)
   const [error, setError] = useState(null)
 
-  const savedSettings = university ? JSON.parse(localStorage.getItem(`universitySettings_${university.id}`) || '{}') : {}
-  const dynamicAccent = savedSettings.accentColor || (dark ? DARK.accent : LIGHT.accent)
-  
+  const dynamicAccent = university?.accent_color || (dark ? DARK.accent : LIGHT.accent)
+
   const D = {
     ...(dark ? DARK : LIGHT),
     accent: dynamicAccent
@@ -64,11 +76,15 @@ function PublicMap() {
   const [indoorNavUrl, setIndoorNavUrl] = useState('')
   const [routeData, setRouteData] = useState(null)
   const [fpvTour, setFpvTour] = useState(null)
+  const [events, setEvents] = useState([])
+  const [showEventsDrawer, setShowEventsDrawer] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+  const activeBuildingIds = useMemo(
+    () => new Set(events.filter(isActive).map(e => e.building_id).filter(Boolean)),
+    [events]
+  )
   const tourStartedRef = useRef(false)
   const mapRef = useRef(null)
-  const sheetRef = useRef(null)
-  const sheetStateRef = useRef(sheetState)
-  const touchDrag = useRef({ active: false, startY: 0, startTx: 0, moved: false })
 
   useEffect(() => {
     const check = () => {
@@ -80,25 +96,6 @@ function PublicMap() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Keep sheetStateRef in sync so touch handlers always see the current value
-  useEffect(() => { sheetStateRef.current = sheetState }, [sheetState])
-
-  // Non-passive touchmove listener — needed to call preventDefault and block page scroll while dragging
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!touchDrag.current.active) return
-      e.preventDefault()
-      const dy = e.touches[0].clientY - touchDrag.current.startY
-      if (Math.abs(dy) > 5) touchDrag.current.moved = true
-      const sheet = sheetRef.current
-      if (!sheet) return
-      const maxTx = sheet.offsetHeight - 68
-      const newTx = Math.max(0, Math.min(maxTx, touchDrag.current.startTx + dy))
-      sheet.style.transform = `translateY(${newTx}px)`
-    }
-    document.addEventListener('touchmove', onMove, { passive: false })
-    return () => document.removeEventListener('touchmove', onMove)
-  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -110,14 +107,14 @@ function PublicMap() {
       }
       try {
         setLoading(true)
-        let result = await dbService.getUniversity(uniId)
+        let result = await dbService.getUniversityPublic(uniId)
         if (!result.success) {
-          const all = await dbService.getAllUniversities()
+          const all = await dbService.getAllUniversitiesPublic()
           if (all.success && all.data) {
             const found = all.data.find(u =>
               u.id === uniId || u.name.toLowerCase().replace(/\s+/g, '').includes(uniId.toLowerCase())
             )
-            if (found) result = await dbService.getUniversity(found.id)
+            if (found) result = await dbService.getUniversityPublic(found.id)
           }
         }
         if (!result.success || !result.data) {
@@ -170,10 +167,54 @@ function PublicMap() {
     search()
   }, [searchQuery, buildings, university])
 
+  // Load events + subscribe to realtime updates
+  useEffect(() => {
+    if (!university) return
+    const uniId = university.id
+    dbService.getEvents(uniId).then(r => { if (r.success) setEvents(r.data || []) })
+    const channel = supabase
+      .channel(`public_map:${uniId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'universities', filter: `id=eq.${uniId}` }, payload => {
+        setUniversity(prev => prev ? { ...prev, ...payload.new } : prev)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `university_id=eq.${uniId}` }, payload => {
+        if (payload.eventType === 'INSERT') {
+          if (payload.new.is_published) setEvents(prev => [...prev, payload.new].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)))
+        } else if (payload.eventType === 'UPDATE') {
+          setEvents(prev => {
+            const without = prev.filter(e => e.id !== payload.new.id)
+            if (payload.new.is_published) return [...without, payload.new].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
+            return without
+          })
+        } else if (payload.eventType === 'DELETE') {
+          setEvents(prev => prev.filter(e => e.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [university?.id])
+
+  // Show welcome message on first visit
+  useEffect(() => {
+    if (!university) return
+    const uniId = university.id
+    const msg = university.welcome_message
+    if (msg && !localStorage.getItem(`welcomed_${uniId}`)) {
+      setTimeout(() => setShowWelcome(true), 1400)
+    }
+  }, [university])
+
   // Reset tour flag when directions panel closes
   useEffect(() => {
     if (!showDirections) tourStartedRef.current = false
   }, [showDirections])
+
+  // Apply accent color as a CSS custom property on :root so all consumers (markers, CSS files) pick it up platform-wide
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', D.accent)
+    document.documentElement.style.setProperty('--accent-subtle', `color-mix(in srgb, ${D.accent} 15%, transparent)`)
+    document.documentElement.style.setProperty('--accent-muted', `color-mix(in srgb, ${D.accent} 18%, transparent)`)
+  }, [D.accent])
 
   // Auto-start FPV tour once route data arrives
   useEffect(() => {
@@ -201,7 +242,6 @@ function PublicMap() {
     setShowDirections(false)
     setRouteData(null)
     setShowRoomsList(false)
-    if (mapRef.current?.clearDirections) mapRef.current.clearDirections()
     if (isMobile) setSheetState('card')
     try {
       const r = await dbService.getRooms(building.id)
@@ -307,7 +347,7 @@ function PublicMap() {
       </button>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `16px 16px calc(env(safe-area-inset-bottom) + 96px)`, WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         {/* Header: icon + name + category badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -369,13 +409,15 @@ function PublicMap() {
           }}>
             <Icon name="navigation" size={15} color="#fff" /> Get Directions
           </button>
-          <button onClick={handleOpenIndoorNav} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
-            cursor: 'pointer', background: 'transparent', color: D.accent, border: `1px solid ${D.border}`,
-          }}>
-            <Icon name="layers" size={15} color={D.accent} /> Indoor Navigation
-          </button>
+          {selectedBuilding?.mappedin_url && (
+            <button onClick={handleOpenIndoorNav} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+              cursor: 'pointer', background: 'transparent', color: D.accent, border: `1px solid ${D.border}`,
+            }}>
+              <Icon name="layers" size={15} color={D.accent} /> Indoor Navigation
+            </button>
+          )}
           <button onClick={() => setShowRoomsList(true)} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 500,
@@ -416,6 +458,39 @@ function PublicMap() {
             </div>
           ) : null
         })()}
+        {/* Events for this building */}
+        {(() => {
+          const bEvts = events.filter(e => e.building_id === selectedBuilding.id)
+          if (!bEvts.length) return null
+          return (
+            <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: 16, marginTop: 8 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 600, color: D.text, margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="calendar" size={13} color={D.textMut} /> Events ({bEvts.length})
+              </h4>
+              {bEvts.map(e => {
+                const cat = EVENT_CATS[e.category] || EVENT_CATS.social
+                const active = isActive(e)
+                return (
+                  <div key={e.id} style={{ padding: '10px 0', borderBottom: `1px solid ${D.border}`, display: 'flex', gap: 10 }}>
+                    <div style={{ width: 3, borderRadius: 3, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 16 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: D.text }}>{e.title}</span>
+                        {active && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 9999, background: 'rgba(34,197,94,0.15)', color: '#16A34A', fontWeight: 700 }}>Now</span>}
+                        <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: D.textMut }}>
+                        {new Date(e.starts_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                        {e.ends_at ? ` – ${new Date(e.ends_at).toLocaleTimeString('en-GB', { timeStyle: 'short' })}` : ''}
+                      </div>
+                      {e.description && <p style={{ fontSize: 11.5, color: D.textDim, margin: '4px 0 0', lineHeight: 1.4 }}>{e.description}</p>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
       </div>
     </>
   )
@@ -448,6 +523,16 @@ function PublicMap() {
           <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer', minWidth: 36, minHeight: 36 }}>
             <Icon name={dark ? 'sun' : 'moon'} size={14} color={D.textDim} />
           </button>
+          {events.length > 0 && (() => {
+            const activeCount = events.filter(isActive).length
+            return (
+              <button onClick={() => setShowEventsDrawer(v => !v)} title="Campus Events" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${activeCount > 0 ? D.accent : D.border2}`, background: activeCount > 0 ? `${D.accent}15` : 'transparent', color: activeCount > 0 ? D.accent : D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto', position: 'relative', transition: 'all 200ms ease' }}>
+                <Icon name="calendar" size={14} color={activeCount > 0 ? D.accent : D.textDim} />
+                {!isMobile && 'Events'}
+                {activeCount > 0 && <span style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: '50%', background: D.accent, color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${D.surface}` }}>{activeCount}</span>}
+              </button>
+            )
+          })()}
           <button onClick={handleShare} title="Share" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
             <Icon name="share" size={14} color={D.textDim} />
             {!isMobile && 'Share'}
@@ -504,17 +589,89 @@ function PublicMap() {
 
         {/* Map */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-          <MapComponent
-            ref={mapRef}
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            userLocation={userLocation}
-            onBuildingClick={handleBuildingClick}
-            showDirections={showDirections}
-            destinationCoords={selectedBuilding?.coordinates}
-            darkMode={dark}
-            onRouteDataChange={setRouteData}
-          />
+          <ErrorBoundary fallback={
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: D.textDim, background: D.bg, padding: 24, textAlign: 'center' }}>
+              <Icon name="alertCircle" size={32} color={D.textMut} />
+              <span style={{ fontSize: 14 }}>Map unavailable in this browser.</span>
+              <span style={{ fontSize: 12, color: D.textMut }}>Try enabling hardware acceleration, or use a different browser.</span>
+            </div>
+          }>
+            <MapComponent
+              ref={mapRef}
+              buildings={buildings}
+              selectedBuilding={selectedBuilding}
+              userLocation={userLocation}
+              onBuildingClick={handleBuildingClick}
+              showDirections={showDirections}
+              destinationCoords={selectedBuilding?.coordinates}
+              darkMode={dark}
+              accentColor={D.accent}
+              onRouteDataChange={setRouteData}
+              activeBuildingIds={activeBuildingIds}
+              initialCenter={
+                university?.map_center_lat && university?.map_center_lng
+                  ? [university.map_center_lng, university.map_center_lat]
+                  : null
+              }
+            />
+          </ErrorBoundary>
+
+          {/* Events drawer */}
+          {showEventsDrawer && (
+            <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: isMobile ? '100%' : 320, background: D.surface, borderLeft: `1px solid ${D.border}`, display: 'flex', flexDirection: 'column', zIndex: 15, boxShadow: dark ? '-4px 0 24px rgba(0,0,0,0.5)' : '-4px 0 24px rgba(0,0,0,0.1)' }}>
+              <div style={{ padding: '14px 16px', borderBottom: `1px solid ${D.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: D.text }}>Campus Events</div>
+                  <div style={{ fontSize: 12, color: D.textDim, marginTop: 2 }}>
+                    {events.filter(isActive).length} active · {events.filter(isUpcoming).length} upcoming
+                  </div>
+                </div>
+                <button onClick={() => setShowEventsDrawer(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: D.textDim }}>
+                  <Icon name="x" size={16} color={D.textDim} />
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px 16px', WebkitOverflowScrolling: 'touch' }}>
+                {events.length === 0 ? (
+                  <p style={{ color: D.textMut, fontSize: 13, textAlign: 'center', marginTop: 32 }}>No events scheduled</p>
+                ) : (['active', 'upcoming', 'past']).map(section => {
+                  const sEvts = events.filter(e =>
+                    section === 'active' ? isActive(e) :
+                    section === 'upcoming' ? isUpcoming(e) :
+                    !isActive(e) && !isUpcoming(e)
+                  )
+                  if (!sEvts.length) return null
+                  return (
+                    <div key={section} style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: D.textMut, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 6px' }}>
+                        {section === 'active' ? 'Happening now' : section === 'upcoming' ? 'Coming up' : 'Ended'}
+                      </div>
+                      {sEvts.map(e => {
+                        const cat = EVENT_CATS[e.category] || EVENT_CATS.social
+                        const bld = buildings.find(b => b.id === e.building_id)
+                        return (
+                          <div key={e.id} onClick={() => { if (bld) { handleBuildingClick(bld); setShowEventsDrawer(false) } }} style={{ background: dark ? 'rgba(255,255,255,0.04)' : D.surface2, borderRadius: 10, padding: '11px 12px', marginBottom: 7, border: `1px solid ${D.border}`, cursor: bld ? 'pointer' : 'default', display: 'flex', gap: 10, transition: 'opacity 150ms ease' }}>
+                            <div style={{ width: 3, borderRadius: 3, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 14 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: D.text }}>{e.title}</span>
+                                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
+                              </div>
+                              {bld && <div style={{ fontSize: 11, color: D.textDim, marginBottom: 2 }}>{bld.name}</div>}
+                              {e.description && <p style={{ fontSize: 11.5, color: D.textDim, margin: '0 0 3px', lineHeight: 1.4 }}>{e.description}</p>}
+                              <div style={{ fontSize: 11, color: D.textMut }}>
+                                {new Date(e.starts_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                                {e.ends_at ? ` – ${new Date(e.ends_at).toLocaleTimeString('en-GB', { timeStyle: 'short' })}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* FPV Tour HUD */}
           {showDirections && selectedBuilding && (
@@ -610,7 +767,7 @@ function PublicMap() {
             }[sheetState] ?? 'calc(85dvh - 68px)'
 
             const MobileQuickCard = () => (
-              <div style={{ padding: '0 16px 20px', overflowY: 'auto', flex: 1 }}>
+              <div style={{ padding: `0 16px calc(env(safe-area-inset-bottom) + 96px)`, overflowY: 'auto', flex: 1, minHeight: 0 }}>
                 {/* Building row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 11, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -650,90 +807,65 @@ function PublicMap() {
             )
 
             return (
-              <div ref={sheetRef} style={{
+              <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
                 height: '85dvh',
-                background: D.surface,
-                borderRadius: '18px 18px 0 0',
-                border: `1px solid ${D.border2}`,
-                borderBottom: 'none',
                 transform: `translateY(${translateY})`,
                 transition: 'transform 0.32s cubic-bezier(0.16,1,0.3,1)',
                 display: 'flex', flexDirection: 'column',
                 zIndex: 10,
-                overflow: 'hidden',
-                boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+                overflow: 'visible',
               }}>
-                {/* Drag handle — draggable up/down, tap cycles state */}
-                <div
-                  onTouchStart={(e) => {
-                    const sheet = sheetRef.current
-                    if (!sheet) return
-                    const h = sheet.offsetHeight
-                    const state = sheetStateRef.current
-                    const txMap = {
-                      peek:   h - 68,
-                      list:   h - Math.round(window.innerHeight * 0.48),
-                      card:   h - 224,
-                      detail: 0,
-                    }
-                    touchDrag.current = {
-                      active: true,
-                      startY: e.touches[0].clientY,
-                      startTx: txMap[state] ?? (h - 68),
-                      moved: false,
-                    }
-                    sheet.style.transition = 'none'
-                  }}
-                  onTouchEnd={(e) => {
-                    if (!touchDrag.current.active) return
-                    touchDrag.current.active = false
-                    const sheet = sheetRef.current
-
-                    if (!touchDrag.current.moved) {
-                      // Tap: cycle state
-                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
-                      const cur = sheetStateRef.current
-                      if (cur === 'peek') setSheetState('list')
-                      else if (cur === 'list') setSheetState('peek')
-                      else if (cur === 'card') setSheetState('detail')
-                      else setSheetState('card')
-                      return
-                    }
-
-                    // Snap to nearest state
-                    const finalDy = e.changedTouches[0].clientY - touchDrag.current.startY
-                    const finalTx = touchDrag.current.startTx + finalDy
-                    const h = sheet ? sheet.offsetHeight : window.innerHeight * 0.85
-                    const cur = sheetStateRef.current
-                    const candidates = [
-                      { state: 'peek', tx: h - 68 },
-                      { state: 'list', tx: h - Math.round(window.innerHeight * 0.48) },
-                    ]
-                    if (cur === 'card' || cur === 'detail') {
-                      candidates.push({ state: 'card', tx: h - 224 })
-                      candidates.push({ state: 'detail', tx: 0 })
-                    }
-                    const best = candidates.reduce((a, b) =>
-                      Math.abs(b.tx - finalTx) < Math.abs(a.tx - finalTx) ? b : a
-                    )
-                    if (sheet) {
-                      sheet.style.transition = 'transform 0.32s cubic-bezier(0.16,1,0.3,1)'
-                      sheet.style.transform = `translateY(${best.tx}px)`
-                    }
-                    setSheetState(best.state)
-                    // Let React take over after the snap animation ends
-                    setTimeout(() => {
-                      if (sheet) { sheet.style.transition = ''; sheet.style.transform = '' }
-                    }, 340)
-                  }}
-                  style={{ padding: '16px 0 12px', width: '100%', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}
-                >
-                  <div style={{ width: 36, height: 4, borderRadius: 2, background: D.border2 }} />
+                {/* Toggle button — half above the sheet's rounded top edge */}
+                <div style={{ position: 'relative', height: 0, flexShrink: 0 }}>
+                  <button
+                    onClick={() => {
+                      if (sheetState === 'peek') {
+                        setSheetState(selectedBuilding ? 'card' : 'list')
+                      } else {
+                        setSheetState('peek')
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: -14,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 48, height: 28,
+                      background: D.surface,
+                      border: `1px solid ${D.border2}`,
+                      borderRadius: 14,
+                      cursor: 'pointer',
+                      padding: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+                      zIndex: 1,
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-flex',
+                      transform: sheetState === 'peek' ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.28s cubic-bezier(0.16,1,0.3,1)',
+                    }}>
+                      <Icon name="chevronDown" size={16} color={D.textDim} />
+                    </span>
+                  </button>
                 </div>
 
+                {/* Inner sheet — visual container with rounded corners and clipping */}
+                <div style={{
+                  flex: 1,
+                  background: D.surface,
+                  borderRadius: '18px 18px 0 0',
+                  border: `1px solid ${D.border2}`,
+                  borderBottom: 'none',
+                  display: 'flex', flexDirection: 'column',
+                  overflow: 'hidden',
+                  boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+                }}>
+
                 {/* Search bar — always visible */}
-                <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>
+                <div style={{ padding: '12px 12px 8px', flexShrink: 0 }}>
                   <SearchBox
                     value={searchQuery}
                     onChange={(q) => { setSearchQuery(q); if (sheetState === 'peek') setSheetState('list') }}
@@ -743,7 +875,7 @@ function PublicMap() {
 
                 {/* Content */}
                 {(sheetState === 'peek' || sheetState === 'list') && (
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 16px', display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `4px 12px calc(env(safe-area-inset-bottom) + 96px)`, display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 8px' }}>
                       Buildings ({filteredBuildings.length})
                     </div>
@@ -770,6 +902,7 @@ function PublicMap() {
                       </div>
                     : <BuildingDetailPanel />
                 )}
+                </div>
               </div>
             )
           })()}
@@ -794,6 +927,49 @@ function PublicMap() {
       {showIndoorNav && (
         <IndoorNavModal onClose={() => { setShowIndoorNav(false); setIndoorNavUrl('') }} mappedInUrl={indoorNavUrl} dark={dark} />
       )}
+
+      {/* Welcome message — first visit only */}
+      {showWelcome && university && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)',
+        }}>
+          <div style={{
+            background: D.surface,
+            borderRadius: isMobile ? '22px 22px 0 0' : 20,
+            padding: isMobile ? '28px 22px calc(28px + env(safe-area-inset-bottom))' : '32px 28px',
+            maxWidth: isMobile ? '100%' : 420,
+            width: '100%',
+            boxShadow: `0 24px 80px rgba(0,0,0,${dark ? '0.6' : '0.22'})`,
+            border: `1px solid ${D.border}`,
+          }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+              <Icon name="compass" size={24} color={D.accent} />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 700, margin: '0 0 8px', color: D.text, letterSpacing: '-0.01em' }}>
+              Welcome to {university.name}
+            </h2>
+            <p style={{ fontSize: 14.5, color: D.textDim, lineHeight: 1.6, margin: '0 0 24px' }}>
+              {university.welcome_message}
+            </p>
+            <button onClick={() => {
+              setShowWelcome(false)
+              localStorage.setItem(`welcomed_${university.id}`, '1')
+            }} style={{
+              width: '100%', height: 48, borderRadius: 12, border: 'none',
+              background: D.accent, color: '#fff',
+              fontSize: 15, fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'var(--font-display)',
+            }}>
+              Explore campus
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cookie consent — only when university has it enabled (default: on) */}
+      {university != null && university.cookies_enabled !== false && <CookieConsent />}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>

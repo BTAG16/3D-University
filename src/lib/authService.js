@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sanitizeError } from './errorUtils'
 
 export const authService = {
   /**
@@ -6,82 +7,26 @@ export const authService = {
    */
   async registerAdmin(email, password, universityName, city) {
     try {
-      // Step 1: Create university FIRST
-      const { data: university, error: uniError } = await supabase
+      // Delegate to edge function which uses service_role for atomic creation
+      // (avoids orphaned auth users when DB inserts fail due to RLS)
+      const { data, error } = await supabase.functions.invoke('register-admin', {
+        body: { email, password, universityName, city }
+      })
+
+      if (error) throw new Error(error.message)
+      if (!data?.success) throw new Error(data?.error || 'Registration failed')
+
+      // Sign in with the newly created credentials
+      const { data: session, error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+      if (loginError) throw new Error(`Account created but sign-in failed: ${loginError.message}`)
+
+      // Fetch university for callers that need it
+      const { data: university } = await supabase
         .from('universities')
-        .insert([{ name: universityName, city, admin_email: email }])
-        .select()
+        .select('*')
+        .eq('id', data.universityId)
         .single()
 
-      if (uniError) {
-        console.error('University creation error:', uniError)
-        throw new Error(`Failed to create university: ${uniError.message}`)
-      }
-
-      // Step 2: Sign up user with email confirmation DISABLED
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/admin/login`,
-          data: {
-            university_name: universityName,
-            city: city,
-            university_id: university.id
-          }
-        }
-      })
-
-      if (authError) {
-        // Rollback: delete university
-        await supabase.from('universities').delete().eq('id', university.id)
-        throw new Error(`Auth signup failed: ${authError.message}`)
-      }
-
-      if (!authData.user?.id) {
-        await supabase.from('universities').delete().eq('id', university.id)
-        throw new Error('User creation failed - no user ID returned')
-      }
-
-      const userId = authData.user.id
-
-      // Step 3: Create admin record
-      const { error: adminError } = await supabase
-        .from('admins')
-        .insert([{ 
-          id: userId, 
-          university_id: university.id, 
-          email, 
-          is_super_admin: false 
-        }])
-
-      if (adminError) {
-        console.error('Admin creation error:', adminError)
-        // Rollback: delete university and auth user
-        await supabase.from('universities').delete().eq('id', university.id)
-        // Note: Can't easily delete auth user from client, but RLS will prevent access
-        throw new Error(`Failed to create admin record: ${adminError.message}`)
-      }
-
-      // Step 4: Try to auto-login
-      // This will ONLY work if email confirmation is disabled in Supabase
-      const { data: session, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
-
-      if (loginError) {
-        // If login fails (likely due to email confirmation required)
-        return {
-          success: true,
-          requiresEmailConfirmation: true,
-          message: 'Registration successful! Please check your email to confirm your account before logging in.',
-          user: authData.user,
-          university
-        }
-      }
-
-      // Auto-login successful
       return {
         success: true,
         requiresEmailConfirmation: false,
@@ -91,9 +36,9 @@ export const authService = {
       }
     } catch (error) {
       console.error('Registration error:', error)
-      return { 
-        success: false, 
-        error: error.message || 'Registration failed. Please try again.' 
+      return {
+        success: false,
+        error: sanitizeError(error.message || 'Registration failed. Please try again.')
       }
     }
   },
@@ -144,9 +89,9 @@ export const authService = {
       }
     } catch (error) {
       console.error('Login error:', error)
-      return { 
-        success: false, 
-        error: error.message || 'Invalid email or password' 
+      return {
+        success: false,
+        error: sanitizeError(error.message || 'Invalid email or password')
       }
     }
   },
@@ -267,5 +212,111 @@ export const authService = {
    */
   onAuthStateChange(callback) {
     return supabase.auth.onAuthStateChange((event, session) => callback(event, session))
+  },
+
+  // ============================================
+  // MFA (TOTP) — tenant admin two-factor auth
+  // ============================================
+
+  /**
+   * Start TOTP enrollment. Returns the factor id, QR code (SVG string),
+   * and manual-entry secret for the authenticator app.
+   */
+  async mfaEnroll() {
+    try {
+      // Clean up any unverified factor left over from a reload/abandoned
+      // attempt — its secret can't be re-displayed, and Supabase rejects a
+      // new enrollment while one with the same (default, empty) name exists.
+      // listFactors() only sorts *verified* factors into the totp/phone
+      // arrays — unverified ones only show up in `all`.
+      const { data: existing } = await supabase.auth.mfa.listFactors()
+      const stale = (existing?.all || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified')
+      for (const f of stale) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id })
+      }
+
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
+      if (error) throw error
+      return {
+        success: true,
+        factorId: data.id,
+        qrCode: data.totp.qr_code,
+        secret: data.totp.secret,
+        uri: data.totp.uri
+      }
+    } catch (error) {
+      console.error('MFA enroll error:', error)
+      return { success: false, error: error.message || 'Failed to start MFA enrollment' }
+    }
+  },
+
+  /**
+   * Verify a 6-digit code for a factor — used both to confirm a brand new
+   * enrollment and to complete a step-up challenge during login. Success
+   * elevates the current session to AAL2.
+   */
+  async mfaChallengeAndVerify(factorId, code) {
+    try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
+      if (challengeError) throw challengeError
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code
+      })
+      if (verifyError) throw verifyError
+
+      return { success: true }
+    } catch (error) {
+      console.error('MFA verify error:', error)
+      return { success: false, error: error.message || 'Invalid or expired code' }
+    }
+  },
+
+  /**
+   * Current vs. next authenticator assurance level for the active session.
+   * nextLevel === 'aal2' && currentLevel !== 'aal2' means a verified factor
+   * exists and a step-up challenge is required. nextLevel === 'aal1' means
+   * no verified factor is enrolled yet.
+   */
+  async mfaGetAssuranceLevel() {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (error) throw error
+      return { success: true, currentLevel: data.currentLevel, nextLevel: data.nextLevel }
+    } catch (error) {
+      console.error('MFA assurance level error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  /**
+   * List enrolled factors for the current user (used to find the verified
+   * TOTP factor's id for a login-time challenge).
+   */
+  async mfaListFactors() {
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors()
+      if (error) throw error
+      return { success: true, totp: data.totp || [] }
+    } catch (error) {
+      console.error('MFA list factors error:', error)
+      return { success: false, error: error.message, totp: [] }
+    }
+  },
+
+  /**
+   * Remove a factor (e.g. resetting MFA enrollment).
+   */
+  async mfaUnenroll(factorId) {
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId })
+      if (error) throw error
+      return { success: true }
+    } catch (error) {
+      console.error('MFA unenroll error:', error)
+      return { success: false, error: error.message || 'Failed to remove MFA factor' }
+    }
   }
 }
