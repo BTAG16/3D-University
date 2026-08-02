@@ -69,9 +69,25 @@ serve(async (req) => {
 
     if (adminError || !superAdmin) return json({ success: false, error: 'Super admin record does not exist' }, 400)
 
+    // Mint a real Supabase Auth session for the super admin so privileged
+    // server-side actions (delete-admin-auth, any future RLS-gated queries)
+    // get a genuine JWT to verify against — without this, the client would
+    // only ever hold a plain UI-level "logged in" flag with no real auth.uid(),
+    // and every edge function requiring a real bearer token would 401.
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: superAdmin.email,
+    })
+
+    if (linkError || !linkData?.properties?.hashed_token) {
+      console.error('Failed to generate session token:', linkError?.message)
+      return json({ success: false, error: 'Failed to establish session' }, 500)
+    }
+
     return json({
       success: true,
-      admin: { id: superAdmin.id, email: superAdmin.email, isSuperAdmin: true }
+      admin: { id: superAdmin.id, email: superAdmin.email, isSuperAdmin: true },
+      hashedToken: linkData.properties.hashed_token,
     })
   } catch (error) {
     console.error('verify-super-admin-key error:', error.message)

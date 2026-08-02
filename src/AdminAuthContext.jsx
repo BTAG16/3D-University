@@ -86,7 +86,9 @@ export function AdminAuthProvider({ children }) {
             universityId: null,
             isSuperAdmin: true
           },
-          university: null
+          university: null,
+          loginTime: Date.now(),
+          expiresAt: Date.now() + 10 * 60 * 1000
         })
         setLoading(false)
         return
@@ -430,6 +432,22 @@ export function AdminAuthProvider({ children }) {
       if (verifyError) throw verifyError
       if (!data?.success) {
         return { success: false, error: data?.error || 'Invalid secret key' }
+      }
+
+      // Redeem the server-minted token into a real Supabase Auth session —
+      // without this, the browser only ever holds UI-level state with no
+      // genuine auth.uid(), and any edge function requiring a real bearer
+      // token (delete-admin-auth, etc.) would reject every request as
+      // unauthorized regardless of this "logged in" flag.
+      if (data.hashedToken) {
+        const { error: sessionError } = await supabase.auth.verifyOtp({
+          token_hash: data.hashedToken,
+          type: 'magiclink',
+        })
+        if (sessionError) {
+          console.error('Failed to establish super admin session:', sessionError)
+          return { success: false, error: 'Failed to establish session. Please try again.' }
+        }
       }
 
       const admins = data.admin
