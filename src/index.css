@@ -44,6 +44,18 @@ input, textarea, select { font-family: inherit; font-size: inherit; }
 
 ::selection { background: var(--accent-muted); color: var(--text-primary); }
 
+/* ─── Touch press feedback ──────────────────────────────────
+   Replaces the browser's flat default tap-highlight with a
+   deliberate scale/opacity dip for touch-primary controls. */
+.tap-target {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+.tap-target:active {
+  transform: scale(0.96);
+  opacity: 0.8;
+}
+
 /* ─── Scrollbar ─────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--radius-full); }
