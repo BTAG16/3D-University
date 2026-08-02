@@ -17,6 +17,8 @@ export function AdminAuthProvider({ children }) {
   const [adminSession, setAdminSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
+  // null | 'enroll' (no verified TOTP factor yet) | 'challenge' (factor exists, needs step-up)
+  const [mfaStatus, setMfaStatus] = useState(null)
 
   // Keep a ref so the auth listener can check current session without stale closure
   const adminSessionRef = useRef(null)
@@ -99,6 +101,21 @@ export function AdminAuthProvider({ children }) {
         setLoading(false)
         return
       }
+
+      // MFA gate: tenant admins must have a verified TOTP factor and be
+      // stepped up to AAL2 before the session is granted. A password-only
+      // sign-in only ever reaches AAL1.
+      const aal = await authService.mfaGetAssuranceLevel()
+      if (aal.success && aal.currentLevel !== 'aal2') {
+        if (aal.nextLevel === 'aal2') {
+          setMfaStatus('challenge')
+        } else {
+          setMfaStatus('enroll')
+        }
+        setLoading(false)
+        return
+      }
+      setMfaStatus(null)
 
       setAdminSession({
         user: {
@@ -183,6 +200,28 @@ export function AdminAuthProvider({ children }) {
       console.error('Login error:', error)
       return { success: false, error: error.message }
     }
+  }
+
+  // MFA: start TOTP enrollment (mandatory, no verified factor yet)
+  const startMfaEnroll = async () => {
+    return await authService.mfaEnroll()
+  }
+
+  // MFA: list enrolled factors (used by the login-time challenge screen to
+  // find the verified factor's id)
+  const getMfaFactors = async () => {
+    return await authService.mfaListFactors()
+  }
+
+  // MFA: verify a 6-digit code — used both to confirm a brand new enrollment
+  // and to complete a step-up challenge during login. On success, re-loads
+  // the admin session now that the AAL2 gate passes.
+  const completeMfaVerification = async (factorId, code) => {
+    const result = await authService.mfaChallengeAndVerify(factorId, code)
+    if (result.success && user) {
+      await loadAdminSession(user)
+    }
+    return result
   }
 
   // Logout
@@ -462,6 +501,11 @@ export function AdminAuthProvider({ children }) {
     addBuilding,
     updateBuilding,
     deleteBuilding,
+    // MFA (TOTP) — tenant admins
+    mfaStatus,
+    startMfaEnroll,
+    getMfaFactors,
+    completeMfaVerification,
     // Super Admin functions
     sendSuperAdminKeyEmail,
     loginSuperAdmin,

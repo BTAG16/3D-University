@@ -55,14 +55,16 @@ function AdminRegister() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  const { adminSession, registerAdmin } = useAdminAuth()
+  const { adminSession, registerAdmin, mfaStatus, user } = useAdminAuth()
   const navigate = useNavigate()
   const toast = useToast()
   const isMobile = useIsMobile()
 
   useEffect(() => {
-    if (adminSession) navigate('/admin/dashboard')
-  }, [adminSession, navigate])
+    if (adminSession) { navigate('/admin/dashboard'); return }
+    if (user && mfaStatus === 'challenge') { navigate('/admin/mfa-challenge'); return }
+    if (user && mfaStatus === 'enroll') { navigate('/admin/mfa-setup'); return }
+  }, [adminSession, mfaStatus, user, navigate])
 
   const handleChange = field => val => {
     setFormData(prev => ({ ...prev, [field]: val }))
@@ -87,7 +89,8 @@ function AdminRegister() {
       if (result.success && result.requiresEmailConfirmation) {
         setSuccess(true)
       } else if (result.success) {
-        navigate('/admin/dashboard')
+        // Brand new admins never have an MFA factor yet — enrollment is mandatory.
+        navigate('/admin/mfa-setup')
       } else {
         setError(result.error || 'Registration failed')
       }

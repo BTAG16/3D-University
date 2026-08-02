@@ -212,5 +212,111 @@ export const authService = {
    */
   onAuthStateChange(callback) {
     return supabase.auth.onAuthStateChange((event, session) => callback(event, session))
+  },
+
+  // ============================================
+  // MFA (TOTP) — tenant admin two-factor auth
+  // ============================================
+
+  /**
+   * Start TOTP enrollment. Returns the factor id, QR code (SVG string),
+   * and manual-entry secret for the authenticator app.
+   */
+  async mfaEnroll() {
+    try {
+      // Clean up any unverified factor left over from a reload/abandoned
+      // attempt — its secret can't be re-displayed, and Supabase rejects a
+      // new enrollment while one with the same (default, empty) name exists.
+      // listFactors() only sorts *verified* factors into the totp/phone
+      // arrays — unverified ones only show up in `all`.
+      const { data: existing } = await supabase.auth.mfa.listFactors()
+      const stale = (existing?.all || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified')
+      for (const f of stale) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id })
+      }
+
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
+      if (error) throw error
+      return {
+        success: true,
+        factorId: data.id,
+        qrCode: data.totp.qr_code,
+        secret: data.totp.secret,
+        uri: data.totp.uri
+      }
+    } catch (error) {
+      console.error('MFA enroll error:', error)
+      return { success: false, error: error.message || 'Failed to start MFA enrollment' }
+    }
+  },
+
+  /**
+   * Verify a 6-digit code for a factor — used both to confirm a brand new
+   * enrollment and to complete a step-up challenge during login. Success
+   * elevates the current session to AAL2.
+   */
+  async mfaChallengeAndVerify(factorId, code) {
+    try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
+      if (challengeError) throw challengeError
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code
+      })
+      if (verifyError) throw verifyError
+
+      return { success: true }
+    } catch (error) {
+      console.error('MFA verify error:', error)
+      return { success: false, error: error.message || 'Invalid or expired code' }
+    }
+  },
+
+  /**
+   * Current vs. next authenticator assurance level for the active session.
+   * nextLevel === 'aal2' && currentLevel !== 'aal2' means a verified factor
+   * exists and a step-up challenge is required. nextLevel === 'aal1' means
+   * no verified factor is enrolled yet.
+   */
+  async mfaGetAssuranceLevel() {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (error) throw error
+      return { success: true, currentLevel: data.currentLevel, nextLevel: data.nextLevel }
+    } catch (error) {
+      console.error('MFA assurance level error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  /**
+   * List enrolled factors for the current user (used to find the verified
+   * TOTP factor's id for a login-time challenge).
+   */
+  async mfaListFactors() {
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors()
+      if (error) throw error
+      return { success: true, totp: data.totp || [] }
+    } catch (error) {
+      console.error('MFA list factors error:', error)
+      return { success: false, error: error.message, totp: [] }
+    }
+  },
+
+  /**
+   * Remove a factor (e.g. resetting MFA enrollment).
+   */
+  async mfaUnenroll(factorId) {
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId })
+      if (error) throw error
+      return { success: true }
+    } catch (error) {
+      console.error('MFA unenroll error:', error)
+      return { success: false, error: error.message || 'Failed to remove MFA factor' }
+    }
   }
 }

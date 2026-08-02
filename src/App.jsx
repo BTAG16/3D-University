@@ -3,6 +3,8 @@ import { AdminAuthProvider } from './AdminAuthContext'
 import { ToastProvider } from './components/Toast'
 import AdminLogin from './AdminLogin'
 import AdminRegister from './AdminRegister'
+import AdminMfaSetup from './AdminMfaSetup'
+import AdminMfaChallenge from './AdminMfaChallenge'
 import AdminDashboard from './AdminDashboard'
 import SuperAdminLogin from './SuperAdminLogin'
 import SuperAdminDashboard from './SuperAdminDashboard'
@@ -24,6 +26,8 @@ function App() {
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/register" element={<AdminRegister />} />
+            <Route path="/admin/mfa-setup" element={<AdminMfaSetup />} />
+            <Route path="/admin/mfa-challenge" element={<AdminMfaChallenge />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/super-admin" element={<SuperAdminLogin />} />
             <Route path="/super-admin/login" element={<SuperAdminLogin />} />
