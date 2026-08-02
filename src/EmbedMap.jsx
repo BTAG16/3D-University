@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { dbService } from './lib/dbService'
 import MapComponent from './components/Map/MapComponent'
+import ErrorBoundary from './components/ErrorBoundary'
 import Modal from './components/Modal'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -308,17 +309,23 @@ function EmbedMap() {
     <div className="public-map embed-mode">
       {/* Full screen map - no header, no sidebar */}
       <div className="map-container">
-        <MapComponent
-          ref={mapRef}
-          buildings={buildings}
-          selectedBuilding={selectedBuilding}
-          userLocation={userLocation}
-          onBuildingClick={handleBuildingClick}
-          showDirections={showDirections}
-          destinationCoords={selectedBuilding?.coordinates}
-          darkMode={false}
-          onRouteDataChange={setRouteData}
-        />
+        <ErrorBoundary fallback={
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: 13, textAlign: 'center', padding: 24 }}>
+            Map unavailable in this browser.
+          </div>
+        }>
+          <MapComponent
+            ref={mapRef}
+            buildings={buildings}
+            selectedBuilding={selectedBuilding}
+            userLocation={userLocation}
+            onBuildingClick={handleBuildingClick}
+            showDirections={showDirections}
+            destinationCoords={selectedBuilding?.coordinates}
+            darkMode={false}
+            onRouteDataChange={setRouteData}
+          />
+        </ErrorBoundary>
 
         {showDirections && selectedBuilding && (
           <div className="floating-navigation-controls">

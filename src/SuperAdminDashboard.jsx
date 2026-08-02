@@ -7,6 +7,7 @@ import { useToast } from './components/Toast'
 import { useDarkMode, useIsMobile } from './hooks'
 import { Icon } from './icons'
 import MapComponent from './components/Map/MapComponent'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const NAV = [
   { id: 'overview',     label: 'Overview',     icon: 'layers'   },
@@ -40,11 +41,18 @@ function GlobalMap({ universities, dark, onSelectUniversity }) {
   }
 
   return (
-    <MapComponent
-      buildings={buildings}
-      onBuildingClick={(b) => onSelectUniversity(b.universityData)}
-      darkMode={dark}
-    />
+    <ErrorBoundary fallback={
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-tertiary)' }}>
+        <Icon name="alertCircle" size={40} color="var(--text-tertiary)" />
+        <p style={{ fontSize: 14, margin: 0 }}>Map unavailable in this browser.</p>
+      </div>
+    }>
+      <MapComponent
+        buildings={buildings}
+        onBuildingClick={(b) => onSelectUniversity(b.universityData)}
+        darkMode={dark}
+      />
+    </ErrorBoundary>
   )
 }
 
