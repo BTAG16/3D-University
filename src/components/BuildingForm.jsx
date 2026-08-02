@@ -15,6 +15,7 @@ function BuildingForm({ building, onSave, onCancel }) {
     facilities: '',
     departments: '',
     hours: '',
+    mappedinUrl: '',
     isAdminBuilding: false
   })
 
@@ -34,6 +35,7 @@ function BuildingForm({ building, onSave, onCancel }) {
         facilities: building.facilities?.join(', ') || '',
         departments: building.departments?.join(', ') || '',
         hours: building.hours || '',
+        mappedinUrl: building.mappedin_url || '',
         isAdminBuilding: building.is_admin_building || building.isAdminBuilding || false
       })
       
@@ -118,7 +120,6 @@ function BuildingForm({ building, onSave, onCancel }) {
     }
 
     setSaving(true)
-    toast.info(building ? 'Updating building...' : 'Adding building...')
 
     try {
       const buildingData = {
@@ -135,12 +136,12 @@ function BuildingForm({ building, onSave, onCancel }) {
           .map((d) => d.trim())
           .filter((d) => d),
         hours: formData.hours.trim(),
+        mappedin_url: formData.mappedinUrl.trim() || null,
         isAdminBuilding: formData.isAdminBuilding,
         is_admin_building: formData.isAdminBuilding // Also include snake_case version
       }
 
       await onSave(buildingData)
-      toast.success(building ? 'Building updated successfully!' : 'Building added successfully!')
     } catch (error) {
       toast.error('Failed to save building')
       console.error('Save error:', error)
@@ -265,6 +266,21 @@ function BuildingForm({ building, onSave, onCancel }) {
             onChange={handleChange}
             placeholder="e.g., 08:00 - 18:00"
           />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="mappedinUrl">Indoor Map URL (Mappedin)</label>
+          <input
+            type="url"
+            id="mappedinUrl"
+            name="mappedinUrl"
+            value={formData.mappedinUrl}
+            onChange={handleChange}
+            placeholder="https://app.mappedin.com/map/..."
+          />
+          <span className="field-hint" style={{ fontSize: 12, color: 'var(--text-tertiary, #6b7280)', marginTop: 4, display: 'block' }}>
+            Paste the Mappedin share URL for this building's indoor map. Leave blank if no indoor map is available.
+          </span>
         </div>
 
         {/* ADMINISTRATIVE BUILDING CHECKBOX - HIGHLIGHTED */}

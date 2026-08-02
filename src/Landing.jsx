@@ -2,7 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
 import { useDarkMode } from './hooks'
+import { supabase } from './lib/supabase'
 import './Landing.css'
+import LandingDemoPreview from './components/LandingDemoPreview'
+import { AdminBuildingsPreview, AdminRoomsPreview, AdminEventsPreview } from './components/AdminDemoSim'
 
 // ─── SVG helpers ─────────────────────────────────────────────────────────────
 function Svg({ size = 24, children, ...rest }) {
@@ -145,6 +148,54 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false)
   const [faqOpen, setFaqOpen] = useState(-1)
 
+  const [showDemoModal, setShowDemoModal]   = useState(false)
+  const [demoForm,  setDemoForm]            = useState({ name: '', university: '', email: '', role: '', message: '' })
+  const [demoStatus,  setDemoStatus]        = useState('idle') // idle | sending | sent | error
+  const [contactForm, setContactForm]       = useState({ name: '', email: '', subject: 'Partnership', message: '' })
+  const [contactStatus, setContactStatus]   = useState('idle')
+  const [honeypot, setHoneypot]             = useState('')
+
+  const COOLDOWN_MS = 90_000 // 90 seconds between submissions per form
+
+  const sendContactEmail = async (body) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-contact', { body: { ...body, website: honeypot } })
+      return !error
+    } catch { return false }
+  }
+
+  const handleDemoSubmit = async (e) => {
+    e.preventDefault()
+    if (honeypot) return // bot trap
+    const last = localStorage.getItem('kampus_demo_submit')
+    if (last && Date.now() - parseInt(last) < COOLDOWN_MS) {
+      setDemoStatus('error'); return
+    }
+    setDemoStatus('sending')
+    const ok = await sendContactEmail({ ...demoForm, type: 'demo' })
+    setDemoStatus(ok ? 'sent' : 'error')
+    if (ok) {
+      localStorage.setItem('kampus_demo_submit', String(Date.now()))
+      setDemoForm({ name: '', university: '', email: '', role: '', message: '' })
+    }
+  }
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault()
+    if (honeypot) return // bot trap
+    const last = localStorage.getItem('kampus_contact_submit')
+    if (last && Date.now() - parseInt(last) < COOLDOWN_MS) {
+      setContactStatus('error'); return
+    }
+    setContactStatus('sending')
+    const ok = await sendContactEmail({ ...contactForm, type: 'contact' })
+    setContactStatus(ok ? 'sent' : 'error')
+    if (ok) {
+      localStorage.setItem('kampus_contact_submit', String(Date.now()))
+      setContactForm({ name: '', email: '', subject: 'Partnership', message: '' })
+    }
+  }
+
   const parallaxRef = useRef(null)
   const showcaseRef = useRef(null)
   const statsRef = useRef(null)
@@ -203,8 +254,8 @@ export default function Landing() {
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 19, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>Kampus</span>
           </a>
           <div className="rl-nav-links">
-            {['features', 'how-it-works', 'testimonials', 'faq'].map(id => (
-              <a key={id} href={`#${id}`} className="rl-nav-link">{id === 'how-it-works' ? 'How It Works' : id === 'faq' ? 'FAQ' : id.charAt(0).toUpperCase() + id.slice(1)}</a>
+            {[['features','Features'],['how-it-works','How It Works'],['testimonials','Testimonials'],['faq','FAQ'],['contact','Contact']].map(([id, label]) => (
+              <a key={id} href={`#${id}`} className="rl-nav-link">{label}</a>
             ))}
           </div>
           <div className="rl-nav-actions">
@@ -229,7 +280,7 @@ export default function Landing() {
       {/* ═══ MOBILE DRAWER ═══ */}
       {menuOpen && (
         <div className="rl-drawer" style={{ position: 'fixed', top: 64, left: 0, right: 0, bottom: 0, zIndex: 99, background: 'var(--bg)', flexDirection: 'column', padding: 24, gap: 4 }}>
-          {[['#features','Features'],['#how-it-works','How It Works'],['#testimonials','Testimonials'],['#faq','FAQ']].map(([href, label]) => (
+          {[['#features','Features'],['#how-it-works','How It Works'],['#testimonials','Testimonials'],['#faq','FAQ'],['#contact','Contact']].map(([href, label]) => (
             <a key={href} href={href} onClick={closeMenu} className="hero-seq rl-drawer-link">{label}</a>
           ))}
           <div className="hero-seq" style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12, animationDelay: '0.26s' }}>
@@ -267,6 +318,9 @@ export default function Landing() {
                 <button onClick={demoAction} className="rl-btn-outline-pill">
                   See live demo <ArrowIcon size={16} />
                 </button>
+                <button onClick={() => setShowDemoModal(true)} style={{ fontSize: 13.5, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', padding: '4px 0', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                  Request a guided demo
+                </button>
               </div>
               <div className="rl-hero-trust hero-seq" style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-tertiary)', flexWrap: 'wrap', justifyContent: 'center', animationDelay: '0.53s' }}>
                 {['No credit card', '5 minute setup', 'MIT licensed · self-host free'].map(t => (
@@ -290,16 +344,7 @@ export default function Landing() {
                       your-domain.com/map?uni=your-university
                     </span>
                   </div>
-                  <img className="img-light" src="/product-light.png" alt="Kampus 3D campus map" style={{ width: '100%', height: 'auto' }} />
-                  <img className="img-dark"  src="/product-dark.png"  alt="Kampus 3D campus map" style={{ width: '100%', height: 'auto' }} />
-                </div>
-                {/* floating phone */}
-                <div style={{ position: 'absolute', bottom: '-8%', left: '-6%', width: '24%', minWidth: 96, borderRadius: 18, padding: 5, background: 'linear-gradient(150deg, var(--frame-hi), var(--frame))', boxShadow: '0 32px 64px -16px rgba(13,27,42,0.35), inset 0 1px 0 rgba(255,255,255,0.25)' }}>
-                  <div style={{ borderRadius: 14, overflow: 'hidden', position: 'relative' }}>
-                    <div style={{ position: 'absolute', top: 5, left: '50%', transform: 'translateX(-50%)', width: 34, height: 10, borderRadius: 12, background: '#000', zIndex: 2 }} />
-                    <img className="img-light" src="/mobile-light.jpg" alt="Kampus mobile view" style={{ width: '100%', height: 'auto' }} />
-                    <img className="img-dark"  src="/mobile-dark.jpg"  alt="Kampus mobile view" style={{ width: '100%', height: 'auto' }} />
-                  </div>
+                  <LandingDemoPreview />
                 </div>
               </div>
             </div>
@@ -338,33 +383,122 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══ PRODUCT SHOWCASE ═══ */}
-      <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--navy)', padding: 'clamp(88px,10vw,128px) 0' }}>
-        <div style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%)', width: 900, height: 560, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(14,165,233,0.10) 0%, transparent 68%)', pointerEvents: 'none' }} />
-        <div className="rl-container" style={{ position: 'relative', zIndex: 1 }}>
-          <div data-reveal style={{ textAlign: 'center', marginBottom: 'clamp(40px,5vw,56px)' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: '#38BDF8', marginBottom: 16 }}>Product</div>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,52px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: '#fff', textWrap: 'balance' }}>Everything your campus needs</h2>
-            <p style={{ fontSize: 17, lineHeight: 1.7, color: 'rgba(255,255,255,0.5)', maxWidth: 480, margin: '0 auto', textWrap: 'pretty' }}>From 3D maps to room timetables — one platform, managed from one dashboard.</p>
-          </div>
-          <div data-reveal style={{ maxWidth: 820, margin: '0 auto', transitionDelay: '100ms' }} ref={showcaseRef}>
-            <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 60px 120px -30px rgba(0,0,0,0.7), 0 0 80px -20px rgba(14,165,233,0.18)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'var(--navy-surface)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                {['rgba(255,255,255,0.16)','rgba(255,255,255,0.16)','rgba(255,255,255,0.16)'].map((bg, i) => (
-                  <span key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: bg }} />
+      {/* ═══ ADMIN: BUILDINGS ═══ (text left, preview right) */}
+      <section style={{ background: 'var(--alt-bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-grid-2" style={{ alignItems: 'center', gap: 'clamp(40px,6vw,80px)' }}>
+            <div data-reveal>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Admin Dashboard</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(28px,4vw,46px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>Manage your buildings effortlessly</h2>
+              <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 32px', textWrap: 'pretty' }}>Add, edit, and organise every building on your campus from one clean dashboard — no technical knowledge required.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[
+                  { icon: '📍', title: 'Pin any building',       desc: 'Drop a coordinate and instantly place the building on the student map.' },
+                  { icon: '🏷️', title: 'Categories & details',  desc: 'Set building type, opening hours, facilities, and departments.' },
+                  { icon: '✏️', title: 'Edit or remove anytime', desc: 'Your campus evolves — your map keeps up without hassle.' },
+                  { icon: '🔍', title: 'Search & filter',        desc: 'Find any building instantly with full-text search and category filters.' },
+                ].map(item => (
+                  <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, lineHeight: 1, marginTop: 3, flexShrink: 0 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{item.desc}</div>
+                    </div>
+                  </div>
                 ))}
               </div>
-              <img className="img-light" src="/product-light.png" alt="Kampus 3D map product" style={{ width: '100%', height: 'auto' }} />
-              <img className="img-dark"  src="/product-dark.png"  alt="Kampus 3D map product" style={{ width: '100%', height: 'auto' }} />
+            </div>
+            <div data-reveal style={{ transitionDelay: '100ms' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 32px 64px -20px rgba(13,27,42,0.18), 0 8px 24px -8px rgba(13,27,42,0.10)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid var(--border-light)', background: 'var(--surface)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FC5F57' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
+                  <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 240, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>kampus.app/admin/buildings</span>
+                </div>
+                <AdminBuildingsPreview />
+              </div>
             </div>
           </div>
-          <div data-reveal style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 'clamp(36px,5vw,48px)', transitionDelay: '200ms' }}>
-            {PILLS.map(pill => (
-              <span key={pill} className="rl-pill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                {pill}
-              </span>
-            ))}
+        </div>
+      </section>
+
+      {/* ═══ ADMIN: ROOMS ═══ (preview left, text right) */}
+      <section style={{ background: 'var(--bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-grid-2" style={{ alignItems: 'center', gap: 'clamp(40px,6vw,80px)' }}>
+            <div data-reveal>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 32px 64px -20px rgba(13,27,42,0.18), 0 8px 24px -8px rgba(13,27,42,0.10)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid var(--border-light)', background: 'var(--surface)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FC5F57' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
+                  <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 240, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>kampus.app/admin/rooms</span>
+                </div>
+                <AdminRoomsPreview />
+              </div>
+            </div>
+            <div data-reveal style={{ transitionDelay: '100ms' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Room Management</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(28px,4vw,46px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>Full room inventory at your fingertips</h2>
+              <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 32px', textWrap: 'pretty' }}>Give students complete room-level detail — from computer labs and seminar rooms to key offices and study spaces.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[
+                  { icon: '🚪', title: 'Room numbers & names',  desc: 'Students find exactly which room they need, first time.' },
+                  { icon: '🗓️', title: 'Weekly timetables',     desc: 'Attach schedules to any room — live availability on the map.' },
+                  { icon: '⭐', title: 'Mark key offices',       desc: 'Flag registrar, student services, and faculty offices.' },
+                  { icon: '📂', title: 'Per-building view',      desc: 'Switch between buildings to manage rooms independently.' },
+                ].map(item => (
+                  <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, lineHeight: 1, marginTop: 3, flexShrink: 0 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ ADMIN: EVENTS ═══ (text left, preview right) */}
+      <section style={{ background: 'var(--alt-bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+        <div className="rl-container">
+          <div className="rl-grid-2" style={{ alignItems: 'center', gap: 'clamp(40px,6vw,80px)' }}>
+            <div data-reveal>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Live Events</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(28px,4vw,46px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>Broadcast live events to every student</h2>
+              <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 32px', textWrap: 'pretty' }}>Create and publish campus events in seconds — visible on the student map in real time.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[
+                  { icon: '📢', title: 'Publish in one click',    desc: 'Drafts stay hidden; toggle to publish when you\'re ready.' },
+                  { icon: '🎭', title: '5 event categories',      desc: 'Lecture, Social, Alert, Maintenance, and Open Day — colour-coded.' },
+                  { icon: '🏛️', title: 'Attach to a building',   desc: 'Students see events pinned directly on the relevant building.' },
+                  { icon: '⏰', title: 'Start & end times',       desc: 'Upcoming, Active, and Ended status updates automatically.' },
+                ].map(item => (
+                  <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, lineHeight: 1, marginTop: 3, flexShrink: 0 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div data-reveal style={{ transitionDelay: '100ms' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 32px 64px -20px rgba(13,27,42,0.18), 0 8px 24px -8px rgba(13,27,42,0.10)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid var(--border-light)', background: 'var(--surface)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FC5F57' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FDBC2E' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }} />
+                  <span className="rl-hide-mobile" style={{ marginLeft: 12, flex: 1, maxWidth: 240, background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 11, color: 'var(--text-tertiary)', padding: '4px 10px', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>kampus.app/admin/events</span>
+                </div>
+                <AdminEventsPreview />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -516,6 +650,90 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ═══ CONTACT ═══ */}
+      {(() => {
+        const fldSt = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 44 }
+        return (
+          <section id="contact" style={{ background: 'var(--alt-bg)', padding: 'clamp(88px,10vw,128px) 0', transition: 'background 300ms var(--ease)' }}>
+            <div className="rl-container">
+              <div className="rl-grid-2" style={{ alignItems: 'start', gap: 'clamp(40px,7vw,80px)' }}>
+                {/* Left */}
+                <div data-reveal>
+                  <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--accent)', marginBottom: 16 }}>Get in touch</div>
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'clamp(32px,4.5vw,48px)', letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 18px', color: 'var(--text-primary)', textWrap: 'balance' }}>We'd love to hear from you</h2>
+                  <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--text-secondary)', margin: '0 0 36px', textWrap: 'pretty' }}>Whether you're exploring a partnership, have a question about the platform, want to collaborate, or just want to say hi — drop us a message and we'll get back to you.</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {[
+                      { icon: '🤝', title: 'Partnerships & collabs', desc: 'EdTech, university systems, campus apps' },
+                      { icon: '💬', title: 'Questions & feedback',  desc: 'Feature ideas, bug reports, general help' },
+                      { icon: '🚀', title: 'Guided demo',           desc: 'Want a walkthrough? We\'ll set it up for you' },
+                    ].map(item => (
+                      <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 2 }}>{item.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', marginBottom: 2 }}>{item.title}</div>
+                          <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{item.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Right — form */}
+                <div data-reveal style={{ transitionDelay: '120ms' }}>
+                  <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border-light)', padding: 'clamp(24px,4vw,36px)', boxShadow: 'var(--card-shadow)' }}>
+                    {contactStatus === 'sent' ? (
+                      <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                        <div style={{ fontSize: 42, marginBottom: 16 }}>✅</div>
+                        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary)' }}>Message sent!</h3>
+                        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px' }}>We'll get back to you within 1–2 business days.</p>
+                        <button onClick={() => setContactStatus('idle')} style={{ fontSize: 13.5, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>Send another message</button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* honeypot — hidden from humans, bots fill it in */}
+                        <input type="text" name="website" value={honeypot} onChange={e => setHoneypot(e.target.value)} style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Name *</label>
+                            <input required value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" style={fldSt} />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Email *</label>
+                            <input required type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="you@example.com" style={fldSt} />
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Subject *</label>
+                          <select required value={contactForm.subject} onChange={e => setContactForm(f => ({ ...f, subject: e.target.value }))} style={{ ...fldSt, cursor: 'pointer' }}>
+                            <option>Partnership</option>
+                            <option>Collaboration</option>
+                            <option>Feature request</option>
+                            <option>Bug report</option>
+                            <option>General question</option>
+                            <option>Feedback</option>
+                            <option>Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Message *</label>
+                          <textarea required rows={5} value={contactForm.message} onChange={e => setContactForm(f => ({ ...f, message: e.target.value }))} placeholder="Tell us what's on your mind…" style={{ ...fldSt, resize: 'vertical', lineHeight: 1.55, minHeight: 120 }} />
+                        </div>
+                        {contactStatus === 'error' && (
+                          <p style={{ fontSize: 13, color: 'var(--error)', margin: 0 }}>Something went wrong. Please try again or email us directly.</p>
+                        )}
+                        <button type="submit" disabled={contactStatus === 'sending'} className="rl-btn-primary-pill" style={{ opacity: contactStatus === 'sending' ? 0.7 : 1, cursor: contactStatus === 'sending' ? 'not-allowed' : 'pointer' }}>
+                          {contactStatus === 'sending' ? 'Sending…' : 'Send message'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )
+      })()}
+
       {/* ═══ FINAL CTA ═══ */}
       <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--navy)', padding: 'clamp(88px,10vw,136px) 0', textAlign: 'center' }}>
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', height: '100%', background: 'radial-gradient(ellipse 55% 55% at 50% 50%, rgba(14,165,233,0.13) 0%, transparent 70%)', pointerEvents: 'none' }} />
@@ -526,6 +744,9 @@ export default function Landing() {
             <button onClick={ctaAction} className="rl-btn-white-pill">Get started free</button>
             <button onClick={demoAction} className="rl-btn-ghost-pill">
               See live demo <ArrowIcon size={16} />
+            </button>
+            <button onClick={() => setShowDemoModal(true)} className="rl-btn-ghost-pill">
+              Request a demo <ArrowIcon size={16} />
             </button>
           </div>
         </div>
@@ -544,7 +765,7 @@ export default function Landing() {
             </div>
             {[
               { title: 'Product',  links: [['#features','Features'],['#how-it-works','How It Works'],['/demo','Live Demo']] },
-              { title: 'Company', links: [['#top','About'],['#top','Blog'],['#top','Contact']] },
+              { title: 'Company', links: [['#top','About'],['#contact','Contact'],['#contact','Partnerships']] },
               { title: 'Legal',   links: [['/privacy','Privacy Policy'],['/terms','Terms of Service'],['#top','Cookies']] },
             ].map(col => (
               <div key={col.title} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
@@ -567,6 +788,78 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* ═══ DEMO REQUEST MODAL ═══ */}
+      {showDemoModal && (() => {
+        const fldSt = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 44 }
+        return (
+          <div onClick={e => { if (e.target === e.currentTarget) { setShowDemoModal(false); setDemoStatus('idle') } }}
+            style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--border-light)', boxShadow: '0 32px 64px -16px rgba(0,0,0,0.4)', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px,5vw,36px)' }}>
+              {demoStatus === 'sent' ? (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, margin: '0 0 10px', color: 'var(--text-primary)' }}>Request received!</h2>
+                  <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: '0 0 28px', lineHeight: 1.65 }}>We'll reach out within 1–2 business days to schedule your guided walkthrough.</p>
+                  <button onClick={() => { setShowDemoModal(false); setDemoStatus('idle') }} className="rl-btn-primary-pill">Done</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+                    <div>
+                      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-primary)' }}>Request a guided demo</h2>
+                      <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)', margin: 0 }}>We'll walk you through setup and answer any questions.</p>
+                    </div>
+                    <button onClick={() => { setShowDemoModal(false); setDemoStatus('idle') }} style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginLeft: 12 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+                  <form onSubmit={handleDemoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* honeypot */}
+                    <input type="text" name="website" value={honeypot} onChange={e => setHoneypot(e.target.value)} style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Name *</label>
+                        <input required value={demoForm.name} onChange={e => setDemoForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" style={fldSt} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Email *</label>
+                        <input required type="email" value={demoForm.email} onChange={e => setDemoForm(f => ({ ...f, email: e.target.value }))} placeholder="you@university.edu" style={fldSt} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>University *</label>
+                      <input required value={demoForm.university} onChange={e => setDemoForm(f => ({ ...f, university: e.target.value }))} placeholder="University name" style={fldSt} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Your role</label>
+                      <select value={demoForm.role} onChange={e => setDemoForm(f => ({ ...f, role: e.target.value }))} style={{ ...fldSt, cursor: 'pointer' }}>
+                        <option value="">Select role (optional)</option>
+                        <option>IT Director</option>
+                        <option>Head of Student Affairs</option>
+                        <option>Campus Operations</option>
+                        <option>Web / Digital Team</option>
+                        <option>Student Representative</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Anything you'd like us to focus on?</label>
+                      <textarea rows={3} value={demoForm.message} onChange={e => setDemoForm(f => ({ ...f, message: e.target.value }))} placeholder="e.g. indoor navigation, branding, events, integrations…" style={{ ...fldSt, resize: 'vertical', lineHeight: 1.55, minHeight: 80 }} />
+                    </div>
+                    {demoStatus === 'error' && (
+                      <p style={{ fontSize: 13, color: 'var(--error)', margin: 0 }}>Something went wrong. Please try again.</p>
+                    )}
+                    <button type="submit" disabled={demoStatus === 'sending'} className="rl-btn-primary-pill" style={{ opacity: demoStatus === 'sending' ? 0.7 : 1, cursor: demoStatus === 'sending' ? 'not-allowed' : 'pointer', marginTop: 4 }}>
+                      {demoStatus === 'sending' ? 'Sending…' : 'Request demo'}
+                    </button>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
     </div>
   )

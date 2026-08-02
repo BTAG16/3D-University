@@ -146,26 +146,82 @@ create policy "Super admin keys are service-role only"
   using (false);
 ```
 
-## 5. Configure Auth
+## 5. Create the rate limit table
+
+Run in the SQL Editor. This is used by edge functions to throttle contact/demo form submissions and OTP requests:
+
+```sql
+create table public.rate_limit_log (
+  id         uuid primary key default gen_random_uuid(),
+  ip         text not null,
+  endpoint   text not null,
+  created_at timestamptz default now()
+);
+
+create index rate_limit_log_lookup on public.rate_limit_log(ip, endpoint, created_at);
+
+alter table public.rate_limit_log enable row level security;
+
+-- No public access — edge functions use the service role key
+create policy "No public access"
+  on public.rate_limit_log for all
+  using (false);
+```
+
+## 6. Create the events table
+
+Run in the SQL Editor:
+
+```sql
+-- Events (live updates on public map)
+create table public.events (
+  id            uuid primary key default gen_random_uuid(),
+  university_id uuid not null references public.universities(id) on delete cascade,
+  building_id   uuid references public.buildings(id) on delete set null,
+  title         text not null,
+  description   text,
+  category      text default 'social',
+  starts_at     timestamptz not null,
+  ends_at       timestamptz,
+  is_published  boolean default true,
+  created_at    timestamptz default now()
+);
+
+alter table public.events enable row level security;
+
+create policy "Public can read published events"
+  on public.events for select
+  using (is_published = true);
+
+create policy "Admins can manage their events"
+  on public.events for all
+  using (university_id in (select university_id from public.admins where id = auth.uid()));
+```
+
+Then enable Realtime for the table: **Database → Replication** → enable replication for `events`.
+
+## 6. Configure Auth
 
 1. Go to **Authentication → Settings**
 2. Set **Site URL** to your deployed URL (e.g. `https://your-app.vercel.app`)
 3. Add the same URL to **Redirect URLs**
 4. Under **Email**, enable **Confirm email** if you want users to verify their email
 
-## 6. Deploy the Edge Function
+## 7. Deploy Edge Functions
 
 ```bash
 npx supabase login
 npx supabase link --project-ref YOUR_PROJECT_REF
-npx supabase functions deploy send-super-admin-key
+npx supabase functions deploy send-super-admin-key --no-verify-jwt
+npx supabase functions deploy send-contact --no-verify-jwt
 ```
 
-Set the function's secrets:
+Set all required secrets:
 
 ```bash
 npx supabase secrets set RESEND_API_KEY=re_your-key
-npx supabase secrets set RESEND_FROM_EMAIL="Campus Explorer <noreply@your-domain.com>"
+npx supabase secrets set RESEND_FROM_EMAIL="Kampus <noreply@your-domain.com>"
+npx supabase secrets set CONTACT_EMAIL=your@email.com
 ```
 
 ## 7. Create your super admin record

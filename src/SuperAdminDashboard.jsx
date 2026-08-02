@@ -158,7 +158,7 @@ export default function SuperAdminDashboard() {
   const isMobile = useIsMobile()
 
   const [universities, setUniversities] = useState([])
-  const [stats, setStats] = useState({ totalUniversities: 0, totalBuildings: 0, totalAdmins: 0, totalRooms: 0 })
+  const [stats, setStats] = useState({ totalUniversities: 0, totalBuildings: 0, totalAdmins: 0, totalRooms: 0, totalEvents: 0 })
   const [analytics, setAnalytics] = useState({
     avgBuildingsPerUniversity: 0,
     avgRoomsPerBuilding: 0,
@@ -179,7 +179,7 @@ export default function SuperAdminDashboard() {
     if (!adminSession) { navigate('/admin'); return }
     if (!adminSession.user.isSuperAdmin) { navigate('/admin/dashboard'); return }
     loadData()
-  }, [adminSession, navigate])
+  }, [adminSession?.user?.id, navigate])
 
   useEffect(() => {
     if (!adminSession?.user?.isSuperAdmin) return
@@ -190,7 +190,7 @@ export default function SuperAdminDashboard() {
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [adminSession])
+  }, [adminSession?.user?.id])
 
   const formatTime = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
 
@@ -235,6 +235,7 @@ export default function SuperAdminDashboard() {
           totalBuildings: statsRes.data.totalBuildings,
           totalAdmins: statsRes.data.totalAdmins,
           totalRooms: statsRes.data.totalRooms,
+          totalEvents: statsRes.data.totalEvents,
         })
         computeAnalytics(list, statsRes.data)
       }
@@ -452,6 +453,7 @@ export default function SuperAdminDashboard() {
                   { label: 'Universities', value: stats.totalUniversities, icon: 'globe',    color: '#0EA5E9' },
                   { label: 'Buildings',    value: stats.totalBuildings,    icon: 'building', color: '#a78bfa' },
                   { label: 'Rooms',        value: stats.totalRooms,        icon: 'door',     color: '#34d399' },
+                  { label: 'Live Events',  value: stats.totalEvents,       icon: 'calendar', color: '#f472b6' },
                   { label: 'Admin Accounts', value: stats.totalAdmins,    icon: 'userPlus', color: '#fb923c' },
                 ].map(s => (
                   <div key={s.label} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: '14px 16px' }}>
@@ -552,10 +554,11 @@ export default function SuperAdminDashboard() {
                       title="Delete"
                       onClick={() => {
                         if (window.confirm(`Permanently delete "${uni.name}"?\nThis will remove all buildings, rooms, and admin accounts.`)) {
-                          dbService.deleteUniversity(uni.id).then(r => {
-                            if (r.success) { toast.success('University deleted'); loadData() }
-                            else toast.error(r.error)
-                          })
+                          supabase.functions.invoke('delete-admin-auth', { body: { universityId: uni.id } })
+                            .then(({ data, error }) => {
+                              if (error || !data?.success) toast.error(error?.message || data?.error || 'Delete failed')
+                              else { toast.success('University deleted'); loadData() }
+                            })
                         }
                       }}
                       style={{ width: 32, height: 32, borderRadius: 7, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -646,7 +649,8 @@ export default function SuperAdminDashboard() {
                     { label: 'Avg buildings / campus', value: analytics.avgBuildingsPerUniversity, good: parseFloat(analytics.avgBuildingsPerUniversity) > 3 },
                     { label: 'Avg rooms / building',   value: analytics.avgRoomsPerBuilding,        good: parseFloat(analytics.avgRoomsPerBuilding) > 5  },
                     { label: 'Campuses with map pins', value: `${universities.filter(u => u.markerLat).length} / ${universities.length}`, good: universities.length === 0 || universities.every(u => u.markerLat) },
-                    { label: 'Total data points',      value: stats.totalUniversities + stats.totalBuildings + stats.totalRooms, good: true },
+                    { label: 'Published events',       value: stats.totalEvents, good: true },
+                    { label: 'Total data points',      value: stats.totalUniversities + stats.totalBuildings + stats.totalRooms + stats.totalEvents, good: true },
                   ].map(m => (
                     <div key={m.label} style={{ padding: '12px', borderRadius: 9, background: dark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: `1px solid ${border}` }}>
                       <div style={{ fontSize: 11.5, color: textTer, marginBottom: 6 }}>{m.label}</div>
@@ -665,7 +669,7 @@ export default function SuperAdminDashboard() {
           {activeTab === 'map' && (
             <div style={{ height: 'calc(100dvh - 130px)', minHeight: 400, borderRadius: 12, overflow: 'hidden', border: `1px solid ${border}` }}>
               <GlobalMap
-                key={dark ? 'dark' : 'light'}
+                key={`${dark ? 'dark' : 'light'}-${universities.length}`}
                 universities={universities}
                 dark={dark}
               />

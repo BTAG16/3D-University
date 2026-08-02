@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import { dbService } from './lib/dbService'
 import { authService } from './lib/authService'
@@ -20,6 +20,10 @@ export function AdminAuthProvider({ children }) {
   const [superAdminKey, setSuperAdminKey] = useState(null)
   const [superAdminKeyExpiry, setSuperAdminKeyExpiry] = useState(null)
 
+  // Keep a ref so the auth listener can check current session without stale closure
+  const adminSessionRef = useRef(null)
+  useEffect(() => { adminSessionRef.current = adminSession }, [adminSession])
+
   useEffect(() => {
     // Check for existing Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,7 +38,17 @@ export function AdminAuthProvider({ children }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Skip any auth event where the user hasn't changed and we already have a
+      // valid admin session. This covers TOKEN_REFRESHED, re-fired SIGNED_IN,
+      // USER_UPDATED, and any other event Supabase fires on tab-focus/visibility
+      // change — all of which were causing a full session reload and UI flash.
+      // Sign-out is safe: session?.user is null, so the ID check fails and we fall through.
+      if (
+        adminSessionRef.current &&
+        session?.user?.id === adminSessionRef.current.user?.id
+      ) return
+
       setUser(session?.user ?? null)
       if (session?.user) {
         loadAdminSession(session.user)
@@ -254,6 +268,7 @@ export function AdminAuthProvider({ children }) {
         facilities: buildingData.facilities || [],
         departments: buildingData.departments || [],
         hours: buildingData.hours || null,
+        mappedin_url: buildingData.mappedin_url || null,
         is_admin_building: buildingData.is_admin_building || false
       }
 
@@ -301,8 +316,9 @@ export function AdminAuthProvider({ children }) {
         facilities: updates.facilities,
         departments: updates.departments,
         hours: updates.hours,
-        is_admin_building: updates.is_admin_building !== undefined 
-          ? updates.is_admin_building 
+        mappedin_url: updates.mappedin_url,
+        is_admin_building: updates.is_admin_building !== undefined
+          ? updates.is_admin_building
           : updates.isAdminBuilding
       }
 

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from './AdminAuthContext'
+import { dbService } from './lib/dbService'
+import { supabase } from './lib/supabase'
 import { useToast } from './components/Toast'
 import { useDarkMode } from './hooks'
 import { Icon } from './icons'
@@ -17,9 +19,18 @@ const NAV = [
   { id: 'overview',  label: 'Overview',    icon: 'layers' },
   { id: 'buildings', label: 'Buildings',   icon: 'building' },
   { id: 'rooms',     label: 'Rooms',       icon: 'door' },
+  { id: 'events',    label: 'Events',      icon: 'calendar' },
   { id: 'link',      label: 'Public Link', icon: 'link' },
   { id: 'settings',  label: 'Settings',    icon: 'settings' },
 ]
+
+const EVENT_CAT = {
+  lecture:     { label: 'Lecture',     bg: 'rgba(14,165,233,0.12)',  color: '#0EA5E9' },
+  social:      { label: 'Social',      bg: 'rgba(34,197,94,0.12)',   color: '#16A34A' },
+  alert:       { label: 'Alert',       bg: 'rgba(239,68,68,0.12)',   color: '#EF4444' },
+  maintenance: { label: 'Maintenance', bg: 'rgba(245,158,11,0.12)',  color: '#D97706' },
+  'open-day':  { label: 'Open Day',    bg: 'rgba(168,85,247,0.12)', color: '#9333EA' },
+}
 
 // Category badge colours — matching handoff catColors exactly
 const CAT_COLORS = {
@@ -34,6 +45,91 @@ const CAT_COLORS = {
   'Residence':          ['rgba(74,222,128,0.16)',  '#15803D'],
 }
 const catBadge = (cat) => CAT_COLORS[cat] || ['var(--accent-subtle)', 'var(--accent)']
+
+const evtLabelSt = { display: 'block', fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }
+const evtInputSt = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box', minHeight: 44, fontFamily: 'inherit' }
+
+function EventForm({ buildings, event, onSave, onCancel }) {
+  const [title, setTitle] = useState(event?.title || '')
+  const [description, setDescription] = useState(event?.description || '')
+  const [buildingId, setBuildingId] = useState(event?.building_id || '')
+  const [category, setCategory] = useState(event?.category || 'social')
+  const [startsAt, setStartsAt] = useState(event?.starts_at ? event.starts_at.slice(0, 16) : '')
+  const [endsAt, setEndsAt] = useState(event?.ends_at ? event.ends_at.slice(0, 16) : '')
+  const [isPublished, setIsPublished] = useState(event?.is_published ?? true)
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!title.trim() || !startsAt) return
+    setSaving(true)
+    await onSave({
+      title: title.trim(),
+      description: description.trim() || null,
+      building_id: buildingId || null,
+      category,
+      starts_at: new Date(startsAt).toISOString(),
+      ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+      is_published: isPublished,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '4px 0' }}>
+      <div>
+        <label style={evtLabelSt}>Title *</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="e.g. Freshers Fair" style={evtInputSt} />
+      </div>
+      <div>
+        <label style={evtLabelSt}>Building</label>
+        <select value={buildingId} onChange={e => setBuildingId(e.target.value)} style={evtInputSt}>
+          <option value="">None (campus-wide)</option>
+          {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label style={evtLabelSt}>Category</label>
+        <select value={category} onChange={e => setCategory(e.target.value)} style={evtInputSt}>
+          <option value="lecture">Lecture</option>
+          <option value="social">Social</option>
+          <option value="alert">Alert</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="open-day">Open Day</option>
+        </select>
+      </div>
+      <div>
+        <label style={evtLabelSt}>Description</label>
+        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Brief description for students…" style={{ ...evtInputSt, resize: 'vertical', lineHeight: 1.5, minHeight: 'auto' }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div>
+          <label style={evtLabelSt}>Starts at *</label>
+          <input type="datetime-local" value={startsAt} onChange={e => setStartsAt(e.target.value)} required style={evtInputSt} />
+        </div>
+        <div>
+          <label style={evtLabelSt}>Ends at (optional)</label>
+          <input type="datetime-local" value={endsAt} onChange={e => setEndsAt(e.target.value)} style={evtInputSt} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid var(--border-light)' }}>
+        <div>
+          <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-primary)' }}>Publish immediately</div>
+          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>Visible to students on the public map</div>
+        </div>
+        <button type="button" onClick={() => setIsPublished(p => !p)} role="switch" style={{ width: 44, height: 26, borderRadius: 9999, background: isPublished ? 'var(--accent)' : 'var(--border)', position: 'relative', transition: 'background 200ms var(--ease)', flexShrink: 0, cursor: 'pointer', border: 'none' }}>
+          <span style={{ position: 'absolute', top: 3, left: isPublished ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 200ms var(--spring)' }} />
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="button" onClick={onCancel} style={{ flex: 1, height: 44, borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Cancel</button>
+        <button type="submit" disabled={saving} style={{ flex: 2, height: 44, borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {saving ? <><Icon name="loader" size={15} color="#fff" /> Saving…</> : event ? 'Save changes' : 'Create event'}
+        </button>
+      </div>
+    </form>
+  )
+}
 
 function Sidebar({ university, activeTab, setActiveTab, onLogout, dark, onDarkToggle, collapsed, onCollapse }) {
 
@@ -113,7 +209,7 @@ function MobileBottomNav({ activeTab, setActiveTab }) {
       {NAV.map(item => {
         const active = activeTab === item.id
         return (
-          <button key={item.id} onClick={() => setActiveTab(item.id)} style={{ flex: 1, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, color: active ? 'var(--accent)' : 'var(--text-tertiary)', transition: 'color 200ms var(--ease)', minHeight: 44 }}>
+          <button key={item.id} onClick={() => setActiveTab(item.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, color: active ? 'var(--accent)' : 'var(--text-tertiary)', transition: 'color 200ms var(--ease)', minHeight: 44, flex: 1 }}>
             <span style={{ display: 'inline-flex', lineHeight: 0, transform: active ? 'scale(1.12)' : 'scale(1)', transition: 'transform 250ms var(--spring)' }}>
               <Icon name={item.icon} size={18} />
             </span>
@@ -141,6 +237,10 @@ function AdminDashboard() {
   
   const [buildingSearch, setBuildingSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [events, setEvents] = useState([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+  const [showEventForm, setShowEventForm] = useState(false)
+  const [editingEvent, setEditingEvent] = useState(null)
 
   const { adminSession, logout, getUniversity, addBuilding, updateBuilding, deleteBuilding, deleteUniversity } = useAdminAuth()
   const navigate = useNavigate()
@@ -154,31 +254,128 @@ function AdminDashboard() {
   }, [])
 
   useEffect(() => {
-    const accent = dashboardSettings?.accentColor || '#0EA5E9'
+    // localStorage takes priority; fall back to DB value so fresh devices
+    // see the admin's saved brand colour without needing a prior visit.
+    const accent = dashboardSettings?.accentColor || university?.accent_color || '#0EA5E9'
     document.documentElement.style.setProperty('--accent', accent)
     document.documentElement.style.setProperty('--primary', accent)
     document.documentElement.style.setProperty('--primary-color', accent)
     document.documentElement.style.setProperty('--primary-dark', `color-mix(in srgb, ${accent} 70%, black)`)
-    
-    // Cleanup on unmount
+
     return () => {
       document.documentElement.style.removeProperty('--accent')
       document.documentElement.style.removeProperty('--primary')
       document.documentElement.style.removeProperty('--primary-color')
       document.documentElement.style.removeProperty('--primary-dark')
     }
-  }, [dashboardSettings?.accentColor])
+  }, [dashboardSettings?.accentColor, university?.accent_color])
 
   useEffect(() => {
     if (!adminSession) { navigate('/admin/login'); return }
     loadUniversity()
-  }, [adminSession, navigate])
+  }, [adminSession?.user?.id, navigate])
+
+  const loadEvents = async () => {
+    if (!university) return
+    setEventsLoading(true)
+    try {
+      const r = await dbService.getAllEvents(university.id)
+      if (r.success) setEvents(r.data || [])
+    } catch { /* ignore */ } finally { setEventsLoading(false) }
+  }
+
+  useEffect(() => {
+    if (university) loadEvents()
+  }, [university])
+
+  // Realtime sync — reflect changes made on other devices without a page refresh
+  useEffect(() => {
+    if (!university?.id) return
+    const uniId = university.id
+    const channel = supabase
+      .channel(`admin_sync:${uniId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'universities',
+        filter: `id=eq.${uniId}`,
+      }, payload => {
+        const u = payload.new
+        setUniversity(prev => prev ? { ...prev, ...u } : prev)
+        // Sync in-memory settings AND update localStorage so stale values don't win
+        setDashboardSettings(prev => {
+          const next = {
+            ...prev,
+            name:           u.name                 ?? prev.name,
+            accentColor:    u.accent_color          ?? prev.accentColor,
+            welcomeMessage: u.welcome_message        ?? prev.welcomeMessage,
+            timezone:       u.timezone              ?? prev.timezone,
+            mapCenterLat:   u.map_center_lat  != null ? String(u.map_center_lat)  : prev.mapCenterLat,
+            mapCenterLng:   u.map_center_lng  != null ? String(u.map_center_lng)  : prev.mapCenterLng,
+            analytics:      u.analytics_enabled      ?? prev.analytics,
+            cookies:        u.cookies_enabled        ?? prev.cookies,
+          }
+          localStorage.setItem(`universitySettings_${uniId}`, JSON.stringify(next))
+          return next
+        })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'buildings',
+        filter: `university_id=eq.${uniId}`,
+      }, () => {
+        loadUniversity()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [university?.id])
+
+  const handleSaveEvent = async (data) => {
+    if (editingEvent) {
+      const r = await dbService.updateEvent(editingEvent.id, data)
+      if (r.success) { await loadEvents(); setShowEventForm(false); setEditingEvent(null); toast.success('Event updated!') }
+      else toast.error(`Failed: ${r.error}`)
+    } else {
+      const r = await dbService.createEvent({ ...data, university_id: university.id })
+      if (r.success) { await loadEvents(); setShowEventForm(false); toast.success('Event created!') }
+      else toast.error(`Failed: ${r.error}`)
+    }
+  }
+
+  const handleDeleteEvent = async (id) => {
+    if (!window.confirm('Delete this event? Students will no longer see it on the map.')) return
+    const r = await dbService.deleteEvent(id)
+    if (r.success) { setEvents(prev => prev.filter(e => e.id !== id)); toast.success('Event deleted') }
+    else toast.error(`Failed: ${r.error}`)
+  }
+
+  const handleTogglePublish = async (event) => {
+    const r = await dbService.updateEvent(event.id, { is_published: !event.is_published })
+    if (r.success) setEvents(prev => prev.map(e => e.id === event.id ? { ...e, is_published: !e.is_published } : e))
+    else toast.error(`Failed: ${r.error}`)
+  }
 
   const loadUniversity = async () => {
     const uni = await getUniversity()
     setUniversity(uni)
     if (uni) {
-      setDashboardSettings(JSON.parse(localStorage.getItem(`universitySettings_${uni.id}`) || '{}'))
+      // Merge localStorage with DB values — DB always wins for shared settings
+      // so changes saved on another device are immediately reflected here.
+      const local = JSON.parse(localStorage.getItem(`universitySettings_${uni.id}`) || '{}')
+      const merged = {
+        ...local,
+        name:           uni.name                 ?? local.name,
+        accentColor:    uni.accent_color          ?? local.accentColor,
+        welcomeMessage: uni.welcome_message        ?? local.welcomeMessage,
+        timezone:       uni.timezone              ?? local.timezone,
+        mapCenterLat:   uni.map_center_lat  != null ? String(uni.map_center_lat)  : local.mapCenterLat,
+        mapCenterLng:   uni.map_center_lng  != null ? String(uni.map_center_lng)  : local.mapCenterLng,
+        analytics:      uni.analytics_enabled      ?? local.analytics,
+        cookies:        uni.cookies_enabled        ?? local.cookies,
+      }
+      localStorage.setItem(`universitySettings_${uni.id}`, JSON.stringify(merged))
+      setDashboardSettings(merged)
     }
     if (uni?.buildings) calculateAnalytics(uni)
   }
@@ -216,20 +413,26 @@ function AdminDashboard() {
   const handleSaveBuilding = async (data) => {
     if (editingBuilding) {
       const r = await updateBuilding(editingBuilding.id, data)
-      if (r.success) { await loadUniversity(); setShowModal(false); setEditingBuilding(null); toast.success('Building updated!') }
-      else toast.error(`Failed: ${r.error}`)
+      if (r.success) {
+        setShowModal(false); setEditingBuilding(null); toast.success('Building updated!')
+        loadUniversity() // refresh in background — no await so UI closes first
+      } else toast.error(`Failed: ${r.error}`)
     } else {
       const r = await addBuilding(data)
-      if (r.success) { await loadUniversity(); setShowModal(false); toast.success('Building added!') }
-      else toast.error(`Failed: ${r.error}`)
+      if (r.success) {
+        setShowModal(false); toast.success('Building added!')
+        loadUniversity()
+      } else toast.error(`Failed: ${r.error}`)
     }
   }
 
   const handleDeleteBuilding = (id) => setDeleteConfirm(id)
   const confirmDelete = async () => {
     const r = await deleteBuilding(deleteConfirm)
-    if (r.success) { await loadUniversity(); setDeleteConfirm(null); toast.success('Building deleted') }
-    else toast.error(`Failed: ${r.error}`)
+    if (r.success) {
+      setDeleteConfirm(null); toast.success('Building deleted')
+      loadUniversity()
+    } else toast.error(`Failed: ${r.error}`)
   }
 
   const copyPublicLink = () => {
@@ -247,10 +450,26 @@ function AdminDashboard() {
     setTimeout(() => setCopyEmbedSuccess(false), 2000)
   }
 
-  const handleSettingsSave = (settings) => {
+  const handleSettingsSave = async (settings) => {
     localStorage.setItem(`universitySettings_${university.id}`, JSON.stringify(settings))
     setDashboardSettings(settings)
-    toast.success('Settings saved successfully!')
+    // Persist functional settings to DB so students see them
+    const r = await dbService.updateUniversity(university.id, {
+      name:              settings.name || university.name,
+      welcome_message:   settings.welcomeMessage || null,
+      accent_color:      settings.accentColor || null,
+      timezone:          settings.timezone || 'UTC',
+      map_center_lat:    settings.mapCenterLat ? parseFloat(settings.mapCenterLat) : null,
+      map_center_lng:    settings.mapCenterLng ? parseFloat(settings.mapCenterLng) : null,
+      analytics_enabled: settings.analytics !== false,
+      cookies_enabled:   settings.cookies !== false,
+    })
+    if (r.success) {
+      await loadUniversity() // refresh university state so name/accent update immediately
+      toast.success('Settings saved!')
+    } else {
+      toast.error(`Failed to save settings: ${r.error}`)
+    }
   }
 
   const handleDeleteUniversity = async () => {
@@ -275,7 +494,19 @@ function AdminDashboard() {
   })
 
   // ─── Overview Tab ──────────────────────────────────────────────────────────
-  const OverviewTab = () => (
+  const OverviewTab = () => {
+    const now = new Date()
+    const recentBuilding = [...(university.buildings || [])].sort(
+      (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
+    )[0]
+    const lastUpdatedStr = recentBuilding
+      ? new Date(recentBuilding.updated_at || recentBuilding.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      : '—'
+    const activeEventCount = events.filter(e =>
+      e.is_published && new Date(e.starts_at) <= now && (!e.ends_at || new Date(e.ends_at) >= now)
+    ).length
+
+    return (
     <div className="tab-panel">
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
         <div>
@@ -291,8 +522,8 @@ function AdminDashboard() {
         {[
           { label: 'Total Buildings', value: university.buildings.length, sub: 'Active on map',        icon: <Icon name="building" size={15} />, iconBg: 'var(--accent-subtle)',    iconColor: 'var(--accent)',   subColor: 'var(--success)' },
           { label: 'Total Rooms',     value: analytics.totalRooms,        sub: 'Across all buildings', icon: <Icon name="door"     size={15} />, iconBg: 'rgba(192,132,252,0.16)', iconColor: '#9333EA',         subColor: 'var(--text-tertiary)' },
-          { label: 'Public Link',     value: 'Live',                       sub: 'Visible to students',  icon: <Icon name="globe"    size={15} />, iconBg: 'var(--success-subtle)',  iconColor: 'var(--success)', subColor: 'var(--text-tertiary)' },
-          { label: 'Last Updated',    value: 'Just now',                   sub: 'via dashboard',        icon: <Icon name="calendar" size={15} />, iconBg: 'var(--warning-subtle)',  iconColor: 'var(--warning)', subColor: 'var(--text-tertiary)' },
+          { label: 'Active Events',   value: activeEventCount,             sub: activeEventCount > 0 ? 'Live on map' : 'None right now', icon: <Icon name="zap" size={15} />, iconBg: 'rgba(34,197,94,0.12)', iconColor: '#16A34A', subColor: activeEventCount > 0 ? 'var(--success)' : 'var(--text-tertiary)' },
+          { label: 'Last Updated',    value: lastUpdatedStr,               sub: 'most recent building', icon: <Icon name="calendar" size={15} />, iconBg: 'var(--warning-subtle)',  iconColor: 'var(--warning)', subColor: 'var(--text-tertiary)' },
         ].map((stat, i) => (
           <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', padding: 20, boxShadow: 'var(--card-shadow)', transition: 'all 200ms var(--ease)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -347,6 +578,7 @@ function AdminDashboard() {
       </div>
     </div>
   )
+  }
 
   // ─── Buildings Tab ─────────────────────────────────────────────────────────
   const BuildingsTab = () => (
@@ -534,9 +766,9 @@ function AdminDashboard() {
     const [mapCenterLat, setMapCenterLat] = useState(saved.mapCenterLat || '')
     const [mapCenterLng, setMapCenterLng] = useState(saved.mapCenterLng || '')
     const [accentColor, setAccentColor] = useState(saved.accentColor || '#0EA5E9')
-    const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || 'Welcome! Find any building, room, or office on campus.')
-    const [analytics, setAnalytics] = useState(saved.analytics !== false)
-    const [cookies, setCookies] = useState(saved.cookies !== false)
+    const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || university?.welcome_message || 'Welcome! Find any building, room, or office on campus.')
+    const [analytics, setAnalytics] = useState(saved.analytics !== false && university?.analytics_enabled !== false)
+    const [cookies, setCookies] = useState(saved.cookies !== false && university?.cookies_enabled !== false)
 
     const handleSave = () => {
       handleSettingsSave({
@@ -562,11 +794,11 @@ function AdminDashboard() {
         <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', boxShadow: 'var(--card-shadow)', padding: 24, marginBottom: 16 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, margin: '0 0 18px' }}>University profile</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>University name</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', transition: 'all 150ms var(--ease)', minHeight: 44 }} />
             </div>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Logo</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, overflow: 'hidden' }}>
@@ -582,7 +814,7 @@ function AdminDashboard() {
                 </label>
               </div>
             </div>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Timezone</label>
               <select value={timezone} onChange={e => setTimezone(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', cursor: 'pointer', minHeight: 44 }}>
                 <option>Europe/Budapest (CET)</option>
@@ -592,7 +824,7 @@ function AdminDashboard() {
                 <option>America/Los_Angeles (PST)</option>
               </select>
             </div>
-            <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="dr-settings-grid">
               <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Default map center</label>
               <div style={{ display: 'flex', gap: 10 }}>
                 <input type="text" value={mapCenterLat} onChange={e => setMapCenterLat(e.target.value)} style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', fontVariantNumeric: 'tabular-nums', minHeight: 44 }} />
@@ -604,7 +836,7 @@ function AdminDashboard() {
 
         <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', boxShadow: 'var(--card-shadow)', padding: 24, marginBottom: 16 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, margin: '0 0 18px' }}>Branding</h2>
-          <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start', marginBottom: 16 }}>
+          <div className="dr-settings-grid" style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 6 }}>Accent color</label>
             <div style={{ display: 'flex', gap: 10 }}>
               {brandSwatches.map((sw, i) => (
@@ -612,9 +844,9 @@ function AdminDashboard() {
               ))}
             </div>
           </div>
-          <div className="dr-settings-grid" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32, alignItems: 'start' }}>
+          <div className="dr-settings-grid">
             <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-secondary)', paddingTop: 11 }}>Welcome message</label>
-            <textarea rows="2" value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }}></textarea>
+            <textarea rows="3" value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit', minHeight: 80 }}></textarea>
           </div>
         </div>
 
@@ -651,10 +883,94 @@ function AdminDashboard() {
     )
   }
 
+  // ─── Events Tab ────────────────────────────────────────────────────────────
+  const EventsTab = () => {
+    const now = new Date()
+    const getStatus = (ev) => {
+      const start = new Date(ev.starts_at), end = ev.ends_at ? new Date(ev.ends_at) : null
+      if (!ev.is_published) return { label: 'Draft',    bg: 'rgba(148,163,184,0.12)', color: '#64748B' }
+      if (start > now)      return { label: 'Upcoming', bg: 'rgba(14,165,233,0.12)',  color: '#0EA5E9' }
+      if (!end || end >= now) return { label: 'Active', bg: 'rgba(34,197,94,0.12)',   color: '#16A34A' }
+      return                         { label: 'Ended',  bg: 'rgba(148,163,184,0.12)', color: '#64748B' }
+    }
+    const fmtDate = (s) => new Date(s).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+
+    return (
+      <div className="tab-panel">
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 4px' }}>
+              Events <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', marginLeft: 6 }}>{events.length}</span>
+            </h1>
+            <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)', margin: 0 }}>Live updates shown on the student public map.</p>
+          </div>
+          <button onClick={() => { setEditingEvent(null); setShowEventForm(true) }} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, fontFamily: 'var(--font-display)', border: 'none', cursor: 'pointer', minHeight: 40 }}>
+            <Icon name="plus" size={15} color="#fff" /> Add Event
+          </button>
+        </div>
+
+        {eventsLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, color: 'var(--text-tertiary)', gap: 10 }}>
+            <Icon name="loader" size={18} /> Loading…
+          </div>
+        ) : events.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '56px 24px', background: 'var(--surface)', borderRadius: 14, border: '1px dashed var(--border)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Icon name="calendar" size={22} />
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 600, margin: '0 0 6px' }}>No events yet</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '0 0 20px' }}>Create an event to push it live to students on the map.</p>
+            <button onClick={() => { setEditingEvent(null); setShowEventForm(true) }} style={{ padding: '9px 20px', borderRadius: 9, background: 'var(--accent)', color: '#fff', fontSize: 13.5, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-display)' }}>
+              Add Event
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {events.map(ev => {
+              const status = getStatus(ev)
+              const cat = EVENT_CAT[ev.category] || EVENT_CAT.social
+              const building = university.buildings.find(b => b.id === ev.building_id)
+              return (
+                <div key={ev.id} style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border-light)', padding: '16px 18px', boxShadow: 'var(--card-shadow)', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <div style={{ width: 4, borderRadius: 4, flexShrink: 0, alignSelf: 'stretch', background: cat.color, minHeight: 20 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14.5, color: 'var(--text-primary)' }}>{ev.title}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: cat.bg, color: cat.color, fontWeight: 600 }}>{cat.label}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: status.bg, color: status.color, fontWeight: 600 }}>{status.label}</span>
+                    </div>
+                    {building && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="building" size={12} /> {building.name}</div>}
+                    {ev.description && <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '0 0 6px', lineHeight: 1.5 }}>{ev.description}</p>}
+                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name="calendar" size={12} />
+                      {fmtDate(ev.starts_at)}{ev.ends_at ? ` → ${fmtDate(ev.ends_at)}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button onClick={() => handleTogglePublish(ev)} title={ev.is_published ? 'Unpublish' : 'Publish'} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ev.is_published ? 'var(--success)' : 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <Icon name="zap" size={14} />
+                    </button>
+                    <button onClick={() => { setEditingEvent(ev); setShowEventForm(true) }} title="Edit" style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <Icon name="edit" size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteEvent(ev.id)} title="Delete" style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const tabMap = {
     overview: <OverviewTab />,
     buildings: <BuildingsTab />,
     rooms: <RoomsTab />,
+    events: <EventsTab />,
     link: <LinkTab />,
     settings: <DetailsTab />,
   }
@@ -676,6 +992,17 @@ function AdminDashboard() {
       {showModal && (
         <SlideOver title={editingBuilding ? "Edit building" : "Add building"} onClose={() => { setShowModal(false); setEditingBuilding(null) }}>
           <BuildingForm building={editingBuilding} onSave={handleSaveBuilding} onCancel={() => { setShowModal(false); setEditingBuilding(null) }} />
+        </SlideOver>
+      )}
+
+      {showEventForm && (
+        <SlideOver title={editingEvent ? 'Edit event' : 'Add event'} onClose={() => { setShowEventForm(false); setEditingEvent(null) }}>
+          <EventForm
+            buildings={university.buildings}
+            event={editingEvent}
+            onSave={handleSaveEvent}
+            onCancel={() => { setShowEventForm(false); setEditingEvent(null) }}
+          />
         </SlideOver>
       )}
 

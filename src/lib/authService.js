@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sanitizeError } from './errorUtils'
 
 export const authService = {
   /**
@@ -6,82 +7,26 @@ export const authService = {
    */
   async registerAdmin(email, password, universityName, city) {
     try {
-      // Step 1: Create university FIRST
-      const { data: university, error: uniError } = await supabase
+      // Delegate to edge function which uses service_role for atomic creation
+      // (avoids orphaned auth users when DB inserts fail due to RLS)
+      const { data, error } = await supabase.functions.invoke('register-admin', {
+        body: { email, password, universityName, city }
+      })
+
+      if (error) throw new Error(error.message)
+      if (!data?.success) throw new Error(data?.error || 'Registration failed')
+
+      // Sign in with the newly created credentials
+      const { data: session, error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+      if (loginError) throw new Error(`Account created but sign-in failed: ${loginError.message}`)
+
+      // Fetch university for callers that need it
+      const { data: university } = await supabase
         .from('universities')
-        .insert([{ name: universityName, city, admin_email: email }])
-        .select()
+        .select('*')
+        .eq('id', data.universityId)
         .single()
 
-      if (uniError) {
-        console.error('University creation error:', uniError)
-        throw new Error(`Failed to create university: ${uniError.message}`)
-      }
-
-      // Step 2: Sign up user with email confirmation DISABLED
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/admin/login`,
-          data: {
-            university_name: universityName,
-            city: city,
-            university_id: university.id
-          }
-        }
-      })
-
-      if (authError) {
-        // Rollback: delete university
-        await supabase.from('universities').delete().eq('id', university.id)
-        throw new Error(`Auth signup failed: ${authError.message}`)
-      }
-
-      if (!authData.user?.id) {
-        await supabase.from('universities').delete().eq('id', university.id)
-        throw new Error('User creation failed - no user ID returned')
-      }
-
-      const userId = authData.user.id
-
-      // Step 3: Create admin record
-      const { error: adminError } = await supabase
-        .from('admins')
-        .insert([{ 
-          id: userId, 
-          university_id: university.id, 
-          email, 
-          is_super_admin: false 
-        }])
-
-      if (adminError) {
-        console.error('Admin creation error:', adminError)
-        // Rollback: delete university and auth user
-        await supabase.from('universities').delete().eq('id', university.id)
-        // Note: Can't easily delete auth user from client, but RLS will prevent access
-        throw new Error(`Failed to create admin record: ${adminError.message}`)
-      }
-
-      // Step 4: Try to auto-login
-      // This will ONLY work if email confirmation is disabled in Supabase
-      const { data: session, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
-
-      if (loginError) {
-        // If login fails (likely due to email confirmation required)
-        return {
-          success: true,
-          requiresEmailConfirmation: true,
-          message: 'Registration successful! Please check your email to confirm your account before logging in.',
-          user: authData.user,
-          university
-        }
-      }
-
-      // Auto-login successful
       return {
         success: true,
         requiresEmailConfirmation: false,
@@ -91,9 +36,9 @@ export const authService = {
       }
     } catch (error) {
       console.error('Registration error:', error)
-      return { 
-        success: false, 
-        error: error.message || 'Registration failed. Please try again.' 
+      return {
+        success: false,
+        error: sanitizeError(error.message || 'Registration failed. Please try again.')
       }
     }
   },
@@ -144,9 +89,9 @@ export const authService = {
       }
     } catch (error) {
       console.error('Login error:', error)
-      return { 
-        success: false, 
-        error: error.message || 'Invalid email or password' 
+      return {
+        success: false,
+        error: sanitizeError(error.message || 'Invalid email or password')
       }
     }
   },
