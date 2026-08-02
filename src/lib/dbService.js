@@ -756,11 +756,12 @@ export const dbService = {
    */
   async getStats() {
     try {
-      const [universitiesResult, buildingsResult, adminsResult, roomsResult] = await Promise.all([
+      const [universitiesResult, buildingsResult, adminsResult, roomsResult, eventsResult] = await Promise.all([
         supabase.from('universities').select('id', { count: 'exact', head: true }),
         supabase.from('buildings').select('id', { count: 'exact', head: true }),
         supabase.from('admins').select('id', { count: 'exact', head: true }),
-        supabase.from('rooms').select('id', { count: 'exact', head: true })
+        supabase.from('rooms').select('id', { count: 'exact', head: true }),
+        supabase.from('events').select('id', { count: 'exact', head: true }).eq('is_published', true)
       ])
 
       return {
@@ -769,7 +770,8 @@ export const dbService = {
           totalUniversities: universitiesResult.count || 0,
           totalBuildings: buildingsResult.count || 0,
           totalAdmins: adminsResult.count || 0,
-          totalRooms: roomsResult.count || 0
+          totalRooms: roomsResult.count || 0,
+          totalEvents: eventsResult.count || 0
         }
       }
     } catch (error) {

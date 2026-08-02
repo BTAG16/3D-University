@@ -8,6 +8,7 @@ import SearchBox from './components/SearchBox'
 import Modal from './components/Modal'
 import RoomsList from './components/RoomsList'
 import IndoorNavModal from './components/IndoorNavModal'
+import { CookieConsent } from './components/CookieConsent'
 import { useToast } from './components/Toast'
 import { Icon } from './icons'
 import { useDarkMode } from './hooks'
@@ -77,6 +78,7 @@ function PublicMap() {
   const [fpvTour, setFpvTour] = useState(null)
   const [events, setEvents] = useState([])
   const [showEventsDrawer, setShowEventsDrawer] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
   const activeBuildingIds = useMemo(
     () => new Set(events.filter(isActive).map(e => e.building_id).filter(Boolean)),
     [events]
@@ -209,6 +211,16 @@ function PublicMap() {
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
+  }, [university])
+
+  // Show welcome message on first visit
+  useEffect(() => {
+    if (!university) return
+    const uniId = university.id
+    const msg = university.welcome_message
+    if (msg && !localStorage.getItem(`welcomed_${uniId}`)) {
+      setTimeout(() => setShowWelcome(true), 1400)
+    }
   }, [university])
 
   // Reset tour flag when directions panel closes
@@ -936,6 +948,49 @@ function PublicMap() {
       {showIndoorNav && (
         <IndoorNavModal onClose={() => { setShowIndoorNav(false); setIndoorNavUrl('') }} mappedInUrl={indoorNavUrl} dark={dark} />
       )}
+
+      {/* Welcome message — first visit only */}
+      {showWelcome && university && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)',
+        }}>
+          <div style={{
+            background: D.surface,
+            borderRadius: isMobile ? '22px 22px 0 0' : 20,
+            padding: isMobile ? '28px 22px calc(28px + env(safe-area-inset-bottom))' : '32px 28px',
+            maxWidth: isMobile ? '100%' : 420,
+            width: '100%',
+            boxShadow: `0 24px 80px rgba(0,0,0,${dark ? '0.6' : '0.22'})`,
+            border: `1px solid ${D.border}`,
+          }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+              <Icon name="compass" size={24} color={D.accent} />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 700, margin: '0 0 8px', color: D.text, letterSpacing: '-0.01em' }}>
+              Welcome to {university.name}
+            </h2>
+            <p style={{ fontSize: 14.5, color: D.textDim, lineHeight: 1.6, margin: '0 0 24px' }}>
+              {university.welcome_message}
+            </p>
+            <button onClick={() => {
+              setShowWelcome(false)
+              localStorage.setItem(`welcomed_${university.id}`, '1')
+            }} style={{
+              width: '100%', height: 48, borderRadius: 12, border: 'none',
+              background: D.accent, color: '#fff',
+              fontSize: 15, fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'var(--font-display)',
+            }}>
+              Explore campus
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cookie consent — only when university has it enabled (default: on) */}
+      {university != null && university.cookies_enabled !== false && <CookieConsent />}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>

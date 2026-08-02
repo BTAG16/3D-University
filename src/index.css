@@ -12,6 +12,8 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
+  /* prevent horizontal overflow on mobile */
+  overflow-x: hidden;
 }
 
 body {
@@ -21,6 +23,16 @@ body {
   color: var(--text-primary);
   background: var(--bg);
   transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+  overflow-x: hidden;
+  /* disable double-tap zoom; pinch-zoom still works */
+  touch-action: manipulation;
+}
+
+/* Prevent iOS auto-zoom on input focus (triggered when font-size < 16px) */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: max(16px, 1em) !important;
+  }
 }
 
 #root { min-height: 100vh; }
