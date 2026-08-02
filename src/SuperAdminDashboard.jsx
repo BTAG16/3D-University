@@ -133,7 +133,12 @@ export default function SuperAdminDashboard() {
       const [{ data: uniData, error: uniErr }, statsRes] = await Promise.all([
         supabase
           .from('universities')
-          .select('*, buildings(id, name, coordinates, is_admin_building, category, rooms(count))')
+          .select(`
+            id, name, city, created_at, logo_url, welcome_message,
+            analytics_enabled, cookies_enabled, accent_color, timezone,
+            map_center_lat, map_center_lng,
+            buildings(id, name, coordinates, is_admin_building, category, rooms(count))
+          `)
           .order('created_at', { ascending: false }),
         dbService.getStats(),
       ])
