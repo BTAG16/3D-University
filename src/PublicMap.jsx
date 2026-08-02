@@ -106,14 +106,14 @@ function PublicMap() {
       }
       try {
         setLoading(true)
-        let result = await dbService.getUniversity(uniId)
+        let result = await dbService.getUniversityPublic(uniId)
         if (!result.success) {
-          const all = await dbService.getAllUniversities()
+          const all = await dbService.getAllUniversitiesPublic()
           if (all.success && all.data) {
             const found = all.data.find(u =>
               u.id === uniId || u.name.toLowerCase().replace(/\s+/g, '').includes(uniId.toLowerCase())
             )
-            if (found) result = await dbService.getUniversity(found.id)
+            if (found) result = await dbService.getUniversityPublic(found.id)
           }
         }
         if (!result.success || !result.data) {

@@ -93,21 +93,21 @@ function EmbedMap() {
         console.log('Looking for university with ID:', uniId)
 
         // Try to get by UUID first
-        let result = await dbService.getUniversity(uniId)
+        let result = await dbService.getUniversityPublic(uniId)
 
         // If not found by UUID, try to find by name or get all and search
         if (!result.success) {
           console.log('Not found by ID, trying to find by name...')
-          
-          const allResult = await dbService.getAllUniversities()
+
+          const allResult = await dbService.getAllUniversitiesPublic()
           if (allResult.success && allResult.data) {
-            const found = allResult.data.find(u => 
-              u.id === uniId || 
+            const found = allResult.data.find(u =>
+              u.id === uniId ||
               u.name.toLowerCase().replace(/\s+/g, '').includes(uniId.toLowerCase())
             )
-            
+
             if (found) {
-              result = await dbService.getUniversity(found.id)
+              result = await dbService.getUniversityPublic(found.id)
             }
           }
         }

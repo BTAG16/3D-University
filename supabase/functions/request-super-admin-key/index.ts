@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+const SUPER_ADMIN_EMAIL = Deno.env.get('SUPER_ADMIN_EMAIL')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -9,65 +10,53 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)
-}
-
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;').replace(/'/g, '&#039;')
 }
 
-/** Rate limit: max 5 OTP requests per email per hour */
-async function checkRateLimit(email: string): Promise<boolean> {
-  try {
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } }
-    )
-    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-    const { count } = await admin
-      .from('rate_limit_log')
-      .select('id', { count: 'exact', head: true })
-      .eq('ip', email) // reuse ip column keyed by email for this endpoint
-      .eq('endpoint', 'super-admin-otp')
-      .gte('created_at', since)
-
-    if ((count ?? 0) >= 5) return false
-
-    await admin.from('rate_limit_log').insert({ ip: email, endpoint: 'super-admin-otp' })
-    return true
-  } catch {
-    return true
-  }
-}
-
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const json = (body: object, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   try {
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY is not configured')
+    if (!SUPER_ADMIN_EMAIL) throw new Error('SUPER_ADMIN_EMAIL is not configured')
 
-    let body: { email?: unknown; secretKey?: unknown }
-    try { body = await req.json() }
-    catch { return json({ success: false, error: 'Invalid JSON body' }, 400) }
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } }
+    )
 
-    const email     = typeof body.email     === 'string' ? body.email.trim().toLowerCase().slice(0, 254) : ''
-    const secretKey = typeof body.secretKey === 'string' ? body.secretKey.trim().slice(0, 10) : ''
+    // Rate limit: max 5 code requests per hour, regardless of who's asking
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count } = await admin
+      .from('rate_limit_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('ip', SUPER_ADMIN_EMAIL)
+      .eq('endpoint', 'super-admin-otp-request')
+      .gte('created_at', since)
 
-    if (!email || !secretKey)   return json({ success: false, error: 'Email and secretKey are required' }, 400)
-    if (!isValidEmail(email))   return json({ success: false, error: 'Invalid email address' }, 400)
-    if (!/^\d{6}$/.test(secretKey)) return json({ success: false, error: 'Invalid key format' }, 400)
-
-    // Rate limit per email
-    if (!(await checkRateLimit(email))) {
+    if ((count ?? 0) >= 5) {
       return json({ success: false, error: 'Too many requests. Try again later.' }, 429)
+    }
+    await admin.from('rate_limit_log').insert({ ip: SUPER_ADMIN_EMAIL, endpoint: 'super-admin-otp-request' })
+
+    // Code is generated and stored server-side only — the client never sees
+    // or controls this value, unlike the previous client-side implementation.
+    const secretKey = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
+
+    const { error: insertError } = await admin
+      .from('super_admin_keys')
+      .insert({ secret_key: secretKey, expires_at: expiresAt, used: false })
+
+    if (insertError) {
+      console.error('Insert key error:', insertError.message)
+      throw new Error('Failed to generate key')
     }
 
     const res = await fetch('https://api.resend.com/emails', {
@@ -78,7 +67,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: Deno.env.get('RESEND_FROM_EMAIL') || 'Kampus <onboarding@resend.dev>',
-        to: email,
+        to: SUPER_ADMIN_EMAIL,
         subject: 'Your Super Admin Authentication Code',
         html: `
           <!DOCTYPE html>
@@ -114,11 +103,9 @@ serve(async (req) => {
     const data = await res.json()
     if (!res.ok) throw new Error(data.message || 'Failed to send email')
 
-    console.log('OTP email sent successfully')
-
-    return json({ success: true, data })
+    return json({ success: true, message: 'Secret key sent to admin email' })
   } catch (error) {
-    console.error('send-super-admin-key error:', error.message)
-    return json({ success: false, error: error.message || 'Failed to send email' }, 400)
+    console.error('request-super-admin-key error:', error.message)
+    return json({ success: false, error: error.message || 'Failed to send secret key' }, 400)
   }
 })

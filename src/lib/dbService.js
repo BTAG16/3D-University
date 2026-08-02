@@ -58,6 +58,57 @@ export const dbService = {
     }
   },
 
+  /**
+   * Get single university by ID — public-safe column list (no admin_email).
+   * Use this instead of getUniversity() on any unauthenticated/public surface.
+   */
+  async getUniversityPublic(universityId) {
+    try {
+      const { data, error } = await supabase
+        .from('universities')
+        .select(`
+          id, name, city, logo_url, welcome_message, accent_color,
+          map_center_lat, map_center_lng, cookies_enabled,
+          buildings(
+            *,
+            key_offices(*),
+            rooms(count)
+          )
+        `)
+        .eq('id', universityId)
+        .single()
+
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Get university error:', error)
+      return { success: false, error: sanitizeError(error.message) }
+    }
+  },
+
+  /**
+   * Get all universities — public-safe column list (no admin_email).
+   * Use this instead of getAllUniversities() on any unauthenticated/public surface.
+   */
+  async getAllUniversitiesPublic() {
+    try {
+      const { data, error } = await supabase
+        .from('universities')
+        .select(`
+          id, name, city, logo_url, welcome_message, accent_color,
+          map_center_lat, map_center_lng, cookies_enabled,
+          buildings(count)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Get universities error:', error)
+      return { success: false, error: sanitizeError(error.message) }
+    }
+  },
+
   async createUniversity(universityData) {
     try {
       const { data, error } = await supabase

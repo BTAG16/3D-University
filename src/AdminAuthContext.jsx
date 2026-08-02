@@ -17,8 +17,6 @@ export function AdminAuthProvider({ children }) {
   const [adminSession, setAdminSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
-  const [superAdminKey, setSuperAdminKey] = useState(null)
-  const [superAdminKeyExpiry, setSuperAdminKeyExpiry] = useState(null)
 
   // Keep a ref so the auth listener can check current session without stale closure
   const adminSessionRef = useRef(null)
@@ -359,46 +357,19 @@ export function AdminAuthProvider({ children }) {
   }
 
   // Super Admin: Generate and send secret key via email
+  // Generation, storage, and emailing all happen server-side in the
+  // request-super-admin-key edge function (service role) — the client never
+  // sees or controls the code, closing the self-service bypass that existed
+  // when this was implemented client-side.
   const sendSuperAdminKeyEmail = async () => {
     try {
-      // Generate random 6-digit key
-      const secretKey = Math.floor(100000 + Math.random() * 900000).toString()
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes from now
-
-      // Store key in database (using your existing column names)
-      const { data: keyData, error: dbError } = await supabase
-        .from('super_admin_keys')
-        .insert({
-          secret_key: secretKey, 
-          expires_at: expiresAt,
-          used: false
-        })
-        .select()
-        .single()
-
-      if (dbError) {
-        console.error('Database error:', dbError)
-        throw new Error('Failed to save key to database')
-      }
-
-      // Store in state for immediate use
-      setSuperAdminKey(secretKey)
-      setSuperAdminKeyExpiry(Date.now() + 10 * 60 * 1000)
-
-      // Call Supabase Edge Function to send email
-      const { data, error } = await supabase.functions.invoke('send-super-admin-key', {
-        body: {
-          email: import.meta.env.VITE_SUPER_ADMIN_EMAIL,
-          secretKey
-        }
+      const { data, error } = await supabase.functions.invoke('request-super-admin-key', {
+        body: {}
       })
 
-      if (error) {
-        console.error('Email function error:', error)
-        throw error
-      }
+      if (error) throw error
+      if (!data?.success) throw new Error(data?.error || 'Failed to send secret key')
 
-      console.log('Secret key sent successfully:', data)
       return { success: true, message: 'Secret key sent to admin email' }
     } catch (error) {
       console.error('Send super admin key error:', error)
@@ -409,51 +380,20 @@ export function AdminAuthProvider({ children }) {
   // Super Admin: Login with secret key (FIXED)
   const loginSuperAdmin = async (inputKey) => {
     try {
-      // Verify key from database (using your existing column names)
-      const { data: keyRecord, error: keyError } = await supabase
-        .from('super_admin_keys')
-        .select('*')
-        .eq('secret_key', inputKey)  // Changed from 'key' to 'secret_key'
-        .eq('used', false)
-        .single()
+      // Verification happens server-side in the verify-super-admin-key edge
+      // function (service role) — the client no longer reads or writes
+      // super_admin_keys directly, closing the self-service login bypass
+      // that existed when this ran as a plain client-side table query.
+      const { data, error: verifyError } = await supabase.functions.invoke('verify-super-admin-key', {
+        body: { inputKey }
+      })
 
-      if (keyError || !keyRecord) {
-        return { success: false, error: 'Invalid secret key' }
+      if (verifyError) throw verifyError
+      if (!data?.success) {
+        return { success: false, error: data?.error || 'Invalid secret key' }
       }
 
-      // Check if key has expired
-      if (new Date(keyRecord.expires_at) < new Date()) {
-        return { success: false, error: 'Secret key has expired. Please request a new one.' }
-      }
-
-      // Mark key as used with timestamp
-      const { error: updateError } = await supabase
-        .from('super_admin_keys')
-        .update({ 
-          used: true,
-          used_at: new Date().toISOString()  // Added used_at timestamp
-        })
-        .eq('id', keyRecord.id)
-
-      if (updateError) {
-        console.error('Error marking key as used:', updateError)
-      }
-
-      // Key is valid, fetch super admin user from database
-      const { data: admins, error: adminError } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('is_super_admin', true)
-        .single() // Use single() since there should be only one super admin
-
-      if (adminError) {
-        console.error('Super admin fetch error:', adminError)
-        throw new Error('Super admin not found in database')
-      }
-
-      if (!admins) {
-        throw new Error('Super admin record does not exist')
-      }
+      const admins = data.admin
 
       // Set super admin session WITHOUT Supabase auth
       setAdminSession({
@@ -467,10 +407,6 @@ export function AdminAuthProvider({ children }) {
         loginTime: Date.now(),
         expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
       })
-
-      // Clear the key from state after successful login
-      setSuperAdminKey(null)
-      setSuperAdminKeyExpiry(null)
 
       return { success: true, message: 'Super admin login successful' }
     } catch (error) {
