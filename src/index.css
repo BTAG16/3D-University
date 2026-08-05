@@ -295,3 +295,64 @@ input, textarea, select { font-family: inherit; font-size: inherit; }
 .dr-switch input:checked + .dr-switch-slider:before {
   transform: translateX(20px);
 }
+
+/* ─── Onboarding tour (driver.js) — restyled to match the app's own
+   look instead of the library default, and follows each university's
+   own accent color via the existing --accent custom property. ────── */
+.tour-popover {
+  font-family: var(--font-body);
+  border-radius: 14px;
+  padding: 16px 18px;
+  max-width: 300px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.22);
+}
+.tour-popover .driver-popover-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+}
+.tour-popover .driver-popover-description {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.tour-popover .driver-popover-progress-text {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+}
+.tour-popover .driver-popover-footer-btn {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 7px;
+  padding: 6px 12px;
+  text-shadow: none;
+}
+.tour-popover .driver-popover-next-btn,
+.tour-popover .driver-popover-done-btn {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+html[data-dark="true"] .tour-popover {
+  background: #18181C;
+  color: rgba(255,255,255,0.92);
+}
+html[data-dark="true"] .tour-popover .driver-popover-description {
+  color: rgba(255,255,255,0.58);
+}
+html[data-dark="true"] .tour-popover .driver-popover-progress-text {
+  color: rgba(255,255,255,0.36);
+}
+html[data-dark="true"] .tour-popover .driver-popover-footer-btn {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+html[data-dark="true"] .tour-popover .driver-popover-close-btn {
+  color: rgba(255,255,255,0.36);
+}
+html[data-dark="true"] .tour-popover .driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: #18181C; }
+html[data-dark="true"] .tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: #18181C; }
+html[data-dark="true"] .tour-popover .driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: #18181C; }
+html[data-dark="true"] .tour-popover .driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: #18181C; }

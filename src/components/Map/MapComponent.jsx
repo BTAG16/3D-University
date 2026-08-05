@@ -16,6 +16,37 @@ const getBearing = (from, to) => {
   return (Math.atan2(y, x) / rad + 360) % 360
 }
 
+// [lng, lat] pairs in, meters out
+const getDistanceMeters = (from, to) => {
+  const R = 6371e3
+  const rad = Math.PI / 180
+  const f1 = from[1] * rad, f2 = to[1] * rad
+  const df = (to[1] - from[1]) * rad, dl = (to[0] - from[0]) * rad
+  const a = Math.sin(df / 2) ** 2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Live-nav tuning: how close (meters) counts as "arrived" at a step's waypoint,
+// and the minimum GPS displacement before recomputing camera bearing (avoids
+// the camera spinning on GPS jitter while the user is standing still).
+const STEP_ARRIVAL_RADIUS_M = 18
+const MIN_BEARING_DISPLACEMENT_M = 3
+
+// Trims a route line to start at the user's current fix instead of the
+// original route start, so the line visually "shrinks" as they walk it.
+// Snaps to the nearest existing vertex rather than projecting onto the
+// nearest segment — simpler, and walking-profile geometry from Mapbox is
+// dense enough that this reads as smooth in practice.
+const trimRouteToPosition = (coordinates, fix) => {
+  if (!coordinates?.length) return [fix]
+  let closestIdx = 0, closestDist = Infinity
+  for (let i = 0; i < coordinates.length; i++) {
+    const d = getDistanceMeters(fix, coordinates[i])
+    if (d < closestDist) { closestDist = d; closestIdx = i }
+  }
+  return [fix, ...coordinates.slice(closestIdx)]
+}
+
 const MapComponent = forwardRef(({
   buildings = [],
   selectedBuilding,
@@ -34,8 +65,40 @@ const MapComponent = forwardRef(({
   const markersRef = useRef([])
   const userMarkerRef = useRef(null)
   const tourRef = useRef({ active: false, paused: false, timeoutId: null, nextAdvance: null })
+  const liveNavRef = useRef({ active: false, steps: [], coords: [], stepIndex: 0, lastFix: null, bearing: 0 })
+  // Last-applied route geometry, kept so it can be redrawn after a style
+  // reload (dark-mode toggle) wipes all style-owned sources/layers.
+  const routeGeometryRef = useRef(null)
 
   const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
+
+  // Draws (or, if the 'route' source already exists, cheaply updates) the
+  // route line. Shared by the initial directions fetch and by live-nav's
+  // per-fix trimming so both paths stay in sync with routeGeometryRef.
+  const applyRouteGeometry = (geometry) => {
+    const map = mapRef.current
+    if (!map) return
+    routeGeometryRef.current = geometry
+    const doApply = () => {
+      if (!mapRef.current) return
+      const src = mapRef.current.getSource('route')
+      if (src) {
+        src.setData({ type: 'Feature', properties: {}, geometry })
+      } else {
+        mapRef.current.addSource('route', {
+          type: 'geojson',
+          data: { type: 'Feature', properties: {}, geometry }
+        })
+        mapRef.current.addLayer({
+          id: 'route', type: 'line', source: 'route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': accentColor, 'line-width': 4, 'line-opacity': 0.8 }
+        })
+      }
+    }
+    if (map.isStyleLoaded()) doApply()
+    else map.once('load', doApply)
+  }
 
   useImperativeHandle(ref, () => ({
     flyTo: (coordinates, zoom = 16) => {
@@ -54,6 +117,7 @@ const MapComponent = forwardRef(({
         mapRef.current.removeLayer('route')
         mapRef.current.removeSource('route')
       }
+      routeGeometryRef.current = null
       if (onRouteDataChange) {
         onRouteDataChange(null)
       }
@@ -133,6 +197,69 @@ const MapComponent = forwardRef(({
       mapRef.current?.stop()
       t.paused = false
       if (t.nextAdvance) { const fn = t.nextAdvance; t.nextAdvance = null; fn() }
+    },
+
+    // Live walking navigation: camera follows real GPS fixes (fed in via
+    // updateLiveLocation) instead of the FPV tour's scripted timer.
+    startLiveNav: (routeData, { onStepChange, onArrive } = {}) => {
+      const map = mapRef.current
+      if (!map || !routeData?.steps?.length) return
+      liveNavRef.current = {
+        active: true,
+        steps: routeData.steps,
+        coords: routeData.geometry?.coordinates || [],
+        stepIndex: 0,
+        lastFix: null,
+        bearing: 0,
+        onStepChange: onStepChange || null,
+        onArrive: onArrive || null,
+      }
+    },
+
+    updateLiveLocation: ({ latitude, longitude }) => {
+      const map = mapRef.current
+      const nav = liveNavRef.current
+      if (!map || !nav.active) return
+
+      const fix = [longitude, latitude]
+      const step = nav.steps[nav.stepIndex]
+
+      // Advance to the next step once we're within arrival radius of this
+      // step's waypoint. Steps only carry a single maneuver point, so this
+      // is a simple proximity check, not a full off-route/reroute system.
+      if (step?.location && getDistanceMeters(fix, step.location) <= STEP_ARRIVAL_RADIUS_M) {
+        const nextIndex = nav.stepIndex + 1
+        if (nextIndex >= nav.steps.length) {
+          nav.active = false
+          nav.onArrive?.()
+        } else {
+          nav.stepIndex = nextIndex
+          nav.onStepChange?.(nav.steps[nextIndex], nextIndex)
+        }
+      }
+
+      // Only recompute bearing once the user has actually moved enough to
+      // give a meaningful course-over-ground — otherwise GPS jitter while
+      // stationary would spin the camera. This is a v1 stand-in for real
+      // device-heading; it freezes while the user isn't moving.
+      if (!nav.lastFix || getDistanceMeters(nav.lastFix, fix) >= MIN_BEARING_DISPLACEMENT_M) {
+        if (nav.lastFix) nav.bearing = getBearing(nav.lastFix, fix)
+        nav.lastFix = fix
+      }
+
+      // Shrink the route line behind the user as they walk it.
+      if (nav.coords?.length) {
+        applyRouteGeometry({ type: 'LineString', coordinates: trimRouteToPosition(nav.coords, fix) })
+      }
+
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLngLat(fix)
+      }
+      map.easeTo({ center: fix, bearing: nav.bearing, pitch: 70, zoom: 19, duration: 600, essential: true })
+    },
+
+    stopLiveNav: () => {
+      liveNavRef.current.active = false
     },
   }))
 
@@ -245,6 +372,7 @@ const MapComponent = forwardRef(({
       const t = tourRef.current
       if (t.timeoutId) clearTimeout(t.timeoutId)
       t.active = false
+      liveNavRef.current.active = false
       map.remove()
     }
   }, [mapboxToken, buildings.length])
@@ -296,6 +424,22 @@ const MapComponent = forwardRef(({
             },
             labelLayerId
           )
+        }
+
+        // setStyle() wipes all style-owned sources/layers, including the
+        // route — redraw it from the last-known geometry so an in-progress
+        // route (preview or live-nav, possibly already trimmed) survives a
+        // theme toggle instead of silently vanishing.
+        if (routeGeometryRef.current && !map.getLayer('route')) {
+          map.addSource('route', {
+            type: 'geojson',
+            data: { type: 'Feature', properties: {}, geometry: routeGeometryRef.current }
+          })
+          map.addLayer({
+            id: 'route', type: 'line', source: 'route',
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': accentColor, 'line-width': 4, 'line-opacity': 0.8 }
+          })
         }
       })
     }
@@ -411,33 +555,9 @@ const MapComponent = forwardRef(({
       }
       if (map.isStyleLoaded()) doClear()
       else map.once('load', doClear)
+      routeGeometryRef.current = null
       if (onRouteDataChange) onRouteDataChange(null)
       return
-    }
-
-    const applyRouteToMap = (geometry) => {
-      if (!mapRef.current) return
-
-      const doApply = () => {
-        if (!mapRef.current) return
-        if (map.getLayer('route')) { map.removeLayer('route'); map.removeSource('route') }
-        map.addSource('route', {
-          type: 'geojson',
-          data: { type: 'Feature', properties: {}, geometry }
-        })
-        map.addLayer({
-          id: 'route', type: 'line', source: 'route',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': accentColor, 'line-width': 4, 'line-opacity': 0.8 }
-        })
-      }
-
-      // Style may not be ready yet (e.g. cache hit fires synchronously before load completes)
-      if (map.isStyleLoaded()) {
-        doApply()
-      } else {
-        map.once('load', doApply)
-      }
     }
 
     const fetchDirections = async () => {
@@ -449,7 +569,7 @@ const MapComponent = forwardRef(({
       if (directionsCache.has(cacheKey)) {
         const cached = directionsCache.get(cacheKey)
         if (onRouteDataChange) onRouteDataChange(cached)
-        applyRouteToMap(cached.geometry)
+        applyRouteGeometry(cached.geometry)
         return
       }
 
@@ -478,7 +598,7 @@ const MapComponent = forwardRef(({
 
           directionsCache.set(cacheKey, nextRouteData)
           if (onRouteDataChange) onRouteDataChange(nextRouteData)
-          applyRouteToMap(route.geometry)
+          applyRouteGeometry(route.geometry)
         }
       } catch (error) {
         console.error('Error fetching directions:', error)

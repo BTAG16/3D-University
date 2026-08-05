@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { driver } from 'driver.js'
+import 'driver.js/dist/driver.css'
 import { dbService } from './lib/dbService'
 import { supabase } from './lib/supabase'
 import MapComponent from './components/Map/MapComponent'
@@ -76,6 +78,8 @@ function PublicMap() {
   const [indoorNavUrl, setIndoorNavUrl] = useState('')
   const [routeData, setRouteData] = useState(null)
   const [fpvTour, setFpvTour] = useState(null)
+  const [navMode, setNavMode] = useState(null) // null | 'preview' | 'live'
+  const [liveNavStatus, setLiveNavStatus] = useState(null) // { step, stepIndex, totalSteps, arrived }
   const [events, setEvents] = useState([])
   const [showEventsDrawer, setShowEventsDrawer] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
@@ -83,7 +87,7 @@ function PublicMap() {
     () => new Set(events.filter(isActive).map(e => e.building_id).filter(Boolean)),
     [events]
   )
-  const tourStartedRef = useRef(false)
+  const liveNavWatchIdRef = useRef(null)
   const mapRef = useRef(null)
 
   useEffect(() => {
@@ -194,20 +198,22 @@ function PublicMap() {
     return () => { supabase.removeChannel(channel) }
   }, [university?.id])
 
-  // Show welcome message on first visit
+  // Show welcome message on first visit, or the onboarding tour directly if
+  // there's no welcome message configured (the tour itself starts from the
+  // "Explore campus" button below when a welcome message IS shown).
   useEffect(() => {
     if (!university) return
     const uniId = university.id
     const msg = university.welcome_message
     if (msg && !localStorage.getItem(`welcomed_${uniId}`)) {
       setTimeout(() => setShowWelcome(true), 1400)
+    } else if (!localStorage.getItem(`toured_${uniId}`)) {
+      setTimeout(() => {
+        localStorage.setItem(`toured_${uniId}`, '1')
+        startOnboardingTour()
+      }, 1400)
     }
   }, [university])
-
-  // Reset tour flag when directions panel closes
-  useEffect(() => {
-    if (!showDirections) tourStartedRef.current = false
-  }, [showDirections])
 
   // Apply accent color as a CSS custom property on :root so all consumers (markers, CSS files) pick it up platform-wide
   useEffect(() => {
@@ -216,24 +222,28 @@ function PublicMap() {
     document.documentElement.style.setProperty('--accent-muted', `color-mix(in srgb, ${D.accent} 18%, transparent)`)
   }, [D.accent])
 
-  // Auto-start FPV tour once route data arrives
+  // Clear any live-nav GPS watch on unmount so it never outlives the page
   useEffect(() => {
-    if (showDirections && routeData?.steps?.length && !tourStartedRef.current) {
-      tourStartedRef.current = true
-      setFpvTour({ step: null, stepIndex: 0, totalSteps: routeData.steps.length, paused: false })
-      mapRef.current?.startFpvTour(routeData, {
-        onStep: (step, idx) => setFpvTour(t => t ? { ...t, step, stepIndex: idx } : t),
-        onComplete: () => { setFpvTour(null); tourStartedRef.current = false; handleCloseDirections() },
-      })
+    return () => {
+      if (liveNavWatchIdRef.current != null) {
+        navigator.geolocation.clearWatch(liveNavWatchIdRef.current)
+        liveNavWatchIdRef.current = null
+      }
     }
-  }, [showDirections, routeData])
+  }, [])
+
+  const describeGeoError = (error) => {
+    if (error.code === 1) return 'Location access is blocked. Enable it in your browser settings to use this.'
+    if (error.code === 2) return "Couldn't determine your location. Check your connection and try again."
+    return 'Location request timed out. Try again.'
+  }
 
   const handleGetLocation = () => {
     if (!('geolocation' in navigator)) { toast.error('Geolocation not supported.'); return }
     toast.info('Getting your location...')
     navigator.geolocation.getCurrentPosition(
       pos => { setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); toast.success('Location found!') },
-      () => toast.error('Unable to get location. Enable location services.')
+      error => toast.error(describeGeoError(error))
     )
   }
 
@@ -249,18 +259,141 @@ function PublicMap() {
     } catch { /* ignore */ }
   }
 
+  // First-visit onboarding tour (mobile only). Copy and step order were
+  // reviewed and approved as a standalone preview before this integration —
+  // see the "onboarding tour preview" artifact for the original mockup.
+  const startOnboardingTour = () => {
+    if (!isMobile || !buildings.length) return
+    setSheetState('list')
+    setSearchQuery('')
+
+    const steps = [
+      {
+        popover: {
+          title: 'Quick campus tour',
+          description: 'Six stops, about 30 seconds, then it is all yours.',
+        },
+      },
+      {
+        element: '#tourBuildingList',
+        popover: {
+          title: 'Every building, sorted',
+          description: 'Admin and key buildings surface first. Tap any card for hours, offices, and a floor plan.',
+        },
+        onHighlightStarted: () => { setSheetState('list'); setSearchQuery('') },
+      },
+      {
+        element: '#tourSearchWrap',
+        popover: {
+          title: 'Search anything, down to the room',
+          description: 'Type a building name, room number, or office — the list narrows as you type.',
+        },
+        onHighlightStarted: () => {
+          setSheetState('list')
+          setSearchQuery('')
+          // Demo the narrowing effect with a name guaranteed to exist for
+          // this university, rather than a hardcoded room number.
+          setTimeout(() => setSearchQuery(buildings[0].name.slice(0, 3)), 250)
+        },
+      },
+      {
+        element: '#tourDetailHeader',
+        popover: {
+          title: 'Every building, in full',
+          description: 'Hours, description, and every office inside.',
+        },
+        onHighlightStarted: () => { setSearchQuery(''); handleBuildingClick(buildings[0]); setSheetState('detail') },
+      },
+      {
+        element: '#tourGetDirectionsBtn',
+        popover: {
+          title: 'Real walking directions',
+          description: 'Get a live route from wherever you are standing, not just a pin on a map.',
+        },
+      },
+      ...(events.length > 0 ? [{
+        element: '#tourEventsBtn',
+        popover: {
+          title: 'Stay in the loop',
+          description: 'Live campus events, tagged to the building they are happening in.',
+        },
+      }] : []),
+      {
+        element: '#tourDarkModeBtn',
+        popover: {
+          title: 'Easier at night',
+          description: 'One tap switches the whole map, including your current route.',
+        },
+      },
+      {
+        popover: {
+          title: 'All set',
+          description: 'Explore the campus — search, tap, walk.',
+        },
+      },
+    ]
+
+    const tourObj = driver({
+      showProgress: true,
+      animate: true,
+      overlayOpacity: 0.55,
+      stagePadding: 6,
+      stageRadius: 10,
+      popoverClass: 'tour-popover',
+      steps,
+      onDestroyStarted: () => { setSearchQuery(''); tourObj.destroy() },
+    })
+    tourObj.drive()
+  }
+
   const handleOpenIndoorNav = () => {
     setIndoorNavUrl(selectedBuilding?.mappedin_url || '')
     setShowIndoorNav(true)
   }
 
+  const stopLiveNavWatch = () => {
+    if (liveNavWatchIdRef.current != null) {
+      navigator.geolocation.clearWatch(liveNavWatchIdRef.current)
+      liveNavWatchIdRef.current = null
+    }
+    mapRef.current?.stopLiveNav()
+  }
+
   const handleShowDirections = () => {
     if (!userLocation) { toast.warning('Enable your location first.'); handleGetLocation(); return }
     mapRef.current?.stopFpvTour()
-    tourStartedRef.current = false
+    stopLiveNavWatch()
     setFpvTour(null)
+    setLiveNavStatus(null)
+    setNavMode(null)
     setShowDirections(true)
     toast.info('Calculating route…')
+  }
+
+  const handleStartPreview = () => {
+    if (!routeData?.steps?.length) return
+    setNavMode('preview')
+    setFpvTour({ step: null, stepIndex: 0, totalSteps: routeData.steps.length, paused: false })
+    mapRef.current?.startFpvTour(routeData, {
+      onStep: (step, idx) => setFpvTour(t => t ? { ...t, step, stepIndex: idx } : t),
+      onComplete: () => { setFpvTour(null); setNavMode(null); handleCloseDirections() },
+    })
+  }
+
+  const handleStartWalking = () => {
+    if (!routeData?.steps?.length) return
+    if (!('geolocation' in navigator)) { toast.error('Geolocation not supported.'); return }
+    setNavMode('live')
+    setLiveNavStatus({ step: routeData.steps[0], stepIndex: 0, totalSteps: routeData.steps.length, arrived: false })
+    mapRef.current?.startLiveNav(routeData, {
+      onStepChange: (step, idx) => setLiveNavStatus(s => s ? { ...s, step, stepIndex: idx } : s),
+      onArrive: () => { setLiveNavStatus(s => s ? { ...s, arrived: true } : s); stopLiveNavWatch(); setNavMode(null); handleCloseDirections() },
+    })
+    liveNavWatchIdRef.current = navigator.geolocation.watchPosition(
+      pos => mapRef.current?.updateLiveLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      error => { toast.error(describeGeoError(error)); stopLiveNavWatch(); setNavMode(null); setLiveNavStatus(null) },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }
+    )
   }
 
   const handleOpenInGoogleMaps = () => {
@@ -283,8 +416,10 @@ function PublicMap() {
 
   const handleCloseDirections = () => {
     mapRef.current?.stopFpvTour()
-    tourStartedRef.current = false
+    stopLiveNavWatch()
     setFpvTour(null)
+    setLiveNavStatus(null)
+    setNavMode(null)
     setShowDirections(false)
     setRouteData(null)
     setSelectedBuilding(null)
@@ -306,12 +441,15 @@ function PublicMap() {
     setShowShareModal(false)
   }
 
-  const calcDist = (lat1, lon1, lat2, lon2) => {
+  const calcDistMeters = (lat1, lon1, lat2, lon2) => {
     const R = 6371e3
     const f1 = lat1 * Math.PI / 180, f2 = lat2 * Math.PI / 180
     const df = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180
     const a = Math.sin(df/2)**2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl/2)**2
-    const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  }
+  const calcDist = (lat1, lon1, lat2, lon2) => {
+    const d = calcDistMeters(lat1, lon1, lat2, lon2)
     return d < 1000 ? `${Math.round(d)}m` : `${(d/1000).toFixed(1)}km`
   }
 
@@ -349,7 +487,7 @@ function PublicMap() {
       {/* Scrollable content */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `16px 16px calc(env(safe-area-inset-bottom) + 96px)`, WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         {/* Header: icon + name + category badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <div id={isMobile ? 'tourDetailHeader' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: `${D.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="building" size={22} color={D.accent} />
           </div>
@@ -400,7 +538,7 @@ function PublicMap() {
 
         {/* Action buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-          <button onClick={handleShowDirections} disabled={!userLocation} style={{
+          <button id={isMobile ? 'tourGetDirectionsBtn' : undefined} onClick={handleShowDirections} disabled={!userLocation} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             width: '100%', padding: '11px', borderRadius: 10, fontSize: 14, fontWeight: 600,
             fontFamily: 'var(--font-display)', cursor: userLocation ? 'pointer' : 'not-allowed',
@@ -516,24 +654,24 @@ function PublicMap() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-          <button onClick={handleGetLocation} title="My Location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
+          <button onClick={handleGetLocation} title="My Location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 44 : 'auto', minHeight: isMobile ? 44 : 'auto' }}>
             <Icon name="navigation" size={14} color={D.textDim} />
             {!isMobile && 'My Location'}
           </button>
-          <button onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer', minWidth: 36, minHeight: 36 }}>
+          <button id={isMobile ? 'tourDarkModeBtn' : undefined} onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', cursor: 'pointer', minWidth: isMobile ? 44 : 36, minHeight: isMobile ? 44 : 36 }}>
             <Icon name={dark ? 'sun' : 'moon'} size={14} color={D.textDim} />
           </button>
           {events.length > 0 && (() => {
             const activeCount = events.filter(isActive).length
             return (
-              <button onClick={() => setShowEventsDrawer(v => !v)} title="Campus Events" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${activeCount > 0 ? D.accent : D.border2}`, background: activeCount > 0 ? `${D.accent}15` : 'transparent', color: activeCount > 0 ? D.accent : D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto', position: 'relative', transition: 'all 200ms ease' }}>
+              <button id={isMobile ? 'tourEventsBtn' : undefined} onClick={() => setShowEventsDrawer(v => !v)} title="Campus Events" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${activeCount > 0 ? D.accent : D.border2}`, background: activeCount > 0 ? `${D.accent}15` : 'transparent', color: activeCount > 0 ? D.accent : D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 44 : 'auto', minHeight: isMobile ? 44 : 'auto', position: 'relative', transition: 'all 200ms ease' }}>
                 <Icon name="calendar" size={14} color={activeCount > 0 ? D.accent : D.textDim} />
                 {!isMobile && 'Events'}
                 {activeCount > 0 && <span style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: '50%', background: D.accent, color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${D.surface}` }}>{activeCount}</span>}
               </button>
             )
           })()}
-          <button onClick={handleShare} title="Share" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 36 : 'auto', minHeight: isMobile ? 36 : 'auto' }}>
+          <button onClick={handleShare} title="Share" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: isMobile ? '0' : '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: isMobile ? 44 : 'auto', minHeight: isMobile ? 44 : 'auto' }}>
             <Icon name="share" size={14} color={D.textDim} />
             {!isMobile && 'Share'}
           </button>
@@ -673,8 +811,10 @@ function PublicMap() {
             </div>
           )}
 
-          {/* FPV Tour HUD */}
-          {showDirections && selectedBuilding && (
+          {/* Directions HUD */}
+          {showDirections && selectedBuilding && (() => {
+            const activeNav = navMode === 'preview' ? fpvTour : navMode === 'live' ? liveNavStatus : null
+            return (
             <div style={{
               position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
               background: dark ? 'rgba(17,17,20,0.92)' : 'rgba(255,255,255,0.94)',
@@ -684,18 +824,18 @@ function PublicMap() {
               boxShadow: `0 8px 32px rgba(0,0,0,${dark ? '0.5' : '0.12'})`,
             }}>
               {/* Instruction row */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: fpvTour ? 10 : 12 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: activeNav ? 10 : 12 }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: D.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon name={routeData ? 'navigation' : 'loader'} size={16} color="#fff" />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: D.text, lineHeight: 1.35, marginBottom: 2 }}>
-                    {fpvTour?.step?.instruction ?? (routeData ? `En route to ${selectedBuilding.name}` : 'Calculating route…')}
+                    {activeNav?.step?.instruction ?? (routeData ? `Route to ${selectedBuilding.name}` : 'Calculating route…')}
                   </div>
-                  {fpvTour && (
+                  {activeNav && (
                     <div style={{ fontSize: 12, color: D.textDim }}>
-                      Step {fpvTour.stepIndex + 1} / {fpvTour.totalSteps}
-                      {fpvTour.step?.distance ? ` · ${fpvTour.step.distance}m` : ''}
+                      Step {activeNav.stepIndex + 1} / {activeNav.totalSteps}
+                      {activeNav.step?.distance ? ` · ${activeNav.step.distance}m` : ''}
                     </div>
                   )}
                 </div>
@@ -711,60 +851,90 @@ function PublicMap() {
                 </div>
               )}
 
-              {/* Progress bar */}
-              {fpvTour && (
+              {/* Mode choice — shown once the route is ready, before Preview/Start Walking is picked */}
+              {routeData && navMode === null && (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+                  <button onClick={handleStartPreview} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    <Icon name="play" size={13} color={D.text} />
+                    Preview route
+                  </button>
+                  {isMobile && (
+                    <button onClick={handleStartWalking} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 8, border: 'none', background: D.accent, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      <Icon name="navigation" size={13} color="#fff" />
+                      Start walking
+                    </button>
+                  )}
+                </div>
+              )}
+              {routeData && navMode === null && !isMobile && (
+                <div style={{ fontSize: 11, color: D.textMut, marginTop: -2, marginBottom: 8 }}>
+                  Live walking navigation is available on mobile.
+                </div>
+              )}
+
+              {/* Progress bar — preview mode only (live mode has no fixed-duration timeline to show) */}
+              {navMode === 'preview' && activeNav && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ height: 3, background: D.border2, borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', background: D.accent, borderRadius: 2,
-                      width: `${((fpvTour.stepIndex + 1) / fpvTour.totalSteps) * 100}%`,
+                      width: `${((activeNav.stepIndex + 1) / activeNav.totalSteps) * 100}%`,
                       transition: 'width 0.6s ease',
                     }} />
                   </div>
                   <div style={{ fontSize: 11, color: D.textMut, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Step {fpvTour.stepIndex + 1}/{fpvTour.totalSteps}</span>
+                    <span>Step {activeNav.stepIndex + 1}/{activeNav.totalSteps}</span>
                     <span>{routeData?.distance} km · ~{routeData?.duration} min</span>
                   </div>
                 </div>
               )}
 
               {/* Controls */}
-              <div style={{ display: 'flex', gap: 6 }}>
-                {fpvTour && (
-                  <>
-                    <button onClick={() => {
-                      if (fpvTour.paused) { mapRef.current?.resumeFpvTour(); setFpvTour(t => ({ ...t, paused: false })) }
-                      else { mapRef.current?.pauseFpvTour(); setFpvTour(t => ({ ...t, paused: true })) }
-                    }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      <Icon name={fpvTour.paused ? 'play' : 'pause'} size={12} color={D.text} />
-                      {fpvTour.paused ? 'Resume' : 'Pause'}
-                    </button>
-                    <button onClick={() => mapRef.current?.skipFpvStep()} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
-                      <Icon name="chevronRight" size={12} color={D.textDim} />
-                      Skip
-                    </button>
-                  </>
-                )}
-                <button onClick={handleOpenInGoogleMaps} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
-                  <Icon name="mapPin" size={12} color={D.textDim} />
-                  {!isMobile && 'Maps'}
-                </button>
-                <button onClick={handleCloseDirections} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>
+              {navMode !== null && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {navMode === 'preview' && fpvTour && (
+                    <>
+                      <button onClick={() => {
+                        if (fpvTour.paused) { mapRef.current?.resumeFpvTour(); setFpvTour(t => ({ ...t, paused: false })) }
+                        else { mapRef.current?.pauseFpvTour(); setFpvTour(t => ({ ...t, paused: true })) }
+                      }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <Icon name={fpvTour.paused ? 'play' : 'pause'} size={12} color={D.text} />
+                        {fpvTour.paused ? 'Resume' : 'Pause'}
+                      </button>
+                      <button onClick={() => mapRef.current?.skipFpvStep()} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
+                        <Icon name="chevronRight" size={12} color={D.textDim} />
+                        Skip
+                      </button>
+                    </>
+                  )}
+                  <button onClick={handleOpenInGoogleMaps} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${D.border2}`, background: 'transparent', color: D.textDim, fontSize: 12, cursor: 'pointer' }}>
+                    <Icon name="mapPin" size={12} color={D.textDim} />
+                    {!isMobile && 'Maps'}
+                  </button>
+                  <button onClick={handleCloseDirections} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>
+                    <Icon name="x" size={12} color="#ef4444" />
+                    Exit
+                  </button>
+                </div>
+              )}
+              {navMode === null && (
+                <button onClick={handleCloseDirections} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>
                   <Icon name="x" size={12} color="#ef4444" />
-                  Exit
+                  Cancel
                 </button>
-              </div>
+              )}
             </div>
-          )}
+            )
+          })()}
 
           {/* ── Mobile bottom sheet ── */}
           {isMobile && !showDirections && (() => {
-            const translateY = {
-              peek:   'calc(85dvh - 68px)',
-              list:   'calc(85dvh - 48dvh)',
-              card:   'calc(85dvh - 224px)',
-              detail: '0dvh',
-            }[sheetState] ?? 'calc(85dvh - 68px)'
+            const sheetHeight = {
+              peek:   '68px',
+              list:   '48dvh',
+              card:   '224px',
+              detail: '85dvh',
+            }[sheetState] ?? '68px'
 
             const MobileQuickCard = () => (
               <div style={{ padding: `0 16px calc(env(safe-area-inset-bottom) + 96px)`, overflowY: 'auto', flex: 1, minHeight: 0 }}>
@@ -809,10 +979,9 @@ function PublicMap() {
             return (
               <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
-                height: '85dvh',
-                transform: `translateY(${translateY})`,
-                transition: 'transform 0.32s cubic-bezier(0.16,1,0.3,1)',
-                willChange: 'transform',
+                height: sheetHeight,
+                transition: 'height 0.32s cubic-bezier(0.16,1,0.3,1)',
+                willChange: 'height',
                 display: 'flex', flexDirection: 'column',
                 zIndex: 10,
                 overflow: 'visible',
@@ -877,7 +1046,7 @@ function PublicMap() {
                 }}>
 
                 {/* Search bar — always visible */}
-                <div style={{ padding: '12px 12px 8px', flexShrink: 0 }}>
+                <div id="tourSearchWrap" style={{ padding: '12px 12px 8px', flexShrink: 0 }}>
                   <SearchBox
                     value={searchQuery}
                     onChange={(q) => { setSearchQuery(q); if (sheetState === 'peek') setSheetState('list') }}
@@ -887,7 +1056,7 @@ function PublicMap() {
 
                 {/* Content */}
                 {(sheetState === 'peek' || sheetState === 'list') && (
-                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `4px 12px calc(env(safe-area-inset-bottom) + 96px)`, display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+                  <div id="tourBuildingList" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `4px 12px calc(env(safe-area-inset-bottom) + 96px)`, display: sheetState === 'peek' ? 'none' : 'block', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: D.textDim, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 8px' }}>
                       Buildings ({filteredBuildings.length})
                     </div>
@@ -968,6 +1137,10 @@ function PublicMap() {
             <button onClick={() => {
               setShowWelcome(false)
               localStorage.setItem(`welcomed_${university.id}`, '1')
+              if (!localStorage.getItem(`toured_${university.id}`)) {
+                localStorage.setItem(`toured_${university.id}`, '1')
+                setTimeout(startOnboardingTour, 400)
+              }
             }} style={{
               width: '100%', height: 48, borderRadius: 12, border: 'none',
               background: D.accent, color: '#fff',
